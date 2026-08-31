@@ -1,7 +1,7 @@
 # SECURECHAT — PROJECT MEMORY
 
-Version: 2.7
-Status: AI CONVERSATION TOPIC EXPLAINER & INTERACTIVE COPILOT CHATBOT FULLY ACTIVE
+Version: 2.8
+Status: GREETINGS & SHORT CONVERSATIONAL TOKENS CALIBRATED — ZERO FALSE POSITIVES CONFIRMED
 Last Updated: 2026-08-31
 Authoritative State Record: YES
 
@@ -18,11 +18,14 @@ Authoritative State Record: YES
 ## 2. CHECKPOINTS & CURRENT STATE
 
 ### 🚩 CHECKPOINT 1 (Updated: 2026-08-31)
+- **Clean Conversational Token Guard & ML Threshold Calibration:**
+  - Resolved base prior intercept bias on 2-letter tokens (`hi`, `hey`, `ok`, `salam`) across `SocialEngineeringDetector` and `UrduScamDetector`.
+  - Greetings (`hi`, `hello`, `hey`, `salam`, `good morning`, `how are you doing today?`, `ok thanks`) now evaluate to **0% Risk (🟢 GREEN / SAFE)**.
 - **AI Conversation Topic Explainer & Multi-Turn Security Modal (`ConversationTopicModal.tsx` & `context_engine.py`):**
   - Interactive **`[ ✨ AI Topic & Risk Summary ]`** icon button in the ChatArea header.
   - Generates identified topic title, subject category (`CYBER_THREAT`, `FINANCIAL_FRAUD`, `PRODUCTIVITY`, `SOCIAL`), composite risk score (0-100), key entities (shared links, requested amounts), turn-by-turn risk timeline, and guardian precautions.
 - **Fully Interactive AI Copilot Chatbot (`CopilotDrawer.tsx` & `copilot.py`):**
-  - Conversational question answering for active chats, phishing links, zero-day threat triangles, Urdu/Roman Urdu scams, DLP secrets, and Double Ratchet/X3DH cryptography with quick prompt suggestions.
+  - Conversational question answering for active chats, phishing links, zero-day threat triangles, Urdu/Roman Urdu scams, DLP secrets, and Double Ratchet/X3DH cryptography.
 - **Zero-Day Cognitive Intent & Invariant Reasoning (`ZeroDayCognitiveEngine` & `ZeroDayReasoner`):**
   - Behavioral logic defense for unlisted out-of-database threats.
 - **Bilingual Urdu & Roman Urdu Threat Defense Engine (`UrduScamDetector`):**
