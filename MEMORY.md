@@ -1,7 +1,7 @@
 # SECURECHAT — PROJECT MEMORY
 
-Version: 3.0
-Status: MASSIVE MULTILINGUAL DATASETS TRAINED & SUPERADMIN CROWD THREAT MODERATION ACTIVE
+Version: 3.1
+Status: MULTI-TURN PSYCHOLOGICAL GROOMING CHAIN ENGINE & ASYMMETRIC OPSEC VISIBILITY ACTIVE
 Last Updated: 2026-09-01
 Authoritative State Record: YES
 
@@ -18,10 +18,12 @@ Authoritative State Record: YES
 ## 2. CHECKPOINTS & CURRENT STATE
 
 ### 🚩 CHECKPOINT 1 (Updated: 2026-09-01)
-- **Massive Multilingual Datasets (250,000+ Samples across 5 Files):**
-  - `urls_massive.csv`, `social_eng_massive.csv`, `roman_urdu_scams_massive.csv`, `pure_urdu_scams_massive.csv`, `bilingual_threats_massive.csv` generated and trained via `generate_massive_datasets.py` and `train_all_massive_models.py`.
-- **Crowd-Sourced User Threat & Safe Voting System (`MessageItem.tsx`, `EvidenceModal.tsx`, `POST /api/v1/security/report`):**
-  - Users vote on messages (Threat / False Alarm). Automatic hash aggregation computes real-time crowd consensus in the database (`SecurityReview`).
+- **Multi-Turn Psychological Grooming & Social Engineering Chain Engine (`ConversationContextEngine`):**
+  - Identifies multi-turn staged attacks (Rapport Building -> Grooming Intimacy -> Social Isolation -> Problem/Bait -> Coercive Value/Access Demand).
+  - Flags whole-conversation context as `PSYCHOLOGICAL_SCAM` (95% Risk / 🔴 RED), alerting the victim before they fall into the trap.
+- **Asymmetric Operational Security (OpSec) Threat Warning Visibility:**
+  - **For Sender (`isSelf === true`)**: Only alerted to their OWN sensitive data leaks (DLP secret exposure) to prevent self-harm. Senders are NOT given phishing/social engineering threat feedback or evasion clues.
+  - **For Receiver (`isSelf === false`)**: Receives full prominent protection banners (`⚠️ PSYCHOLOGICAL SCAM DETECTED`, `⚠️ DECEPTIVE PHISHING LINK`), risk scores, and evidence inspection.
 - **SuperAdmin Threat Moderation & Collaborative Learning Center (`AdminThreatReviewQueue.tsx` & `SecurityCenter.tsx`):**
   - Real-time review queue with crowd consensus metrics (`X users voted Threat`, `Y users voted Safe`).
   - One-click Admin approval (`TRAIN_MALICIOUS` / `TRAIN_BENIGN`) triggering live online incremental SGD training (`partial_fit`) and dynamic vector memory indexing.
