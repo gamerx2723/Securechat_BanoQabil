@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from .routers import analyze, copilot, context
+from .routers import analyze, copilot, context, learn
 
 app = FastAPI(
     title="SecureChat AI Security Microservice",
     version="1.0.0",
-    description="Multilingual Zero-Trust Security Classifier (Phishing, Social Engineering, DLP, Context, Explainability)"
+    description="Multilingual Zero-Trust Security Classifier (Phishing, Social Engineering, DLP, Context, Adaptive Continuous Learning, Deep Cognitive Intent)"
 )
 
 app.add_middleware(
@@ -20,6 +20,7 @@ app.add_middleware(
 app.include_router(analyze.router)
 app.include_router(copilot.router)
 app.include_router(context.router)
+app.include_router(learn.router)
 
 @app.get("/", response_class=HTMLResponse)
 async def root_dashboard():
@@ -47,7 +48,7 @@ async def root_dashboard():
             
             <div class="card">
                 <h3>📖 Interactive API Documentation</h3>
-                <p>Explore and test all 5 security models and endpoints interactively in Swagger UI:</p>
+                <p>Explore and test all security models and endpoints interactively in Swagger UI:</p>
                 <a href="/docs" class="btn">Open Swagger API Docs (/docs) &rarr;</a>
                 <a href="/redoc" class="btn" style="background: #475569; margin-left: 8px;">ReDoc (/redoc)</a>
             </div>
@@ -58,13 +59,10 @@ async def root_dashboard():
                     <li><code>POST /api/v1/analyze</code> &mdash; Cascaded Level 0/1/2 Threat & Phishing Classifier</li>
                     <li><code>POST /api/v1/context/evaluate</code> &mdash; Multi-Turn Conversation Risk Timeline Escalation</li>
                     <li><code>POST /api/v1/copilot/query</code> &mdash; Interactive Security Copilot Assistant</li>
+                    <li><code>POST /api/v1/learn/feedback</code> &mdash; Continuous Active Online Learning & Dynamic Memory</li>
+                    <li><code>GET /api/v1/learn/stats</code> &mdash; Dynamic Exemplar Memory & Feedback Telemetry</li>
                     <li><code>GET /health</code> &mdash; System Health & Model Telemetry Status</li>
                 </ul>
-            </div>
-
-            <div class="card">
-                <h3>💬 Web Client Application:</h3>
-                <p>Access the main SecureChat frontend at <a href="http://localhost:5173" style="color: #38bdf8; font-weight: bold;">http://localhost:5173</a>.</p>
             </div>
         </div>
     </body>
@@ -80,6 +78,10 @@ async def health_check():
         "models_loaded": [
             "PhishingClassifier",
             "SocialEngDetector",
+            "UrduScamDetector",
+            "ZeroDayCognitiveEngine",
+            "DeepCognitiveEngine",
+            "AdaptiveLearningEngine",
             "DlpEngine",
             "ContextEngine",
             "ExplainabilityEngine"

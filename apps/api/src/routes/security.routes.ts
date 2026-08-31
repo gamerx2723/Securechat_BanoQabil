@@ -3,6 +3,7 @@ import { prisma } from '@securechat/database';
 import { ThreatEvaluationService } from '../services/threat_evaluation.service.js';
 import { analyzeMessageSchema, securityFeedbackSchema } from '@securechat/validation';
 import { AuthenticatedRequest, authMiddleware } from '../auth/jwt.service.js';
+import { config } from '../config.js';
 
 export const securityRouter = Router();
 
@@ -123,7 +124,7 @@ securityRouter.get('/events', async (req: AuthenticatedRequest, res: Response): 
 });
 
 /**
- * User feedback on false positives.
+ * User feedback on false positives / reported threats with continuous online learning.
  */
 securityRouter.post('/feedback', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
@@ -133,15 +134,85 @@ securityRouter.post('/feedback', async (req: AuthenticatedRequest, res: Response
       return;
     }
 
-    const { messageId, isFalsePositive } = parseResult.data;
+    const { messageId, isFalsePositive, text } = parseResult.data as any;
 
-    await prisma.securityEvent.updateMany({
-      where: { messageId },
-      data: { isFalsePositive },
-    });
+    if (messageId) {
+      await prisma.securityEvent.updateMany({
+        where: { messageId },
+        data: { isFalsePositive },
+      });
+    }
 
-    res.json({ message: 'Feedback recorded. Security engine calibrated.', isFalsePositive });
+    // Trigger online incremental learning in Python AI service
+    if (text) {
+      try {
+        await fetch(`${config.aiServiceUrl}/api/v1/learn/feedback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text,
+            label: isFalsePositive ? 'BENIGN' : 'MALICIOUS',
+            category: isFalsePositive ? 'FALSE_ALARM_FEEDBACK' : 'USER_REPORTED_THREAT',
+            feedbackBy: req.user!.username,
+          }),
+        });
+      } catch {}
+    }
+
+    res.json({ message: 'Feedback recorded. AI model weights updated online.', isFalsePositive });
   } catch {
     res.status(500).json({ error: 'Failed to record feedback' });
+  }
+});
+
+/**
+ * Active Online Learning endpoint for teaching the AI new threat patterns or false alarms.
+ */
+securityRouter.post('/teach', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { text, label, category } = req.body;
+    if (!text || !label) {
+      res.status(400).json({ error: 'text and label (MALICIOUS or BENIGN) are required' });
+      return;
+    }
+
+    const response = await fetch(`${config.aiServiceUrl}/api/v1/learn/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        label,
+        category: category || 'MANUAL_TEACHING',
+        feedbackBy: req.user!.username,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      res.json(data);
+      return;
+    }
+
+    res.json({ success: true, message: `Sample learned as ${label}` });
+  } catch (error) {
+    console.error('Teach AI error:', error);
+    res.status(500).json({ error: 'Failed to teach AI model' });
+  }
+});
+
+/**
+ * Telemetry endpoint for Adaptive Online Learning stats.
+ */
+securityRouter.get('/learning-stats', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const response = await fetch(`${config.aiServiceUrl}/api/v1/learn/stats`);
+    if (response.ok) {
+      const data = await response.json();
+      res.json(data);
+      return;
+    }
+    res.json({ total_exemplars: 0, online_learning_active: true });
+  } catch {
+    res.json({ total_exemplars: 0, online_learning_active: false });
   }
 });

@@ -5,6 +5,8 @@ from ..models.phishing_detector import PhishingDetector
 from ..models.social_engineering_detector import SocialEngineeringDetector
 from ..models.urdu_scam_detector import UrduScamDetector
 from ..models.zero_day_cognitive_engine import ZeroDayCognitiveEngine
+from ..models.deep_cognitive_engine import DeepCognitiveEngine
+from ..models.adaptive_learning_engine import AdaptiveLearningEngine
 from ..models.dlp_detector import DlpDetector
 from ..models.explainability_engine import ExplainabilityEngine
 
@@ -22,16 +24,37 @@ async def analyze_message(req: AnalyzeRequest):
     social = SocialEngineeringDetector.classify(req.text)
     urdu_scam = UrduScamDetector.scan(req.text)
     zero_day = ZeroDayCognitiveEngine.analyze_zero_day_intent(req.text)
+    deep_cognitive = DeepCognitiveEngine.analyze_deep_intent(req.text)
+    adaptive_mem = AdaptiveLearningEngine.query_adaptive_memory(req.text)
     dlp = DlpDetector.scan(req.text)
 
     # Compute risk score 0 - 100
     accumulated_risk = 0.0
     accumulated_risk += phishing["phishing_confidence"] * 60
-    accumulated_risk += social["social_engineering_index"] * 45
+    
+    if social["social_engineering_index"] >= 0.25:
+        accumulated_risk += social["social_engineering_index"] * 45
+
     if zero_day["zero_day_threat_detected"]:
         accumulated_risk = max(accumulated_risk, float(zero_day["cognitive_risk_score"]))
+
+    if deep_cognitive["cognitive_threat_detected"]:
+        accumulated_risk = max(accumulated_risk, float(deep_cognitive["deep_cognitive_score"]))
+
     if urdu_scam["scam_detected"]:
         accumulated_risk = max(accumulated_risk, float(urdu_scam["risk_score"]))
+
+    # Dynamic Active Learning Override:
+    # If dynamic memory confirmed a malicious pattern, boost risk. If confirmed benign, clamp risk.
+    if adaptive_mem["has_memory_match"] and adaptive_mem["matched_exemplar"]:
+        ex_label = adaptive_mem["matched_exemplar"]["label"]
+        if ex_label == "MALICIOUS":
+            accumulated_risk = max(accumulated_risk, float(adaptive_mem["adaptive_risk_score"]))
+        elif ex_label == "BENIGN":
+            accumulated_risk = min(accumulated_risk, 0.0)
+    elif adaptive_mem["online_model_score"] >= 65.0:
+        accumulated_risk = max(accumulated_risk, float(adaptive_mem["online_model_score"]))
+
     if dlp["has_sensitive_data"]:
         accumulated_risk += 40
 
@@ -46,6 +69,10 @@ async def analyze_message(req: AnalyzeRequest):
     primary_threat = "SAFE"
     if phishing["phishing_detected"]:
         primary_threat = "PHISHING"
+    elif adaptive_mem["has_memory_match"] and adaptive_mem["matched_exemplar"] and adaptive_mem["matched_exemplar"]["label"] == "MALICIOUS":
+        primary_threat = "SOCIAL_ENGINEERING"
+    elif deep_cognitive["cognitive_threat_detected"] and final_score >= 50:
+        primary_threat = "SOCIAL_ENGINEERING"
     elif zero_day["zero_day_threat_detected"] and final_score >= 50:
         primary_threat = "SOCIAL_ENGINEERING"
     elif urdu_scam["scam_detected"] and final_score >= 45:
@@ -66,6 +93,8 @@ async def analyze_message(req: AnalyzeRequest):
         "social_engineering_analysis": social,
         "urdu_scam_analysis": urdu_scam,
         "zero_day_analysis": zero_day,
+        "deep_cognitive_analysis": deep_cognitive,
+        "adaptive_memory_analysis": adaptive_mem,
         "dlp_analysis": dlp,
         "explanation": explanation
     }

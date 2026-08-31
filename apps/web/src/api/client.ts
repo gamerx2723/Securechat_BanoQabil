@@ -377,6 +377,44 @@ export class ApiClient {
     };
   }
 
+  public static async teachAI(text: string, label: 'MALICIOUS' | 'BENIGN', category?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await fetch(`${API_BASE}/security/teach`, {
+        method: 'POST',
+        headers: this.authHeaders(),
+        body: JSON.stringify({ text, label, category }),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {}
+    return { success: false, message: 'Failed to teach AI pattern.' };
+  }
+
+  public static async getLearningStats(): Promise<{ total_exemplars: number; malicious_patterns: number; benign_patterns: number; online_learning_active: boolean; recent_exemplars: any[] }> {
+    try {
+      const res = await fetch(`${API_BASE}/security/learning-stats`, {
+        headers: this.authHeaders(),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {}
+    return { total_exemplars: 0, malicious_patterns: 0, benign_patterns: 0, online_learning_active: true, recent_exemplars: [] };
+  }
+
+  public static async submitSecurityFeedback(messageId: string, isFalsePositive: boolean, text?: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/security/feedback`, {
+        method: 'POST',
+        headers: this.authHeaders(),
+        body: JSON.stringify({ messageId, isFalsePositive, text }),
+      });
+      return res.ok;
+    } catch {}
+    return false;
+  }
+
 
   public static clientSideEvaluate(text: string): SecurityAnalysis {
     let score = 0;
