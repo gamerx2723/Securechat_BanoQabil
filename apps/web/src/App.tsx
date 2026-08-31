@@ -6,6 +6,7 @@ import { GuardianPanel } from './components/GuardianPanel';
 import { SecurityCenter } from './components/SecurityCenter';
 import { EvidenceModal } from './components/EvidenceModal';
 import { CopilotDrawer } from './components/CopilotDrawer';
+import { ConversationTopicModal } from './components/ConversationTopicModal';
 import { AuthModal } from './components/AuthModal';
 import { NewChatModal } from './components/NewChatModal';
 import { AdminConsole } from './components/AdminConsole';
@@ -19,6 +20,7 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'CHATS' | 'GUARDIAN' | 'SECOPS' | 'ADMIN'>('CHATS');
   const [inspectedMessage, setInspectedMessage] = useState<ChatMessage | null>(null);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+  const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [copilotInitialQuery, setCopilotInitialQuery] = useState('');
   const wsRef = useRef<WebSocket | null>(null);
@@ -206,6 +208,8 @@ export const App: React.FC = () => {
             onSendMessage={handleSendMessage}
             onInspectSecurity={(msg) => setInspectedMessage(msg)}
             onTogglePrivacy={handleTogglePrivacy}
+            onOpenTopicModal={() => setIsTopicModalOpen(true)}
+            onOpenCopilot={() => setIsCopilotOpen(true)}
           />
         )}
 
@@ -233,11 +237,24 @@ export const App: React.FC = () => {
           />
         )}
 
+        {/* Conversation Topic & Risk Analysis Modal */}
+        <ConversationTopicModal
+          isOpen={isTopicModalOpen}
+          onClose={() => setIsTopicModalOpen(false)}
+          conversationId={activeConvId}
+          conversationName={currentConv.title}
+          onOpenCopilotWithQuery={handleOpenCopilotWithQuery}
+        />
+
         {/* Security Copilot Assistant Drawer */}
         <CopilotDrawer
           isOpen={isCopilotOpen}
-          onClose={() => setIsCopilotOpen(false)}
+          onClose={() => {
+            setIsCopilotOpen(false);
+            setCopilotInitialQuery('');
+          }}
           initialQuery={copilotInitialQuery}
+          conversationId={activeConvId}
         />
 
         {/* New Chat Modal */}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage, ConversationItem, SecurityAnalysis } from '../types';
 import { MessageItem } from './MessageItem';
 import { ApiClient } from '../api/client';
-import { Send, Shield, ShieldCheck, ShieldAlert, Paperclip, AlertOctagon, AlertTriangle, Lock } from 'lucide-react';
+import { Send, Shield, ShieldCheck, ShieldAlert, Paperclip, AlertOctagon, AlertTriangle, Lock, Brain, Bot, Sparkles } from 'lucide-react';
 
 interface ChatAreaProps {
   conversation: ConversationItem;
@@ -10,6 +10,8 @@ interface ChatAreaProps {
   onSendMessage: (text: string, analysis: SecurityAnalysis) => void;
   onInspectSecurity: (message: ChatMessage) => void;
   onTogglePrivacy: () => void;
+  onOpenTopicModal?: () => void;
+  onOpenCopilot?: () => void;
 }
 
 export const ChatArea: React.FC<ChatAreaProps> = ({
@@ -18,6 +20,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   onSendMessage,
   onInspectSecurity,
   onTogglePrivacy,
+  onOpenTopicModal,
+  onOpenCopilot,
 }) => {
   const [inputText, setInputText] = useState('');
   const [threatWarning, setThreatWarning] = useState<{ title: string; desc: string; color: 'RED' | 'ORANGE' } | null>(null);
@@ -79,7 +83,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       {/* Chat Header */}
       <header
         style={{
-          padding: '16px 24px',
+          padding: '14px 24px',
           borderBottom: '1px solid var(--border-subtle)',
           display: 'flex',
           justifyContent: 'space-between',
@@ -120,8 +124,65 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </div>
         </div>
 
-        {/* Exclusion / Privacy Switch */}
+        {/* AI Action Header Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* AI Topic & Chat Explanation Button */}
+          <button
+            onClick={onOpenTopicModal}
+            title="Explain current topic and analyze overall security of this whole chat"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15))',
+              border: '1px solid rgba(139, 92, 246, 0.4)',
+              color: '#a78bfa',
+              padding: '7px 13px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 0 15px rgba(139, 92, 246, 0.15)',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(168, 85, 247, 0.25))';
+              e.currentTarget.style.borderColor = '#c084fc';
+              e.currentTarget.style.color = '#ffffff';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15))';
+              e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.4)';
+              e.currentTarget.style.color = '#a78bfa';
+            }}
+          >
+            <Brain size={15} className="animate-pulse" />
+            <span>AI Topic & Risk Summary</span>
+          </button>
+
+          {/* Ask Copilot Button */}
+          <button
+            onClick={onOpenCopilot}
+            title="Open Security Copilot Assistant"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              color: 'var(--green-safe, #10b981)',
+              padding: '7px 12px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            <Bot size={15} />
+            <span>Copilot</span>
+          </button>
+
+          {/* Exclusion / Privacy Switch */}
           <button
             onClick={onTogglePrivacy}
             className="btn-ghost"
@@ -132,10 +193,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
+              padding: '7px 10px',
             }}
           >
             {conversation.isExcluded ? <ShieldAlert size={14} /> : <Shield size={14} />}
-            {conversation.isExcluded ? 'AI Scanning Paused' : 'Guardian Active'}
+            {conversation.isExcluded ? 'AI Paused' : 'Guardian Active'}
           </button>
         </div>
       </header>
@@ -158,70 +220,86 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             }}
           >
             <ShieldCheck size={13} style={{ color: 'var(--green-safe)' }} />
-            Zero-Trust Guardian active: Messages, links, and credentials continuously analyzed.
+            <span>Zero-Trust Architecture Active. Messages are E2EE and verified client-side.</span>
           </div>
         </div>
 
-        {messages.map(msg => (
+        {/* Render all messages */}
+        {messages.map((msg) => (
           <MessageItem
             key={msg.id}
             message={msg}
-            onInspectSecurity={onInspectSecurity}
+            onInspectSecurity={() => onInspectSecurity(msg)}
           />
         ))}
         <div ref={scrollRef} />
       </div>
 
-      {/* Pre-Send Real-Time Threat Interception Warning Banner */}
+      {/* Real-time Threat Warning Banner while typing */}
       {threatWarning && (
         <div
-          className="fade-in"
           style={{
-            margin: '0 20px 10px 20px',
-            background: threatWarning.color === 'RED' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-            border: threatWarning.color === 'RED' ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(245, 158, 11, 0.4)',
-            borderRadius: '8px',
+            margin: '0 24px 8px',
             padding: '10px 14px',
+            background: threatWarning.color === 'RED' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+            border: `1px solid ${threatWarning.color === 'RED' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
+            borderRadius: '10px',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            color: threatWarning.color === 'RED' ? 'var(--red-critical)' : 'var(--orange-warn)',
-            fontSize: '13px',
+            boxShadow: `0 0 20px ${threatWarning.color === 'RED' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)'}`,
           }}
+          className="fade-in"
         >
-          {threatWarning.color === 'RED' ? <AlertTriangle size={18} style={{ flexShrink: 0 }} /> : <AlertOctagon size={18} style={{ flexShrink: 0 }} />}
+          <div style={{ color: threatWarning.color === 'RED' ? '#ef4444' : '#f59e0b', display: 'flex', alignItems: 'center' }}>
+            {threatWarning.color === 'RED' ? <AlertOctagon size={20} className="animate-pulse" /> : <AlertTriangle size={20} />}
+          </div>
           <div style={{ flex: 1 }}>
-            <span style={{ fontWeight: 700 }}>{threatWarning.title}</span>
-            {threatWarning.desc}
+            <span style={{ fontWeight: 700, fontSize: '12px', color: threatWarning.color === 'RED' ? '#fca5a5' : '#fcd34d' }}>
+              {threatWarning.title}
+            </span>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              {threatWarning.desc}
+            </span>
           </div>
         </div>
       )}
 
-      {/* Message Composer */}
-      <div style={{ padding: '16px 20px', background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-subtle)' }}>
-        <form onSubmit={handleSend} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            type="button"
-            className="btn-ghost"
-            style={{ padding: '10px', borderRadius: '8px' }}
-            title="Attach encrypted media/document"
-          >
+      {/* Input Composer */}
+      <footer style={{ padding: '16px 24px', background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-subtle)' }}>
+        <form onSubmit={handleSend} style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button type="button" className="btn-ghost" title="Attach Secure Encrypted File" style={{ padding: '10px' }}>
             <Paperclip size={18} />
           </button>
 
           <input
             type="text"
             className="secure-input"
-            placeholder="Type an end-to-end encrypted message or link..."
+            placeholder={
+              conversation.isExcluded
+                ? 'Type message (AI Security scanning paused for this chat)...'
+                : 'Type message (Protected by Zero-Trust AI & DLP)...'
+            }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
           />
 
-          <button type="submit" className="btn-primary" style={{ padding: '12px 18px' }} disabled={!inputText.trim()}>
-            <Send size={16} /> Send
+          <button
+            type="submit"
+            className="btn-primary"
+            title="Send Encrypted Message"
+            style={{
+              padding: '10px 18px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Send size={16} />
+            <span>Send</span>
           </button>
         </form>
-      </div>
+      </footer>
     </main>
   );
 };
