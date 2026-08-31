@@ -172,15 +172,39 @@ authRouter.post('/login', async (req, res): Promise<void> => {
     // Find or register device
     let device = user.devices.find(d => d.deviceId === deviceId);
     if (!device) {
-      device = await prisma.device.create({
-        data: {
-          userId: user.id,
-          deviceId,
-          deviceType,
-          deviceName,
-          publicKey: 'DEFAULT_PUBKEY_' + deviceId,
-        },
-      });
+      const existingDevice = await prisma.device.findUnique({ where: { deviceId } });
+      if (existingDevice) {
+        if (existingDevice.userId === user.id) {
+          device = existingDevice;
+          await prisma.device.update({
+            where: { id: device.id },
+            data: { lastSeenAt: new Date() },
+          });
+        } else {
+          const userDeviceId = `${deviceId}_${user.id.substring(0, 6)}`;
+          device = await prisma.device.upsert({
+            where: { deviceId: userDeviceId },
+            update: { lastSeenAt: new Date() },
+            create: {
+              userId: user.id,
+              deviceId: userDeviceId,
+              deviceType,
+              deviceName,
+              publicKey: 'DEFAULT_PUBKEY_' + userDeviceId,
+            },
+          });
+        }
+      } else {
+        device = await prisma.device.create({
+          data: {
+            userId: user.id,
+            deviceId,
+            deviceType,
+            deviceName,
+            publicKey: 'DEFAULT_PUBKEY_' + deviceId,
+          },
+        });
+      }
     } else {
       await prisma.device.update({
         where: { id: device.id },
