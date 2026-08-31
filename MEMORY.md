@@ -1,7 +1,7 @@
 # SECURECHAT — PROJECT MEMORY
 
-Version: 3.1
-Status: MULTI-TURN PSYCHOLOGICAL GROOMING CHAIN ENGINE & ASYMMETRIC OPSEC VISIBILITY ACTIVE
+Version: 3.2
+Status: PRE-SEND SENDER CREDENTIAL & PERSONAL DATA (DLP) INTERCEPTION MODAL ACTIVE
 Last Updated: 2026-09-01
 Authoritative State Record: YES
 
@@ -18,6 +18,13 @@ Authoritative State Record: YES
 ## 2. CHECKPOINTS & CURRENT STATE
 
 ### 🚩 CHECKPOINT 1 (Updated: 2026-09-01)
+- **Pre-Send Sender Credential & Personal Data (DLP) Interception (`DlpPreSendWarningModal.tsx` & `ChatArea.tsx`):**
+  - Scans for Passwords, PINs, Passcodes, CNIC (Pakistani National ID), Bank Accounts / IBAN, Credit/Debit Cards, CVV, OTPs, and Cloud API Keys.
+  - Real-time typing warning banner (`Data Loss Prevention Alert`).
+  - Send button interception modal offering:
+    1. `[ ✂️ Redact Secrets & Send Safely ]` (Auto-masks secrets with `[REDACTED]` before dispatch).
+    2. `[ 🚫 Cancel & Edit Draft ]`.
+    3. `[ ⚠️ Send Unmasked Anyway ]` (Explicit risk override).
 - **Multi-Turn Psychological Grooming & Social Engineering Chain Engine (`ConversationContextEngine`):**
   - Identifies multi-turn staged attacks (Rapport Building -> Grooming Intimacy -> Social Isolation -> Problem/Bait -> Coercive Value/Access Demand).
   - Flags whole-conversation context as `PSYCHOLOGICAL_SCAM` (95% Risk / 🔴 RED), alerting the victim before they fall into the trap.
