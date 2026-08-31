@@ -46,7 +46,7 @@ class UrduScamDetector:
             r'\b(?:jeeto pakistan|fahad mustafa|lottery|inaam nikla|car jeet li|sona nikla|5 tola|mubarak ho.*inaam|lucky draw|bisp lottery)\b'
         ],
         "LAW_ENFORCEMENT_EXTORTION": [
-            r'(?:ایف\s*آئی\s*اے|سائبر\s*کرائم|پولیس|وارنٹ|گرفتاری|مقدمہ\s*درج|قانونی\s*نوٹس|عدالتی\s*نوٹس|جرمانہ)',
+            r'(?:ایف\s*آئی\s*اے|سائبر\s*کرائم|پولیس|وارنٹ|گرفتاری|مقدمہ\s*درج|قانونی\s*نوٹس|عدالتی\s*نوٹس|سرکاری\s*نوٹس|جرمانہ)',
             r'\b(?:fia|cyber crime|police|warrant|girftari|muqadma|court notice|fir darj|fine ada karein|jail)\b'
         ],
         "RELATIVE_EMERGENCY_IMPERSONATION": [
@@ -78,19 +78,31 @@ class UrduScamDetector:
                         signals.append(f"Urdu Social Engineering Indicator: {cat_name.replace('_', ' ')}")
                     break
 
-        # 2. 500k-Dataset Trained Machine Learning Model Inference
         ml_model = get_roman_urdu_model()
         ml_score = 0.0
-        ml_active = False
-        if ml_model is not None:
+        ml_active = ml_model is not None
+
+        # Clean short phrases guard (e.g. "hi", "ok", "salam", "theek hai")
+        words = text.strip().split()
+        if len(words) < 3 and len(categories_detected) == 0:
+            return {
+                "scam_detected": False,
+                "risk_score": 0,
+                "confidence": 0.0,
+                "detected_categories": [],
+                "signals": [],
+                "ml_model_active": ml_active
+            }
+
+        # 2. 500k-Dataset Trained Machine Learning Model Inference
+        if ml_model is not None and len(words) >= 3:
             try:
-                ml_active = True
                 pred_prob = ml_model.predict_proba([text])[0][1]
                 ml_score = float(pred_prob) * 100
-                if ml_score >= 50.0:
+                if ml_score >= 65.0 or (ml_score >= 50.0 and len(categories_detected) > 0):
                     score = max(score, ml_score)
                     signals.append(f"Trained 500k Roman Urdu ML Classifier: {ml_score:.1f}% scam confidence")
-                elif ml_score < 15.0 and not categories_detected:
+                elif ml_score < 20.0 and not categories_detected:
                     score = min(score, 10.0)
             except Exception as e:
                 pass

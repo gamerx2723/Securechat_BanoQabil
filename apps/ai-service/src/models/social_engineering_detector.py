@@ -21,16 +21,24 @@ class SocialEngineeringDetector:
     Cascades trained Multi-label TF-IDF Logistic Regression model with deterministic rule heuristics.
     """
 
+    CLEAN_GREETINGS = {
+        "hi", "hello", "hey", "salam", "assalam", "assalamu alaikum", "assalam o alaikum",
+        "aoa", "good morning", "good evening", "good afternoon", "good night",
+        "how are you", "kese ho", "kaisay ho", "kia haal hai", "kya haal hai",
+        "ok", "okay", "yes", "no", "han", "nahi", "shukriya", "thanks", "thank you",
+        "bye", "tc", "take care", "kal miltay hain", "see you"
+    }
+
     PATTERNS = {
         "urgency": [
             r'\b(?:urgent|immediately|act now|hurry|expires in|limited time|critical|suspended today|within 24 hours)\b',
             r'\b(?:foran|jaldi|abhi k abhi|time bohot kam|last chance|der mat karo)\b',
-            r'(?:فوری|جلدی|ابھی|وقت کم|آخری موقع)'
+            r'(?:فوری|جلدی|ابھی\s*کے\s*ابھی|وقت\s*کم\s*ہے|آخری\s*موقع)'
         ],
         "fear_intimidation": [
             r'\b(?:suspended|terminated|arrest|law enforcement|legal action|court|fine|penalty|police|seized)\b',
             r'\b(?:account band|block ho jaye ga|police|adalat|fine lagega|jail)\b',
-            r'(?:بند|گرفتار|پولیس|عدالت|جرمانہ)'
+            r'(?:بند\s*ہو\s*جائے\s*گا|گرفتار|پولیس|عدالت|جرمانہ)'
         ],
         "authority_impersonation": [
             r'\b(?:it support|administrator|security team|federal|officer|fbi|fia|cyber crime|ceo|director)\b',
@@ -39,18 +47,30 @@ class SocialEngineeringDetector:
         ],
         "secrecy_isolation": [
             r'\b(?:do not tell|keep this confidential|private between us|do not disclose|secret|silence)\b',
-            r'\b(?:kisi ko mat batana|chup chap|kisi se share mat karo|raaz|secret)\b',
-            r'(?:کسی کو مت بتانا|خفیہ|راز)'
+            r'\b(?:kisi ko mat batana|chup chap|kisi se share mat karo|raaz)\b',
+            r'(?:کسی\s*کو\s*مت\s*بتانا|خفیہ|راز)'
         ],
         "credential_solicitation": [
             r'\b(?:password|otp|pin|verification code|seed phrase|private key|card number|cvv)\b',
             r'\b(?:password send karo|otp bhej do|pin code|apna password|de do|bhejo)\b',
-            r'(?:پاس ورڈ|او ٹی پی|پن کوڈ|تصدیقی کوڈ)'
+            r'(?:پاس\s*ورڈ|او\s*ٹی\s*پی|پن\s*کوڈ|تصدیقی\s*کوڈ)'
         ]
     }
 
     @classmethod
     def classify(cls, text: str) -> Dict[str, Any]:
+        normalized = text.strip().lower().rstrip("!.,?")
+        
+        # 0. Clean common greeting & conversational tokens bypass
+        if normalized in cls.CLEAN_GREETINGS:
+            return {
+                "social_engineering_detected": False,
+                "social_engineering_index": 0.0,
+                "detected_categories": [],
+                "category_scores": {},
+                "ml_model_active": _ml_social_model is not None
+            }
+
         detected_categories = set()
         category_scores: Dict[str, float] = {}
 
@@ -64,14 +84,14 @@ class SocialEngineeringDetector:
 
         # 2. Trained Multi-Label ML Classifier (Level 1)
         ml_active = False
-        if _ml_social_model is not None:
+        if _ml_social_model is not None and len(text.split()) >= 2:
             try:
                 ml_active = True
                 pred_proba = _ml_social_model.predict_proba([text])
                 for idx, cat_name in enumerate(TARGET_NAMES):
                     if idx < len(pred_proba):
                         prob = float(pred_proba[idx][0][1]) if len(pred_proba[idx][0]) > 1 else float(pred_proba[idx][0][0])
-                        if prob > 0.35:
+                        if prob >= 0.60:
                             detected_categories.add(cat_name)
                             category_scores[cat_name] = max(category_scores.get(cat_name, 0.0), prob)
             except Exception:
