@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "id": "EX_1788202564919",
+    "text": "http://portal-verify.xyz",
+    "label": "MALICIOUS",
+    "category": "USER_REPORTED_ZERO_DAY",
+    "feedback_by": "admin",
+    "timestamp": 1788202564
+  },
+  {
+    "id": "EX_1788203312582",
+    "text": "Prime Minister youth scheme: get 50000 laptop subsidy now on https://pm-scheme.xyz/apply",
+    "label": "MALICIOUS",
+    "category": "GOV_SCHEME_PHISHING",
+    "feedback_by": "admin",
+    "timestamp": 1788203312
+  }
+]

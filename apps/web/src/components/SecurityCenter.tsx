@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, ShieldCheck, ShieldAlert, Key, Server, RefreshCw, CheckCircle, Brain, Sparkles, PlusCircle, Check } from 'lucide-react';
 import { ApiClient } from '../api/client';
+import { AdminThreatReviewQueue } from './AdminThreatReviewQueue';
 
 export const SecurityCenter: React.FC = () => {
   const [telemetry, setTelemetry] = useState<any>(null);
@@ -247,6 +248,9 @@ export const SecurityCenter: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Crowd-Sourced Threat Review & Admin Active Training Queue */}
+      <AdminThreatReviewQueue />
     </div>
   );
 };

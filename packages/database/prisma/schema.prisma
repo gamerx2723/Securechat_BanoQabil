@@ -295,3 +295,21 @@ model AuditEvent {
 
   actor                 User                   @relation(fields: [actorId], references: [id], onDelete: Cascade)
 }
+
+model SecurityReview {
+  id              String   @id @default(uuid())
+  messageId       String?
+  text            String
+  hash            String   @unique
+  threatVotes     Int      @default(0)
+  safeVotes       Int      @default(0)
+  aiRiskScore     Int      @default(0)
+  aiThreatType    String   @default("UNKNOWN")
+  status          String   @default("PENDING") // PENDING, TRAINED_MALICIOUS, TRAINED_BENIGN, DISMISSED
+  adminNotes      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([threatVotes])
+}

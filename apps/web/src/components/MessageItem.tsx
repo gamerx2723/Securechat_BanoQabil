@@ -131,7 +131,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onInspectSecu
               outline: 'none',
               fontFamily: 'var(--font-mono)',
             }}
-            title="Click to inspect Zero-Trust security evidence"
+            title="Click to inspect evidence, teach AI, or vote on threat"
           >
             {getBadgeIcon(analysis.indicatorColor)}
             <span>{analysis.indicatorColor === 'GREEN' ? 'SAFE' : `${analysis.riskScore}% RISK`}</span>

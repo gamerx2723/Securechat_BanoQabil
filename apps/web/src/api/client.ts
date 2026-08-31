@@ -403,16 +403,44 @@ export class ApiClient {
     return { total_exemplars: 0, malicious_patterns: 0, benign_patterns: 0, online_learning_active: true, recent_exemplars: [] };
   }
 
-  public static async submitSecurityFeedback(messageId: string, isFalsePositive: boolean, text?: string): Promise<boolean> {
+  public static async reportMessage(text: string, voteType: 'THREAT' | 'SAFE', messageId?: string, aiRiskScore?: number, aiThreatType?: string): Promise<{ success: boolean; message: string }> {
     try {
-      const res = await fetch(`${API_BASE}/security/feedback`, {
+      const res = await fetch(`${API_BASE}/security/report`, {
         method: 'POST',
         headers: this.authHeaders(),
-        body: JSON.stringify({ messageId, isFalsePositive, text }),
+        body: JSON.stringify({ text, voteType, messageId, aiRiskScore, aiThreatType }),
       });
-      return res.ok;
+      if (res.ok) {
+        return await res.json();
+      }
     } catch {}
-    return false;
+    return { success: false, message: 'Failed to record report.' };
+  }
+
+  public static async getAdminReviews(): Promise<{ reviews: any[]; stats: { totalReported: number; pendingCount: number; trainedCount: number } }> {
+    try {
+      const res = await fetch(`${API_BASE}/security/admin/reviews`, {
+        headers: this.authHeaders(),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {}
+    return { reviews: [], stats: { totalReported: 0, pendingCount: 0, trainedCount: 0 } };
+  }
+
+  public static async submitAdminTrainDecision(reviewId: string, decision: 'TRAIN_MALICIOUS' | 'TRAIN_BENIGN' | 'DISMISS', adminNotes?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await fetch(`${API_BASE}/security/admin/train-decision`, {
+        method: 'POST',
+        headers: this.authHeaders(),
+        body: JSON.stringify({ reviewId, decision, adminNotes }),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {}
+    return { success: false, message: 'Failed to apply admin training decision.' };
   }
 
 

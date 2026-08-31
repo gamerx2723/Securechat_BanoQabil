@@ -23,12 +23,12 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ message, onClose, 
   const handleTeachAI = async (label: 'MALICIOUS' | 'BENIGN') => {
     setIsTeaching(true);
     const category = label === 'MALICIOUS' ? 'USER_REPORTED_ZERO_DAY' : 'FALSE_ALARM_FEEDBACK';
-    const res = await ApiClient.teachAI(message.plaintext, label, category);
-    await ApiClient.submitSecurityFeedback(message.id, label === 'BENIGN', message.plaintext);
+    await ApiClient.reportMessage(message.plaintext, label === 'MALICIOUS' ? 'THREAT' : 'SAFE', message.id, analysis.riskScore, analysis.primaryThreat);
+    await ApiClient.teachAI(message.plaintext, label, category);
     setIsTeaching(false);
     setLearningFeedback(label === 'MALICIOUS' 
-      ? '⚡ Learned pattern into permanent AI Threat Memory (SGD weights updated online).' 
-      : '✅ Pattern calibrated as Safe. AI will not false-alarm on this pattern again.');
+      ? '⚡ Crowd Report Recorded & AI Threat Memory Updated (Sample sent to SuperAdmin Queue).' 
+      : '✅ False-Alarm Vote Recorded & Model Calibrated (Sent to SuperAdmin Queue).');
     setTimeout(() => setLearningFeedback(null), 4000);
   };
 
