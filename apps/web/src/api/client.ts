@@ -468,37 +468,81 @@ export class ApiClient {
       'pages.dev', 'workers.dev', 'netlify.app', 'glitch.me', 'vercel.app'
     ];
 
-    // 1. DLP Secret & API Key Detection
+    // 1. DLP Secret, Credential & Personal Data (PII) Detection
     if (/AKIA[0-9A-Z]{16}/.test(text)) {
-      score += 65;
+      score += 75;
       evidence.push({
         category: 'DLP_SECRET_EXPOSURE',
         signal: 'AWS_ACCESS_KEY',
         confidence: 0.99,
         detectionBasis: 'DETERMINISTIC_RULE',
-        description: 'Outbound AWS Access Key ID detected. Prevented unauthorized credential exposure.',
+        description: 'Outbound AWS Access Key ID detected. Prevented unauthorized cloud credential exposure.',
       });
     }
 
-    if (/ghp_[0-9a-zA-Z]{36}/.test(text)) {
-      score += 65;
+    if (/ghp_[0-9a-zA-Z]{36}|github_pat_[0-9a-zA-Z_]{82}/.test(text)) {
+      score += 75;
       evidence.push({
         category: 'DLP_SECRET_EXPOSURE',
         signal: 'GITHUB_PERSONAL_ACCESS_TOKEN',
         confidence: 0.99,
         detectionBasis: 'DETERMINISTIC_RULE',
-        description: 'GitHub Personal Access Token token detected.',
+        description: 'GitHub Personal Access Token detected.',
       });
     }
 
-    if (/(?:password|otp|pin|passcode|secret_key|api_key)\s*[:=]?\s*\S+/i.test(text)) {
-      score += 50;
+    if (/(?:password|pass|pwd|secret|passcode|creds)\s*[:=]\s*["']?([^\s"';,]{4,})["']?|(?:my\s+(?:password|pin|passcode)\s+is\s+([^\s"';,]{4,}))/i.test(text)) {
+      score += 85;
       evidence.push({
         category: 'DLP_SECRET_EXPOSURE',
-        signal: 'PASSWORD_OR_OTP_CREDENTIAL',
+        signal: 'PLAINTEXT_PASSWORD_CREDENTIAL',
+        confidence: 0.98,
+        detectionBasis: 'DETERMINISTIC_RULE',
+        description: 'Plaintext account password or access passcode identified in outgoing message.',
+      });
+    }
+
+    if (/\b(\d{5}-\d{7}-\d|\d{13})\b/.test(text)) {
+      score += 80;
+      evidence.push({
+        category: 'DLP_SECRET_EXPOSURE',
+        signal: 'NATIONAL_IDENTITY_CNIC_PII',
+        confidence: 0.96,
+        detectionBasis: 'DETERMINISTIC_RULE',
+        description: 'National Identity Number (CNIC / PII) detected in message draft.',
+      });
+    }
+
+    if (/\b(PK\d{2}[A-Z]{4}\d{16}|(?:account|acc|ac|khata)\s*#?\s*[:=]?\s*\d{10,16})\b/i.test(text)) {
+      score += 75;
+      evidence.push({
+        category: 'DLP_SECRET_EXPOSURE',
+        signal: 'BANK_ACCOUNT_OR_IBAN',
         confidence: 0.95,
         detectionBasis: 'DETERMINISTIC_RULE',
-        description: 'Plaintext password or 2FA OTP verification code pattern identified.',
+        description: 'Bank Account or IBAN number detected.',
+      });
+    }
+
+    if (/(?:cvv|cvc|card\s*pin)\s*[:=]?\s*(\b\d{3,4}\b)/i.test(text)) {
+      score += 85;
+      evidence.push({
+        category: 'DLP_SECRET_EXPOSURE',
+        signal: 'CARD_SECURITY_CODE_CVV',
+        confidence: 0.99,
+        detectionBasis: 'DETERMINISTIC_RULE',
+        description: 'Credit/Debit Card Security Code (CVV/CVC) detected.',
+      });
+    }
+
+    if (/(?:otp|verification\s*code|security\s*code|passcode|login\s*code|code\s*is|tasdeeqi\s*code)\s*[:=]?\s*(\b\d{4,8}\b)/i.test(text)) {
+      score += 80;
+      evidence.push({
+        category: 'DLP_SECRET_EXPOSURE',
+        signal: 'ONE_TIME_PASSWORD_OTP',
+        confidence: 0.97,
+        detectionBasis: 'DETERMINISTIC_RULE',
+        description: 'One-Time Password (OTP) or 2FA authentication code detected.',
       });
     }
 

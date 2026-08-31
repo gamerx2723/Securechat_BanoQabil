@@ -14,5 +14,45 @@
     "category": "GOV_SCHEME_PHISHING",
     "feedback_by": "admin",
     "timestamp": 1788203312
+  },
+  {
+    "id": "EX_1788204247426",
+    "text": "and",
+    "label": "BENIGN",
+    "category": "FALSE_ALARM_FEEDBACK",
+    "feedback_by": "Muhammad2",
+    "timestamp": 1788204247
+  },
+  {
+    "id": "EX_1788204250007",
+    "text": "and",
+    "label": "BENIGN",
+    "category": "FALSE_ALARM_FEEDBACK",
+    "feedback_by": "Muhammad2",
+    "timestamp": 1788204250
+  },
+  {
+    "id": "EX_1788204273352",
+    "text": "and",
+    "label": "MALICIOUS",
+    "category": "USER_REPORTED_ZERO_DAY",
+    "feedback_by": "Muhammad",
+    "timestamp": 1788204273
+  },
+  {
+    "id": "EX_1788204291656",
+    "text": "an",
+    "label": "BENIGN",
+    "category": "FALSE_ALARM_FEEDBACK",
+    "feedback_by": "Muhammad2",
+    "timestamp": 1788204291
+  },
+  {
+    "id": "EX_1788204297105",
+    "text": "and",
+    "label": "BENIGN",
+    "category": "FALSE_ALARM_FEEDBACK",
+    "feedback_by": "Muhammad",
+    "timestamp": 1788204297
   }
 ]

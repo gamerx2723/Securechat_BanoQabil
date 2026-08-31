@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChatMessage, ConversationItem, SecurityAnalysis } from '../types';
+import { ConversationItem, ChatMessage, SecurityAnalysis } from '../types';
 import { MessageItem } from './MessageItem';
+import { DlpPreSendWarningModal } from './DlpPreSendWarningModal';
+import { Send, Paperclip, Lock, ShieldAlert, Sparkles, Shield } from 'lucide-react';
 import { ApiClient } from '../api/client';
-import { Send, Shield, ShieldCheck, ShieldAlert, Paperclip, AlertOctagon, AlertTriangle, Lock, Brain, Bot, Sparkles } from 'lucide-react';
 
 interface ChatAreaProps {
-  conversation: ConversationItem;
+  conversation: ConversationItem | null;
   messages: ChatMessage[];
-  onSendMessage: (text: string, analysis: SecurityAnalysis) => void;
+  onSendMessage: (text: string, securityAnalysis: SecurityAnalysis) => void;
   onInspectSecurity: (message: ChatMessage) => void;
-  onTogglePrivacy: () => void;
-  onOpenTopicModal?: () => void;
-  onOpenCopilot?: () => void;
+  onTogglePrivacy?: () => void;
+  onOpenTopicModal: () => void;
+  onOpenCopilot: () => void;
 }
 
 export const ChatArea: React.FC<ChatAreaProps> = ({
@@ -19,13 +20,22 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   messages,
   onSendMessage,
   onInspectSecurity,
-  onTogglePrivacy,
   onOpenTopicModal,
   onOpenCopilot,
 }) => {
   const [inputText, setInputText] = useState('');
   const [threatWarning, setThreatWarning] = useState<{ title: string; desc: string; color: 'RED' | 'ORANGE' } | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const [dlpModalState, setDlpModalState] = useState<{
+    isOpen: boolean;
+    draftText: string;
+    analysis: SecurityAnalysis | null;
+  }>({
+    isOpen: false,
+    draftText: '',
+    analysis: null,
+  });
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,11 +54,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       const analysis = await ApiClient.analyzePreSend(inputText);
       setIsEvaluating(false);
 
-      // OpSec principle: Only warn the sender if they are leaking THEIR OWN secrets / credentials (DLP)
-      if (analysis.primaryThreat === 'DLP_SECRET_EXPOSURE' && analysis.riskScore >= 25) {
-        const topEv = analysis.evidenceList[0];
+      // OpSec principle: Only warn the sender if they are leaking THEIR OWN secrets / credentials / PII (DLP)
+      const isSensitiveDlp = analysis.primaryThreat === 'DLP_SECRET_EXPOSURE' ||
+        analysis.evidenceList.some(e => 
+          e.category === 'DLP_SECRET_EXPOSURE' ||
+          /password|cnic|bank|card|secret|passcode|token|key|credential|iban|pii/i.test(e.description)
+        );
+
+      if (isSensitiveDlp && analysis.riskScore >= 25) {
+        const topEv = analysis.evidenceList.find(e => /password|cnic|bank|card|secret|passcode|token|key|credential|iban|pii/i.test(e.description)) || analysis.evidenceList[0];
         setThreatWarning({
-          title: 'Data Leak Prevention Alert: ',
+          title: 'Data Loss Prevention Alert: ',
           desc: topEv?.description || analysis.explanation,
           color: analysis.indicatorColor === 'RED' ? 'RED' : 'ORANGE',
         });
@@ -65,10 +81,61 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     if (!inputText.trim()) return;
 
     const analysis = await ApiClient.analyzePreSend(inputText);
+
+    // If sensitive credentials, passwords, or personal data (DLP) detected, intercept and warn the sender!
+    const isSensitiveDlp = analysis.primaryThreat === 'DLP_SECRET_EXPOSURE' ||
+      analysis.evidenceList.some(e => 
+        e.category === 'DLP_SECRET_EXPOSURE' ||
+        /password|cnic|bank|card|secret|passcode|token|key|credential|iban|pii/i.test(e.description)
+      );
+
+    if (isSensitiveDlp && analysis.riskScore >= 25) {
+      setDlpModalState({
+        isOpen: true,
+        draftText: inputText,
+        analysis,
+      });
+      return;
+    }
+
     onSendMessage(inputText, analysis);
     setInputText('');
     setThreatWarning(null);
   };
+
+  const handleCancelDlp = () => {
+    setDlpModalState({ isOpen: false, draftText: '', analysis: null });
+  };
+
+  const handleSendRedacted = (redactedText: string) => {
+    if (!dlpModalState.analysis) return;
+    onSendMessage(redactedText, {
+      ...dlpModalState.analysis,
+      indicatorColor: 'GREEN',
+      riskScore: 0,
+      primaryThreat: 'NONE',
+      explanation: 'Sensitive credentials were automatically redacted before transmission.',
+    });
+    setInputText('');
+    setThreatWarning(null);
+    setDlpModalState({ isOpen: false, draftText: '', analysis: null });
+  };
+
+  const handleSendAnyway = () => {
+    if (!dlpModalState.analysis) return;
+    onSendMessage(dlpModalState.draftText, dlpModalState.analysis);
+    setInputText('');
+    setThreatWarning(null);
+    setDlpModalState({ isOpen: false, draftText: '', analysis: null });
+  };
+
+  if (!conversation) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+        Select a secure channel to start messaging
+      </div>
+    );
+  }
 
   return (
     <main style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-primary)' }}>
@@ -138,121 +205,80 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               transition: 'all 0.15s ease',
             }}
             onMouseOver={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.8)';
               e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(168, 85, 247, 0.25))';
-              e.currentTarget.style.borderColor = '#c084fc';
-              e.currentTarget.style.color = '#ffffff';
             }}
             onMouseOut={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15))';
               e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.4)';
-              e.currentTarget.style.color = '#a78bfa';
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15))';
             }}
           >
-            <Brain size={15} className="animate-pulse" />
-            <span>AI Topic & Risk Summary</span>
+            <Sparkles size={14} />
+            <span>AI Chat Explanation</span>
           </button>
 
-          {/* Ask Copilot Button */}
+          {/* AI Security Copilot Button */}
           <button
             onClick={onOpenCopilot}
-            title="Open Security Copilot Assistant"
+            title="Ask AI Security Copilot for deep forensic guidance"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              background: 'rgba(16, 185, 129, 0.1)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              color: 'var(--green-safe, #10b981)',
-              padding: '7px 12px',
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 182, 212, 0.15))',
+              border: '1px solid rgba(16, 185, 129, 0.4)',
+              color: '#34d399',
+              padding: '7px 13px',
               borderRadius: '8px',
               fontSize: '12px',
               fontWeight: 600,
               cursor: 'pointer',
+              boxShadow: '0 0 15px rgba(16, 185, 129, 0.15)',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.8)';
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.25))';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 182, 212, 0.15))';
             }}
           >
-            <Bot size={15} />
-            <span>Copilot</span>
-          </button>
-
-          {/* Exclusion / Privacy Switch */}
-          <button
-            onClick={onTogglePrivacy}
-            className="btn-ghost"
-            style={{
-              fontSize: '12px',
-              color: conversation.isExcluded ? 'var(--orange-warn)' : 'var(--text-secondary)',
-              borderColor: conversation.isExcluded ? 'rgba(245, 158, 11, 0.4)' : 'var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 10px',
-            }}
-          >
-            {conversation.isExcluded ? <ShieldAlert size={14} /> : <Shield size={14} />}
-            {conversation.isExcluded ? 'AI Paused' : 'Guardian Active'}
+            <Shield size={14} />
+            <span>AI Security Copilot</span>
           </button>
         </div>
       </header>
 
-      {/* Message Feed */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 0' }}>
-        {/* Zero-Trust Notice */}
-        <div style={{ textAlign: 'center', margin: '0 0 20px 0' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '9999px',
-              padding: '6px 14px',
-              fontSize: '11px',
-              color: 'var(--text-muted)',
-            }}
-          >
-            <ShieldCheck size={13} style={{ color: 'var(--green-safe)' }} />
-            <span>Zero-Trust Architecture Active. Messages are E2EE and verified client-side.</span>
-          </div>
-        </div>
-
-        {/* Render all messages */}
+      {/* Messages Stream */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 0', position: 'relative' }}>
         {messages.map((msg) => (
-          <MessageItem
-            key={msg.id}
-            message={msg}
-            onInspectSecurity={() => onInspectSecurity(msg)}
-          />
+          <MessageItem key={msg.id} message={msg} onInspectSecurity={onInspectSecurity} />
         ))}
         <div ref={scrollRef} />
       </div>
 
-      {/* Real-time Threat Warning Banner while typing */}
+      {/* Real-time Pre-Send Threat Advisory Banner */}
       {threatWarning && (
         <div
           style={{
-            margin: '0 24px 8px',
+            margin: '0 24px 10px 24px',
             padding: '10px 14px',
-            background: threatWarning.color === 'RED' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+            background: threatWarning.color === 'RED' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
             border: `1px solid ${threatWarning.color === 'RED' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
-            borderRadius: '10px',
+            borderRadius: '8px',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            boxShadow: `0 0 20px ${threatWarning.color === 'RED' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)'}`,
+            color: threatWarning.color === 'RED' ? 'var(--red-critical)' : 'var(--orange-warn)',
+            fontSize: '12px',
+            animation: 'fadeIn 0.2s ease',
           }}
-          className="fade-in"
         >
-          <div style={{ color: threatWarning.color === 'RED' ? '#ef4444' : '#f59e0b', display: 'flex', alignItems: 'center' }}>
-            {threatWarning.color === 'RED' ? <AlertOctagon size={20} className="animate-pulse" /> : <AlertTriangle size={20} />}
-          </div>
-          <div style={{ flex: 1 }}>
-            <span style={{ fontWeight: 700, fontSize: '12px', color: threatWarning.color === 'RED' ? '#fca5a5' : '#fcd34d' }}>
-              {threatWarning.title}
-            </span>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              {threatWarning.desc}
-            </span>
+          <ShieldAlert size={16} />
+          <div>
+            <strong>{threatWarning.title}</strong> {threatWarning.desc}
           </div>
         </div>
       )}
@@ -292,6 +318,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </button>
         </form>
       </footer>
+
+      {/* Sensitive Credentials & Personal Data Pre-Send Warning Modal */}
+      {dlpModalState.analysis && (
+        <DlpPreSendWarningModal
+          isOpen={dlpModalState.isOpen}
+          draftText={dlpModalState.draftText}
+          analysis={dlpModalState.analysis}
+          onCancel={handleCancelDlp}
+          onSendAnyway={handleSendAnyway}
+          onSendRedacted={handleSendRedacted}
+        />
+      )}
     </main>
   );
 };

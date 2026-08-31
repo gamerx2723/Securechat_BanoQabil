@@ -29,14 +29,29 @@ export class DlpScanner {
     },
     {
       type: 'PASSWORD' as const,
-      regex: /(?:password|pass|pwd|secret)\s*[:=]\s*["']?([^\s"';,]{6,})["']?/gi,
-      warning: 'Plaintext password assignment detected.',
+      regex: /(?:password|pass|pwd|secret|passcode|creds)\s*[:=]\s*["']?([^\s"';,]{4,})["']?|(?:my\s+(?:password|pin|passcode)\s+is\s+([^\s"';,]{4,}))/gi,
+      warning: 'Plaintext password or passcode detected. Never share account passwords in cleartext.',
     },
     {
       type: 'OTP' as const,
-      regex: /(?:otp|verification code|security code|login code|passcode|code is|tasdeeqi code)\s*[:=]?\s*(\b\d{4,8}\b)/gi,
+      regex: /(?:otp|verification\s*code|security\s*code|login\s*code|passcode|code\s*is|tasdeeqi\s*code)\s*[:=]?\s*(\b\d{4,8}\b)/gi,
       warning: 'One-Time Password (OTP) or 2FA verification code detected. Never share OTPs.',
     },
+    {
+      type: 'CREDIT_CARD' as const,
+      regex: /\b(\d{5}-\d{7}-\d|\d{13})\b/g,
+      warning: 'National Identity Number (CNIC / PII) detected.',
+    },
+    {
+      type: 'DATABASE_URL' as const,
+      regex: /\b(PK\d{2}[A-Z]{4}\d{16}|(?:account|acc|ac|khata)\s*#?\s*[:=]?\s*\d{10,16})\b/gi,
+      warning: 'Bank Account or IBAN number detected.',
+    },
+    {
+      type: 'CREDIT_CARD' as const,
+      regex: /(?:cvv|cvc|card\s*pin)\s*[:=]?\s*(\b\d{3,4}\b)/gi,
+      warning: 'Card Security Code (CVV/CVC) detected.',
+    }
   ];
 
   public static scan(text: string): DlpScanResult {
@@ -47,13 +62,15 @@ export class DlpScanner {
       let match: RegExpExecArray | null;
 
       while ((match = pattern.regex.exec(text)) !== null) {
-        const fullMatched = match[1] || match[0];
-        const masked = this.maskSecret(fullMatched);
-        detectedItems.push({
-          type: pattern.type,
-          maskedSnippet: masked,
-          warning: pattern.warning,
-        });
+        const fullMatched = match[1] || match[2] || match[0];
+        if (fullMatched) {
+          const masked = this.maskSecret(fullMatched);
+          detectedItems.push({
+            type: pattern.type,
+            maskedSnippet: masked,
+            warning: pattern.warning,
+          });
+        }
       }
     }
 
@@ -76,6 +93,28 @@ export class DlpScanner {
       hasSensitiveData: detectedItems.length > 0,
       detectedItems,
     };
+  }
+
+  public static redact(text: string): string {
+    let result = text;
+    for (const pattern of this.PATTERNS) {
+      pattern.regex.lastIndex = 0;
+      result = result.replace(pattern.regex, (match, p1, p2) => {
+        const secret = p1 || p2 || match;
+        return match.replace(secret, '[REDACTED]');
+      });
+    }
+
+    // Also redact credit cards
+    result = result.replace(/\b(?:\d{4}[-\s]?){3}\d{4}\b|\b\d{15,16}\b/g, (match) => {
+      const cleaned = match.replace(/[-\s]/g, '');
+      if (this.isValidLuhn(cleaned)) {
+        return `****-****-****-${cleaned.slice(-4)}`;
+      }
+      return match;
+    });
+
+    return result;
   }
 
   private static maskSecret(secret: string): string {
