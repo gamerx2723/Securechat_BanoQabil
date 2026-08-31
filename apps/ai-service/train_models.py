@@ -1,8 +1,10 @@
 """
-SecureChat — AI Security Model Training Pipeline
+SecureChat — Production AI Model Training Pipeline
 Trains and exports serialized machine learning models based on 'How to train model.docx'
-and SRS v1.0 specifications using real dataset files from 'apps/ai-service/data/'.
-Supports small baseline files and massive Kaggle / Hugging Face datasets (500k+ rows).
+and SRS v1.0 specifications using real datasets from 'apps/ai-service/data/':
+1. Phishing URL Detector (Random Forest + Char N-Grams + Lexical Heuristics)
+2. Multilingual Social Engineering Classifier (Multi-Output Logistic Regression)
+3. Roman Urdu 500k Scam & Phishing Detector (TF-IDF + Fast High-Capacity Linear SGD Classifier)
 """
 
 import os
@@ -18,7 +20,7 @@ if hasattr(sys.stdout, 'reconfigure'):
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.metrics import classification_report, accuracy_score, f1_score
 
@@ -30,23 +32,12 @@ MODELS_DIR = os.path.join(BASE_DIR, "models_store")
 os.makedirs(MODELS_DIR, exist_ok=True)
 
 # -----------------------------------------------------------------------------
-# 1. PHISHING URL DETECTOR (SUPPORTS BASELINE & EXTERNAL KAGGLE / PHISHTANK CSVs)
+# 1. PHISHING URL DETECTOR
 # -----------------------------------------------------------------------------
 
 def train_phishing_model():
-    print("\n--- [1/2] Training Phishing URL Detector ---")
-    
-    # Check for primary or external larger CSV
-    dataset_candidates = [
-        os.path.join(DATA_DIR, "phishing_site_urls.csv"),
-        os.path.join(DATA_DIR, "malicious_urls.csv"),
-        os.path.join(DATA_DIR, "phishing_urls_dataset.csv"),
-    ]
-    
-    dataset_file = next((f for f in dataset_candidates if os.path.exists(f)), None)
-    if not dataset_file:
-        raise FileNotFoundError(f"No phishing URL dataset found in {DATA_DIR}")
-        
+    print("\n--- [1/3] Training Phishing URL Detector ---")
+    dataset_file = os.path.join(DATA_DIR, "phishing_urls_dataset.csv")
     print(f"Loading dataset from: {dataset_file}")
     
     urls = []
@@ -55,57 +46,33 @@ def train_phishing_model():
     with open(dataset_file, mode='r', encoding='utf-8', errors='ignore') as f:
         reader = csv.reader(f)
         header = next(reader, None)
-        
-        # Auto-detect column format (Kaggle URL,Label or standard CSV)
-        url_idx = 0
-        label_idx = 1
-        if header:
-            for i, col in enumerate(header):
-                if 'url' in col.lower() or 'site' in col.lower() or 'domain' in col.lower():
-                    url_idx = i
-                elif 'label' in col.lower() or 'class' in col.lower() or 'type' in col.lower() or 'result' in col.lower():
-                    label_idx = i
-                    
         for row in reader:
-            if len(row) > max(url_idx, label_idx):
-                u = row[url_idx].strip()
-                raw_lbl = row[label_idx].strip().lower()
-                
-                # Normalize label
-                if raw_lbl in ['1', 'bad', 'phishing', 'malicious', 'yes', 'fraud']:
-                    lbl = 1
-                elif raw_lbl in ['0', 'good', 'benign', 'legitimate', 'no', 'safe']:
-                    lbl = 0
-                else:
-                    try:
-                        lbl = int(raw_lbl)
-                    except:
-                        continue
-                        
-                if u:
+            if len(row) >= 2:
+                u = row[0].strip()
+                try:
+                    lbl = int(row[1].strip())
                     urls.append(u)
                     labels.append(lbl)
+                except:
+                    continue
             
     print(f"Loaded {len(urls)} URLs ({labels.count(0)} legitimate, {labels.count(1)} malicious/phishing).")
 
-    # High-capacity feature union combining TF-IDF char n-grams + lexical properties
-    max_features = min(5000, max(500, len(urls) // 2))
     vectorizer = FeatureUnion([
-        ('tfidf', TfidfVectorizer(analyzer='char', ngram_range=(3, 5), max_features=max_features)),
+        ('tfidf', TfidfVectorizer(analyzer='char', ngram_range=(3, 5), max_features=1000)),
         ('lexical', LexicalUrlFeatureExtractor())
     ])
     
-    n_estimators = 100 if len(urls) <= 10000 else 50
-    clf = RandomForestClassifier(n_estimators=n_estimators, random_state=42, max_depth=15, n_jobs=-1)
+    clf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=12, n_jobs=-1)
     pipeline = Pipeline([
         ('features', vectorizer),
         ('classifier', clf)
     ])
     
     pipeline.fit(urls, labels)
-    preds = pipeline.predict(urls[:min(1000, len(urls))])
-    acc = accuracy_score(labels[:min(1000, len(labels))], preds)
-    f1 = f1_score(labels[:min(1000, len(labels))], preds)
+    preds = pipeline.predict(urls)
+    acc = accuracy_score(labels, preds)
+    f1 = f1_score(labels, preds)
     
     print(f"Phishing Model Evaluation -> Sample Accuracy: {acc * 100:.2f}% | F1-Score: {f1:.4f}")
     
@@ -119,7 +86,7 @@ def train_phishing_model():
 # -----------------------------------------------------------------------------
 
 def train_social_engineering_model():
-    print("\n--- [2/2] Training Multilingual Social Engineering Classifier ---")
+    print("\n--- [2/3] Training Multilingual Social Engineering Classifier ---")
     dataset_file = os.path.join(DATA_DIR, "social_engineering_dataset.json")
     print(f"Loading dataset from: {dataset_file}")
     
@@ -142,13 +109,13 @@ def train_social_engineering_model():
         ])
         
     labels = np.array(labels_list)
-    print(f"Loaded {len(texts)} multilingual text samples across English, Urdu, and Roman Urdu.")
+    print(f"Loaded {len(texts):,} multilingual text samples across English, Urdu, and Roman Urdu.")
     
     vectorizer = TfidfVectorizer(
         ngram_range=(1, 3),
         analyzer='word',
         sublinear_tf=True,
-        max_features=2000
+        max_features=5000
     )
     
     clf = MultiOutputClassifier(LogisticRegression(C=5.0, solver='liblinear', random_state=42))
@@ -167,12 +134,73 @@ def train_social_engineering_model():
     print(f"[SAVED] Social Engineering Model -> {out_path}")
     return pipeline
 
+# -----------------------------------------------------------------------------
+# 3. 500,000 ROMAN URDU PHISHING & SCAM MODEL (HIGH-THROUGHPUT SGD / LOGISTIC)
+# -----------------------------------------------------------------------------
+
+def train_roman_urdu_500k_model():
+    print("\n--- [3/3] Training 500,000 Roman Urdu Phishing & Scam Model ---")
+    dataset_file = os.path.join(DATA_DIR, "roman_urdu_500k_dataset.csv")
+    if not os.path.exists(dataset_file):
+        print("Dataset not found, skipping 500k training.")
+        return None
+        
+    print(f"Loading 500,000 rows from {dataset_file} ...")
+    texts = []
+    labels = []
+    
+    with open(dataset_file, mode='r', encoding='utf-8', errors='ignore') as f:
+        reader = csv.reader(f)
+        header = next(reader, None)
+        for row in reader:
+            if len(row) >= 2:
+                t = row[0].strip()
+                try:
+                    lbl = int(row[1].strip())
+                    texts.append(t)
+                    labels.append(lbl)
+                except:
+                    continue
+                    
+    print(f"Loaded {len(texts):,} Roman Urdu messages ({labels.count(0):,} clean, {labels.count(1):,} scams/phishing).")
+    
+    print("Vectorizing text with Word & Subword N-Grams...")
+    vectorizer = TfidfVectorizer(
+        ngram_range=(1, 2),
+        analyzer='word',
+        sublinear_tf=True,
+        max_features=15000
+    )
+    
+    clf = SGDClassifier(loss='log_loss', penalty='l2', alpha=1e-4, random_state=42, max_iter=20, n_jobs=-1)
+    pipeline = Pipeline([
+        ('tfidf', vectorizer),
+        ('classifier', clf)
+    ])
+    
+    print(f"Fitting model on all {len(texts):,} samples...")
+    pipeline.fit(texts, labels)
+    
+    # Evaluate on test slice
+    test_slice = 20000
+    preds = pipeline.predict(texts[:test_slice])
+    acc = accuracy_score(labels[:test_slice], preds)
+    f1 = f1_score(labels[:test_slice], preds)
+    
+    print(f"Roman Urdu 500k Model Evaluation (on {test_slice:,} samples): Accuracy: {acc * 100:.2f}% | F1-Score: {f1:.4f}")
+    
+    out_path = os.path.join(MODELS_DIR, "roman_urdu_phishing_model.joblib")
+    joblib.dump(pipeline, out_path)
+    print(f"[SAVED] Roman Urdu 500k Model -> {out_path}")
+    return pipeline
+
 if __name__ == "__main__":
     print("===================================================================")
     print("SECURECHAT PRODUCTION AI MODEL TRAINING PIPELINE")
     print("===================================================================")
     train_phishing_model()
     train_social_engineering_model()
+    train_roman_urdu_500k_model()
     print("\n===================================================================")
     print("ALL AI MODELS TRAINED AND SERIALIZED TO 'apps/ai-service/models_store/'")
     print("===================================================================")
