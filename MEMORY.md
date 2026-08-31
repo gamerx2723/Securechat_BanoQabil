@@ -1,7 +1,7 @@
 # SECURECHAT — PROJECT MEMORY
 
-Version: 3.3
-Status: CONSOLIDATED CHAT HEADER OPTIONS MENU (3-BARS/3-DOTS) & CHAT SAFETY CONTROLS ACTIVE
+Version: 3.4
+Status: MESSAGE EDITING WITH (EDITED) TAG, MESSAGE DELETION & PERMANENT CLIENT STORAGE PURGE ACTIVE
 Last Updated: 2026-09-01
 Authoritative State Record: YES
 
@@ -18,16 +18,14 @@ Authoritative State Record: YES
 ## 2. CHECKPOINTS & CURRENT STATE
 
 ### 🚩 CHECKPOINT 1 (Updated: 2026-09-01)
-- **Consolidated Chat Header Options Menu (3-Bars / 3-Dots Dropdown in `ChatArea.tsx`):**
-  - Moved header clutter into a sleek, cyber-themed dropdown menu with click-outside dismissal:
-    1. **AI Tools & Forensics**:
-       - 🧠 **Explain Chat Topic** (`onOpenTopicModal`).
-       - 🛡️ **AI Security Copilot** (`onOpenCopilot`).
-       - ⚡ **Toggle AI Security Scanning for Chat** (Switches between *Active Protection* and *Privacy Mode*).
-    2. **Chat Safety & Controls**:
-       - 🚨 **Report Chat to Admin** (Submits entire transcript to SuperAdmin Moderation Queue).
-       - 🚫 **Block User** (Rejects incoming messages and clears from contact list).
-       - 🗑️ **Delete Chat History** (Clears conversation messages with toast feedback).
+- **Message Editing with `(edited)` Label (`PATCH /api/v1/messages/:id` & `MessageItem.tsx`):**
+  - Users can edit their own sent messages inline.
+  - Automatically marks the payload with `isEdited: true` and displays a subtle `(edited)` indicator tag next to timestamp.
+  - Re-evaluates Zero-Trust security and DLP analysis on edited text in real time.
+- **Individual Message Deletion (`DELETE /api/v1/messages/:id`):**
+  - Hover action button to delete individual sent messages, clearing reactions and security events from both database and client state.
+- **Permanent Client Storage & Database Chat Purge (`deleteConversation`):**
+  - Permanently purges conversation messages from browser client persistent storage (`localStorage` keys and `securechat_deleted_convs`) as well as the backend database, ensuring deleted chats cannot be recovered from memory on page reload.
 - **Pre-Send Sender Credential & Personal Data (DLP) Interception (`DlpPreSendWarningModal.tsx` & `ChatArea.tsx`):**
   - Scans for Passwords, PINs, Passcodes, CNIC (Pakistani National ID), Bank Accounts / IBAN, Credit/Debit Cards, CVV, OTPs, and Cloud API Keys.
   - Real-time typing warning banner (`Data Loss Prevention Alert`).
