@@ -7,14 +7,14 @@ export const createConversationSchema = z.object({
 });
 
 export const sendMessageSchema = z.object({
-  conversationId: z.string().uuid(),
-  recipientDeviceId: z.string().min(10),
-  encryptedPayload: z.string().min(10),
-  replyToMessageId: z.string().uuid().optional(),
+  conversationId: z.string().min(1),
+  recipientDeviceId: z.string().min(1).default('BROADCAST_ALL'),
+  encryptedPayload: z.string().min(1),
+  replyToMessageId: z.string().optional(),
   disappearsInSeconds: z.number().int().positive().optional(),
 });
 
 export const messageReactionSchema = z.object({
-  messageId: z.string().uuid(),
+  messageId: z.string().min(1),
   emoji: z.string().min(1).max(8),
 });

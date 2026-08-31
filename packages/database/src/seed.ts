@@ -18,7 +18,7 @@ async function main() {
 
   const alice = await prisma.user.upsert({
     where: { username: 'alice' },
-    update: {},
+    update: { passwordHash: hashPassword('Password123!') },
     create: {
       username: 'alice',
       email: 'alice@securechat.internal',
@@ -57,7 +57,7 @@ async function main() {
 
   const bob = await prisma.user.upsert({
     where: { username: 'bob' },
-    update: {},
+    update: { passwordHash: hashPassword('Password123!') },
     create: {
       username: 'bob',
       email: 'bob@securechat.internal',
@@ -96,7 +96,7 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { username: 'admin' },
-    update: {},
+    update: { passwordHash: hashPassword('AdminPass2026!') },
     create: {
       username: 'admin',
       email: 'admin@securechat.internal',

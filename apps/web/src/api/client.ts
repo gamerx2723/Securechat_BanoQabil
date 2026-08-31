@@ -2,6 +2,14 @@ import { SecurityAnalysis, ChatMessage, ConversationItem, UserProfile } from '..
 
 const API_BASE = 'http://localhost:4000/api/v1';
 
+function safeBase64Encode(str: string): string {
+  try {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode(parseInt(p1, 16))));
+  } catch {
+    return str;
+  }
+}
+
 export class ApiClient {
   public static getToken(): string | null {
     return localStorage.getItem('securechat_token');
@@ -241,11 +249,11 @@ export class ApiClient {
     // Analyze text with Python AI microservice first
     const analysis = await this.analyzePreSend(content);
 
-    // Create encrypted payload envelope
+    // Create browser-safe encrypted payload envelope
     const encryptedPayload = JSON.stringify({
       version: 1,
       plaintext: content,
-      ciphertext: Buffer.from(content).toString('base64'),
+      ciphertext: safeBase64Encode(content),
       timestamp: Date.now(),
     });
 
@@ -260,7 +268,8 @@ export class ApiClient {
     });
 
     if (!res.ok) {
-      throw new Error('Failed to send message');
+      const err = await res.json().catch(() => ({ error: 'Failed to send message' }));
+      throw new Error(err.error || 'Failed to send message');
     }
 
     const msg = await res.json();
@@ -268,7 +277,7 @@ export class ApiClient {
       id: msg.id,
       conversationId,
       senderId: currentUser?.id || 'me',
-      senderName: currentUser?.displayName || 'You',
+      senderName: currentUser?.displayName || currentUser?.username || 'You',
       plaintext: content,
       sentAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       status: 'SENT',
