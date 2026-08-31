@@ -25,7 +25,7 @@ securityRouter.post('/analyze', async (req: AuthenticatedRequest, res: Response)
     // Run deterministic rule engine
     const analysis = RiskEngine.evaluateMessage(text);
 
-    // If analysis indicates suspicious or critical risk, record security event
+    // If analysis indicates suspicious or critical risk, record real security event in database
     if (analysis.riskScore >= 25 && conversationId) {
       await prisma.securityEvent.create({
         data: {
@@ -47,6 +47,60 @@ securityRouter.post('/analyze', async (req: AuthenticatedRequest, res: Response)
   } catch (error) {
     console.error('Security analysis error:', error);
     res.status(500).json({ error: 'Failed to analyze text' });
+  }
+});
+
+/**
+ * Real-time User & System Security Telemetry from actual SQLite database
+ */
+securityRouter.get('/telemetry', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.userId;
+
+    // Actual counts from database
+    const userDevicesCount = await prisma.device.count({ where: { userId, isRevoked: false } });
+    const userMessagesCount = await prisma.message.count({ where: { senderId: userId } });
+    const totalMessagesInDb = await prisma.message.count();
+
+    const userSecurityEvents = await prisma.securityEvent.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    const redThreatsCount = await prisma.securityEvent.count({ where: { userId, indicatorColor: 'RED' } });
+    const orangeThreatsCount = await prisma.securityEvent.count({ where: { userId, indicatorColor: 'ORANGE' } });
+
+    // Group actual threats by category
+    const threatsByCategory = await prisma.securityEvent.groupBy({
+      by: ['type'],
+      where: { userId },
+      _count: { id: true },
+    });
+
+    res.json({
+      activeDevices: userDevicesCount,
+      sentMessages: userMessagesCount,
+      totalProtectedMessages: totalMessagesInDb,
+      redThreats: redThreatsCount,
+      orangeThreats: orangeThreatsCount,
+      totalThreats: redThreatsCount + orangeThreatsCount,
+      threatBreakdown: threatsByCategory.map((t) => ({
+        category: t.type,
+        count: t._count.id,
+      })),
+      recentEvents: userSecurityEvents.map((e) => ({
+        id: e.id,
+        type: e.type,
+        severity: e.severity,
+        riskScore: e.riskScore,
+        indicatorColor: e.indicatorColor,
+        explanation: e.explanation,
+        createdAt: e.createdAt,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch real telemetry' });
   }
 });
 
@@ -79,7 +133,7 @@ securityRouter.post('/feedback', async (req: AuthenticatedRequest, res: Response
       return;
     }
 
-    const { messageId, isFalsePositive, userComment } = parseResult.data;
+    const { messageId, isFalsePositive } = parseResult.data;
 
     await prisma.securityEvent.updateMany({
       where: { messageId },
