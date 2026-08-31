@@ -4,16 +4,75 @@ from .phishing_detector import PhishingDetector
 from .social_engineering_detector import SocialEngineeringDetector
 from .urdu_scam_detector import UrduScamDetector
 from .zero_day_cognitive_engine import ZeroDayCognitiveEngine
+from .deep_cognitive_engine import DeepCognitiveEngine
 from .dlp_detector import DlpDetector
 
 class ConversationContextEngine:
     """
-    Evaluates whole-conversation context, extracts the conversational topic,
-    summarizes intent narrative, and computes multi-turn security risk timelines.
+    Evaluates whole-conversation context, detects multi-turn psychological manipulation,
+    identifies grooming & social isolation chains, summarizes conversational topic narrative,
+    and computes multi-turn security risk timelines.
     """
 
+    # Multi-Turn Psychological Attack Stage Patterns
+    STAGE_PATTERNS = {
+        "RAPPORT_BUILDING": re.compile(r'\b(?:hi|hello|salam|assalam|hey|how\s*are\s*you|nice\s*to\s*meet|aap\s*kaise\s*hain|kahan\s*se\s*hain|profile\s*dekhi|friendship|dosti)\b', re.I),
+        "GROOMING_INTIMACY": re.compile(r'\b(?:trust\s*you|special\s*person|only\s*telling\s*you|you\s*are\s*different|aap\s*bohot\s*achay\s*hain|kisi\s*aur\s*ko\s*nahi\s*bataya|between\s*us|close\s*friend)\b', re.I),
+        "SOCIAL_ISOLATION": re.compile(r'\b(?:do\s*not\s*tell|keep\s*(?:this\s*)?secret|kisi\s*ko\s*mat\s*batana|don\'t\s*(?:ask|consult|call\s*bank|tell\s*family)|raaz\s*rakhna|private\s*matter)\b', re.I),
+        "OPPORTUNITY_DISTRESS": re.compile(r'\b(?:made\s*\$?\d+|crypto\s*profit|guaranteed\s*return|accident|hospital|stuck|emergency|hadsa|bisp|inaam|lottery|nuksan|help\s*me\s*out)\b', re.I),
+        "COERCIVE_CLOSURE": re.compile(r'\b(?:send\s*(?:money|funds|otp|pin|password|cnic|payment|cash)|transfer\s*(?:karo|now|funds)|click\s*(?:link|here)|download\s*app|apk|easypaisa|jazzcash)\b', re.I)
+    }
+
     @classmethod
-    def extract_topic(cls, messages: List[str], timeline: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def detect_multi_turn_grooming_chain(cls, messages: List[str]) -> Dict[str, Any]:
+        """
+        Analyzes the conversational trajectory across multiple turns to detect
+        staged psychological manipulation (Pig-Butchering, Romance Scams, Gradual Trust Exploitation).
+        """
+        stages_detected = []
+        turn_stages = []
+
+        for idx, msg in enumerate(messages):
+            msg_stages = []
+            for stage_name, pattern in cls.STAGE_PATTERNS.items():
+                if pattern.search(msg):
+                    msg_stages.append(stage_name)
+                    if stage_name not in stages_detected:
+                        stages_detected.append(stage_name)
+            turn_stages.append({"turn": idx + 1, "stages": msg_stages})
+
+        # Calculate Attack Chain Coherence
+        has_early_rapport = ("RAPPORT_BUILDING" in stages_detected or "GROOMING_INTIMACY" in stages_detected)
+        has_isolation_or_opportunity = ("SOCIAL_ISOLATION" in stages_detected or "OPPORTUNITY_DISTRESS" in stages_detected)
+        has_coercive_closure = ("COERCIVE_CLOSURE" in stages_detected)
+
+        is_manipulation_chain = False
+        chain_score = 0.0
+        chain_signals = []
+
+        if has_early_rapport and has_isolation_or_opportunity and has_coercive_closure:
+            is_manipulation_chain = True
+            chain_score = 95.0
+            chain_signals.append("Multi-Turn Psychological Exploitation Chain: Friendly Rapport -> Social Isolation / Bait -> Action Solicitation")
+        elif has_early_rapport and has_coercive_closure and len(messages) >= 3:
+            is_manipulation_chain = True
+            chain_score = 80.0
+            chain_signals.append("Multi-Turn Trust Escalation: Normal social conversation suddenly leveraged for financial or credential request")
+        elif has_isolation_or_opportunity and has_coercive_closure:
+            is_manipulation_chain = True
+            chain_score = 88.0
+            chain_signals.append("Multi-Turn Coercive Pressure: Secrecy directive coupled with immediate irreversible value/access transfer")
+
+        return {
+            "is_manipulation_chain": is_manipulation_chain,
+            "chain_score": round(chain_score),
+            "stages_detected": stages_detected,
+            "chain_signals": chain_signals,
+            "turn_stages": turn_stages
+        }
+
+    @classmethod
+    def extract_topic(cls, messages: List[str], timeline: List[Dict[str, Any]], grooming_chain: Dict[str, Any]) -> Dict[str, Any]:
         combined_text = " ".join(messages).lower()
         
         has_phishing = any("phishing" in str(step.get("signals", [])).lower() for step in timeline)
@@ -39,7 +98,11 @@ class ConversationContextEngine:
         if amounts:
             key_entities.append(f"Monetary Values: {', '.join(amounts[:2])}")
 
-        if has_phishing and has_credentials:
+        if grooming_chain["is_manipulation_chain"]:
+            topic_title = "Multi-Turn Psychological Manipulation & Scam"
+            topic_category = "PSYCHOLOGICAL_SCAM"
+            topic_summary = "The conversation exhibits an active multi-turn social engineering chain (building rapport to isolate the user and solicit funds or confidential credentials)."
+        elif has_phishing and has_credentials:
             topic_title = "Credential Harvesting & Phishing Attack"
             topic_category = "CYBER_THREAT"
             topic_summary = "An external link paired with urgency pressure was transmitted attempting to collect sensitive authentication credentials."
@@ -97,6 +160,7 @@ class ConversationContextEngine:
             s_res = SocialEngineeringDetector.classify(msg)
             u_res = UrduScamDetector.scan(msg)
             z_res = ZeroDayCognitiveEngine.analyze_zero_day_intent(msg)
+            deep_res = DeepCognitiveEngine.analyze_deep_intent(msg)
             d_res = DlpDetector.scan(msg)
 
             step_risk = 0.0
@@ -106,6 +170,11 @@ class ConversationContextEngine:
                 step_risk += max(60.0, p_res["phishing_confidence"] * 85.0)
                 signals.append("Deceptive Phishing URL detected")
                 observed_signals.add("PHISHING_LINK")
+
+            if deep_res["cognitive_threat_detected"]:
+                step_risk += float(deep_res["deep_cognitive_score"]) * 0.9
+                signals.extend(deep_res["signals"][:2])
+                observed_signals.add("DEEP_COGNITIVE_THREAT")
 
             if z_res["zero_day_threat_detected"]:
                 step_risk += float(z_res["cognitive_risk_score"]) * 0.85
@@ -148,6 +217,13 @@ class ConversationContextEngine:
                 "signals": signals if signals else ["Clean message"]
             })
 
+        # Multi-Turn Grooming & Psychological Chain Analysis
+        grooming_chain = cls.detect_multi_turn_grooming_chain(messages)
+        if grooming_chain["is_manipulation_chain"]:
+            accumulated_risk = max(accumulated_risk, float(grooming_chain["chain_score"]))
+            for sig in grooming_chain["chain_signals"]:
+                observed_signals.add(sig)
+
         final_score = round(accumulated_risk)
         final_color = "GREEN"
         if final_score >= 75:
@@ -155,10 +231,12 @@ class ConversationContextEngine:
         elif final_score >= 25:
             final_color = "ORANGE"
 
-        topic_info = cls.extract_topic(messages, timeline)
+        topic_info = cls.extract_topic(messages, timeline, grooming_chain)
 
         recommendations = []
         if final_color == "RED":
+            if grooming_chain["is_manipulation_chain"]:
+                recommendations.append("🚨 Psychological Manipulation Detected: The sender is gradually building rapport to isolate you and solicit funds/access.")
             recommendations.append("Do not click any unverified links or open external portals.")
             recommendations.append("Never share one-time PINs (OTPs), passwords, or CNIC.")
             recommendations.append("Block the sender or report this conversation to administrator.")
@@ -175,6 +253,7 @@ class ConversationContextEngine:
             "summary": f"Topic: {topic_info['title']}. {topic_info['summary']}",
             "observed_signals": list(observed_signals),
             "timeline": timeline,
+            "grooming_chain": grooming_chain,
             "recommendations": recommendations,
             "total_messages": len(messages)
         }

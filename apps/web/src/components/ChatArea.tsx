@@ -32,7 +32,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Real-time pre-send threat & DLP evaluation while typing
+  // Real-time pre-send DLP evaluation while typing (OpSec: only alert sender on self-harm / secret leaks)
   useEffect(() => {
     if (!inputText.trim()) {
       setThreatWarning(null);
@@ -44,19 +44,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       const analysis = await ApiClient.analyzePreSend(inputText);
       setIsEvaluating(false);
 
-      if (analysis.riskScore >= 25 && analysis.indicatorColor !== 'GREEN') {
+      // OpSec principle: Only warn the sender if they are leaking THEIR OWN secrets / credentials (DLP)
+      if (analysis.primaryThreat === 'DLP_SECRET_EXPOSURE' && analysis.riskScore >= 25) {
         const topEv = analysis.evidenceList[0];
-        let title = 'Security Advisory: ';
-        if (analysis.primaryThreat === 'PHISHING') {
-          title = 'Phishing Interception Alert: ';
-        } else if (analysis.primaryThreat === 'DLP_SECRET_EXPOSURE') {
-          title = 'Data Leak Prevention Alert: ';
-        } else if (analysis.primaryThreat === 'SOCIAL_ENGINEERING') {
-          title = 'Social Engineering Alert: ';
-        }
-
         setThreatWarning({
-          title,
+          title: 'Data Leak Prevention Alert: ',
           desc: topEv?.description || analysis.explanation,
           color: analysis.indicatorColor === 'RED' ? 'RED' : 'ORANGE',
         });
