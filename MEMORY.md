@@ -1,7 +1,7 @@
 # SECURECHAT — PROJECT MEMORY
 
-Version: 3.4
-Status: MESSAGE EDITING WITH (EDITED) TAG, MESSAGE DELETION & PERMANENT CLIENT STORAGE PURGE ACTIVE
+Version: 3.5
+Status: PHONE REGISTRATION, PROFILE MANAGEMENT, RECIPIENT-ONLY CHAT TITLES, 10-MIN EDIT WINDOW & EMOJI PICKER ACTIVE
 Last Updated: 2026-09-01
 Authoritative State Record: YES
 
@@ -18,14 +18,20 @@ Authoritative State Record: YES
 ## 2. CHECKPOINTS & CURRENT STATE
 
 ### 🚩 CHECKPOINT 1 (Updated: 2026-09-01)
-- **Message Editing with `(edited)` Label (`PATCH /api/v1/messages/:id` & `MessageItem.tsx`):**
-  - Users can edit their own sent messages inline.
-  - Automatically marks the payload with `isEdited: true` and displays a subtle `(edited)` indicator tag next to timestamp.
-  - Re-evaluates Zero-Trust security and DLP analysis on edited text in real time.
-- **Individual Message Deletion (`DELETE /api/v1/messages/:id`):**
-  - Hover action button to delete individual sent messages, clearing reactions and security events from both database and client state.
-- **Permanent Client Storage & Database Chat Purge (`deleteConversation`):**
-  - Permanently purges conversation messages from browser client persistent storage (`localStorage` keys and `securechat_deleted_convs`) as well as the backend database, ensuring deleted chats cannot be recovered from memory on page reload.
+- **Phone Number Registration & Login (`AuthModal.tsx` & `auth.routes.ts`):**
+  - Registration asks for **Phone Number** (e.g. `+92 300 1234567`), **Display Name**, **Username**, **Profile Picture** (avatar presets + custom image URL/upload), and **Password**.
+  - Login supports login via Phone Number, Username handle, or Email.
+- **User Profile Management Control (`ProfileModal.tsx` & `PATCH /api/v1/auth/profile`):**
+  - Interactive profile management modal accessible directly from user header card in sidebar.
+  - Allows changing display name, registered phone number, avatar URL, and status in real-time.
+- **Recipient Name Exclusivity in Direct Chats (`client.ts` & `ChatArea.tsx`):**
+  - Direct 1-on-1 conversations display only the recipient's name and avatar, eliminating self-name clutter.
+- **10-Minute Message Editing Window (`MessageItem.tsx` & `messages.routes.ts`):**
+  - Messages sent $>10$ minutes ago have their edit button disabled and removed from the UI.
+  - Backend API strictly rejects edit requests on messages $>10$ minutes old with HTTP 403 Forbidden.
+- **Emoji Picker Beside Attachment Icon (`ChatArea.tsx`):**
+  - Sleek Cyberpunk emoji button (`Smile`) located right beside the `Paperclip` attachment icon in the input composer.
+  - Interactive popup with categorized emojis for quick insertion at cursor position.
 - **Pre-Send Sender Credential & Personal Data (DLP) Interception (`DlpPreSendWarningModal.tsx` & `ChatArea.tsx`):**
   - Scans for Passwords, PINs, Passcodes, CNIC (Pakistani National ID), Bank Accounts / IBAN, Credit/Debit Cards, CVV, OTPs, and Cloud API Keys.
   - Real-time typing warning banner (`Data Loss Prevention Alert`).
