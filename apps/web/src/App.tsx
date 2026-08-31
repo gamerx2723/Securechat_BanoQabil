@@ -271,9 +271,10 @@ export const App: React.FC = () => {
   const currentMessages = messagesMap[activeConvId] || [];
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', background: 'var(--bg-primary)' }}>
+    <div className="app-layout">
       {/* Left Sidebar */}
       <Sidebar
+        className={activeConvId && activeTab === 'CHATS' ? 'sidebar-hidden-mobile' : ''}
         conversations={conversations}
         activeId={activeConvId}
         onSelect={(id) => {
@@ -292,7 +293,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Viewport Content */}
-      <div style={{ flex: 1, display: 'flex', position: 'relative' }}>
+      <div className={`main-viewport ${!activeConvId && activeTab === 'CHATS' ? 'main-hidden-mobile' : ''}`}>
         {activeTab === 'CHATS' && (
           <ChatArea
             conversation={currentConv}
@@ -308,6 +309,7 @@ export const App: React.FC = () => {
             onDeleteChat={handleDeleteChat}
             onEditMessage={handleEditMessage}
             onDeleteMessage={handleDeleteMessage}
+            onBack={() => setActiveConvId('')}
           />
         )}
 

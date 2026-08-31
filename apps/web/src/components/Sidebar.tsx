@@ -15,6 +15,7 @@ interface SidebarProps {
   currentUsername: string;
   userAvatarUrl?: string;
   userRole?: string;
+  className?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -30,6 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentUsername,
   userAvatarUrl,
   userRole = 'USER',
+  className = '',
 }) => {
   const [search, setSearch] = React.useState('');
 
@@ -52,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isAdmin = userRole === 'ADMIN';
 
   return (
-    <aside style={{ width: '340px', display: 'flex', flexDirection: 'column', height: '100vh', borderRight: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)' }}>
+    <aside className={`sidebar-container ${className}`}>
       {/* User Header */}
       <div style={{ padding: '16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div

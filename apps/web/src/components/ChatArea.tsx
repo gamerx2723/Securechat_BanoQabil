@@ -19,6 +19,7 @@ import {
   Power,
   CheckCircle,
   AlertTriangle,
+  ArrowLeft,
 } from 'lucide-react';
 import { ApiClient } from '../api/client';
 
@@ -45,6 +46,7 @@ interface ChatAreaProps {
   onDeleteChat?: (conversationId: string) => void;
   onEditMessage?: (messageId: string, newText: string) => void;
   onDeleteMessage?: (messageId: string) => void;
+  onBack?: () => void;
 }
 
 export const ChatArea: React.FC<ChatAreaProps> = ({
@@ -61,6 +63,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   onDeleteChat,
   onEditMessage,
   onDeleteMessage,
+  onBack,
 }) => {
   const [inputText, setInputText] = useState('');
   const [threatWarning, setThreatWarning] = useState<{ title: string; desc: string; color: 'RED' | 'ORANGE' } | null>(null);
@@ -271,8 +274,25 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   return (
     <main className="chat-container">
       {/* Header */}
-      <header className="chat-header" style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <header className="chat-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="btn-ghost"
+              title="Back to conversations"
+              style={{
+                padding: '6px 8px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: '2px',
+              }}
+            >
+              <ArrowLeft size={18} />
+            </button>
+          )}
           <img
             src={conversation.avatar}
             alt={conversation.title}
@@ -676,7 +696,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       )}
 
       {/* Messages Stream */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 0', position: 'relative' }}>
+      <div className="messages-stream">
         {messages.map((msg) => (
           <MessageItem
             key={msg.id}
@@ -694,7 +714,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       {conversation.isBlocked && (
         <div
           style={{
-            margin: '0 24px 10px 24px',
+            margin: '0 20px 10px 20px',
             padding: '10px 14px',
             background: 'rgba(239, 68, 68, 0.12)',
             border: '1px solid rgba(239, 68, 68, 0.35)',
@@ -716,7 +736,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       {threatWarning && !conversation.isBlocked && (
         <div
           style={{
-            margin: '0 24px 10px 24px',
+            margin: '0 20px 10px 20px',
             padding: '10px 14px',
             background: threatWarning.color === 'RED' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
             border: `1px solid ${threatWarning.color === 'RED' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
@@ -737,7 +757,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       )}
 
       {/* Input Composer */}
-      <footer style={{ padding: '16px 24px', background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-subtle)', position: 'relative' }}>
+      <footer className="chat-footer">
         {/* Cyberpunk Emoji Picker Popover */}
         {isEmojiPickerOpen && (
           <div
