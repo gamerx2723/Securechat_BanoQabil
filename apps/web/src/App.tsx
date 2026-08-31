@@ -10,6 +10,7 @@ import { ConversationTopicModal } from './components/ConversationTopicModal';
 import { AuthModal } from './components/AuthModal';
 import { NewChatModal } from './components/NewChatModal';
 import { AdminConsole } from './components/AdminConsole';
+import { ProfileModal } from './components/ProfileModal';
 import { ApiClient } from './api/client';
 
 export const App: React.FC = () => {
@@ -22,6 +23,7 @@ export const App: React.FC = () => {
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [copilotInitialQuery, setCopilotInitialQuery] = useState('');
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -265,7 +267,9 @@ export const App: React.FC = () => {
         onOpenCopilot={() => setIsCopilotOpen(true)}
         onNewChat={() => setIsNewChatOpen(true)}
         onLogout={handleLogout}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
         currentUsername={currentUser.displayName || currentUser.username}
+        userAvatarUrl={currentUser.avatarUrl}
         userRole={currentUser.role}
       />
 
@@ -301,6 +305,18 @@ export const App: React.FC = () => {
 
         {activeTab === 'ADMIN' && currentUser.role === 'ADMIN' && (
           <AdminConsole />
+        )}
+
+        {/* User Profile Controls & Avatar Management Modal */}
+        {isProfileModalOpen && currentUser && (
+          <ProfileModal
+            user={currentUser}
+            onClose={() => setIsProfileModalOpen(false)}
+            onUpdate={(updated) => {
+              setCurrentUser(updated);
+              loadConversations();
+            }}
+          />
         )}
 
         {/* Inspectable Evidence Modal */}

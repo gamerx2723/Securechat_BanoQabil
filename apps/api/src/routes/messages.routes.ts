@@ -245,6 +245,13 @@ messagesRouter.patch('/:messageId', async (req: AuthenticatedRequest, res: Respo
       return;
     }
 
+    // Enforce 10-minute edit window limit
+    const messageAgeMinutes = (Date.now() - new Date(message.sentAt).getTime()) / (1000 * 60);
+    if (messageAgeMinutes > 10) {
+      res.status(403).json({ error: 'Message editing expired: Messages can only be edited within 10 minutes of sending' });
+      return;
+    }
+
     const analysis = await ThreatEvaluationService.evaluate(plaintext, message.conversationId, userId);
     const updatedPayload = JSON.stringify({ plaintext, isEdited: true });
 

@@ -57,6 +57,7 @@ authRouter.post('/register', async (req, res): Promise<void> => {
         phone,
         passwordHash: hashPassword(password),
         displayName,
+        avatarUrl: (parseResult.data as any).avatarUrl || req.body.avatarUrl || null,
         role: 'USER',
         status: 'ACTIVE',
         userPreference: {
@@ -378,5 +379,36 @@ authRouter.get('/me', authMiddleware, async (req: AuthenticatedRequest, res: Res
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to fetch user profile' });
+  }
+});
+
+authRouter.patch('/profile', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.userId;
+    const { displayName, avatarUrl, phone, status } = req.body;
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(displayName ? { displayName } : {}),
+        ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+        ...(phone !== undefined ? { phone } : {}),
+        ...(status ? { status } : {}),
+      },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        phone: true,
+        email: true,
+        avatarUrl: true,
+        role: true,
+        status: true,
+      },
+    });
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to update user profile' });
   }
 });

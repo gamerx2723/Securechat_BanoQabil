@@ -11,7 +11,9 @@ interface SidebarProps {
   onOpenCopilot: () => void;
   onNewChat: () => void;
   onLogout: () => void;
+  onOpenProfile?: () => void;
   currentUsername: string;
+  userAvatarUrl?: string;
   userRole?: string;
 }
 
@@ -24,7 +26,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenCopilot,
   onNewChat,
   onLogout,
+  onOpenProfile,
   currentUsername,
+  userAvatarUrl,
   userRole = 'USER',
 }) => {
   const [search, setSearch] = React.useState('');
@@ -51,22 +55,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside style={{ width: '340px', display: 'flex', flexDirection: 'column', height: '100vh', borderRight: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)' }}>
       {/* User Header */}
       <div style={{ padding: '16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '12px',
-            background: isAdmin ? 'linear-gradient(135deg, #f59e0b, #ef4444)' : 'linear-gradient(135deg, #10b981, #0284c7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 'bold',
-            fontSize: '16px',
-            color: '#fff',
-            boxShadow: isAdmin ? '0 0 15px rgba(245, 158, 11, 0.4)' : '0 0 15px var(--green-glow)'
-          }}>
-            {isAdmin ? <Crown size={18} /> : currentUsername.slice(0, 2).toUpperCase()}
-          </div>
+        <div
+          onClick={onOpenProfile}
+          title="Click to view & edit your profile"
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '4px', borderRadius: '10px', transition: 'background 0.2s ease' }}
+        >
+          {userAvatarUrl ? (
+            <img
+              src={userAvatarUrl}
+              alt={currentUsername}
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '12px',
+                objectFit: 'cover',
+                border: '2px solid var(--accent-cyan)',
+                boxShadow: '0 0 12px rgba(6, 182, 212, 0.4)',
+              }}
+            />
+          ) : (
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '12px',
+              background: isAdmin ? 'linear-gradient(135deg, #f59e0b, #ef4444)' : 'linear-gradient(135deg, #10b981, #0284c7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              fontSize: '16px',
+              color: '#fff',
+              boxShadow: isAdmin ? '0 0 15px rgba(245, 158, 11, 0.4)' : '0 0 15px var(--green-glow)'
+            }}>
+              {isAdmin ? <Crown size={18} /> : currentUsername.slice(0, 2).toUpperCase()}
+            </div>
+          )}
           <div>
             <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               {currentUsername}
@@ -78,7 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isAdmin ? '#fbbf24' : 'var(--green-safe)', display: 'inline-block' }}></span>
-              {isAdmin ? 'Master SuperAdmin Mode' : 'E2EE Double Ratchet'}
+              {isAdmin ? 'Master SuperAdmin Mode' : 'Edit Profile & Keys'}
             </div>
           </div>
         </div>

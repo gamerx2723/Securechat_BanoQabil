@@ -60,6 +60,29 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     return 'CRITICAL THREAT DETECTED';
   };
 
+  // 10-Minute Message Editing Window Constraint
+  const canEdit = (() => {
+    if (!isSelf) return false;
+    if (!message.sentAt) return true;
+    const parsed = new Date(message.sentAt).getTime();
+    if (!isNaN(parsed) && parsed > 0) {
+      return Date.now() - parsed <= 10 * 60 * 1000;
+    }
+    // Parse time string like "1:30 PM"
+    const match = message.sentAt.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+    if (match) {
+      let hours = parseInt(match[1], 10);
+      const minutes = parseInt(match[2], 10);
+      const meridian = match[3]?.toUpperCase();
+      if (meridian === 'PM' && hours < 12) hours += 12;
+      if (meridian === 'AM' && hours === 12) hours = 0;
+      const d = new Date();
+      d.setHours(hours, minutes, 0, 0);
+      return Date.now() - d.getTime() <= 10 * 60 * 1000;
+    }
+    return true;
+  })();
+
   const handleSaveEdit = () => {
     if (!editText.trim()) return;
     if (onEditMessage) {
@@ -204,21 +227,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           {/* Quick Edit & Delete Actions on hover for own messages */}
           {isSelf && !isEditing && isHovered && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginRight: 'auto' }}>
-              <button
-                onClick={() => setIsEditing(true)}
-                title="Edit message"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                <Pencil size={13} />
-              </button>
+              {canEdit && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  title="Edit message (Available within 10 mins of sending)"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Pencil size={13} />
+                </button>
+              )}
               <button
                 onClick={() => onDeleteMessage && onDeleteMessage(message.id)}
                 title="Delete message"

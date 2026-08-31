@@ -51,6 +51,7 @@ export interface UserProfile {
   displayName: string;
   email?: string;
   phone?: string;
+  avatarUrl?: string;
   role: string;
   status: string;
 }

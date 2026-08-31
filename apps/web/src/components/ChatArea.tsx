@@ -5,6 +5,8 @@ import { DlpPreSendWarningModal } from './DlpPreSendWarningModal';
 import {
   Send,
   Paperclip,
+  Smile,
+  X,
   Lock,
   ShieldAlert,
   Sparkles,
@@ -18,6 +20,15 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { ApiClient } from '../api/client';
+
+const EMOJI_LIST = [
+  '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '😉', '😍', '🥰',
+  '😘', '😋', '😜', '🤪', '🤫', '🤔', '🤐', '🤨', '😐', '😏', '😒', '🙄', '😬', '🤥',
+  '😎', '🤓', '🧐', '🥳', '🤠', '🤯', '😱', '🥵', '🥶', '🤖', '👾', '🎃', '👻', '💀',
+  '🔒', '🛡️', '⚡', '🚨', '⚠️', '🔑', '🔐', '🗝️', '💻', '📱', '📡', '💾', '💡', '🔍',
+  '👍', '👎', '👏', '🙌', '🤝', '👊', '✌️', '🤞', '🤙', '💪', '🙏', '❤️', '🔥', '✨',
+  '🚀', '🎯', '💯', '✅', '❌', '⛔', '🚫', '🔴', '🟢', '🟡', '🟠', '🔵', '💬', '💵'
+];
 
 interface ChatAreaProps {
   conversation: ConversationItem | null;
@@ -52,6 +63,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   const [threatWarning, setThreatWarning] = useState<{ title: string; desc: string; color: 'RED' | 'ORANGE' } | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [feedbackToast, setFeedbackToast] = useState<{ message: string; type: 'SUCCESS' | 'WARN' } | null>(null);
   
   const [dlpModalState, setDlpModalState] = useState<{
@@ -66,25 +78,34 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Click outside to close dropdown menu
+  // Click outside to close dropdown menu and emoji picker
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsMenuOpen(false);
       }
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setIsEmojiPickerOpen(false);
+      }
     };
-    if (isMenuOpen) {
+    if (isMenuOpen || isEmojiPickerOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isMenuOpen]);
+  }, [isMenuOpen, isEmojiPickerOpen]);
+
+  const handleInsertEmoji = (emoji: string) => {
+    setInputText((prev) => prev + emoji);
+    setIsEmojiPickerOpen(false);
+  };
 
   // Real-time pre-send DLP evaluation while typing (OpSec: only alert sender on self-harm / secret leaks)
   useEffect(() => {
@@ -574,10 +595,104 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       )}
 
       {/* Input Composer */}
-      <footer style={{ padding: '16px 24px', background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-subtle)' }}>
-        <form onSubmit={handleSend} style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+      <footer style={{ padding: '16px 24px', background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-subtle)', position: 'relative' }}>
+        {/* Cyberpunk Emoji Picker Popover */}
+        {isEmojiPickerOpen && (
+          <div
+            ref={emojiPickerRef}
+            style={{
+              position: 'absolute',
+              bottom: '75px',
+              left: '24px',
+              width: '320px',
+              maxHeight: '260px',
+              background: 'var(--bg-secondary)',
+              border: '1px solid rgba(6, 182, 212, 0.4)',
+              borderRadius: '16px',
+              padding: '12px',
+              boxShadow: '0 15px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(6, 182, 212, 0.15)',
+              zIndex: 100,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              animation: 'fadeIn 0.15s ease-out',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '6px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent-cyan)', letterSpacing: '0.5px' }}>
+                Cyber Emojis
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsEmojiPickerOpen(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(7, 1fr)',
+                gap: '6px',
+                overflowY: 'auto',
+                maxHeight: '200px',
+                paddingRight: '4px',
+              }}
+            >
+              {EMOJI_LIST.map((emoji, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleInsertEmoji(emoji)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    borderRadius: '8px',
+                    fontSize: '18px',
+                    padding: '6px 0',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.1s ease',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = 'rgba(6, 182, 212, 0.2)';
+                    e.currentTarget.style.transform = 'scale(1.2)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSend} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {/* Attachment Button */}
           <button type="button" className="btn-ghost" title="Attach Secure Encrypted File" style={{ padding: '10px' }}>
             <Paperclip size={18} />
+          </button>
+
+          {/* Emoji Picker Button right beside Attachment Icon */}
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+            title="Insert Emoji"
+            style={{
+              padding: '10px',
+              color: isEmojiPickerOpen ? 'var(--accent-cyan)' : 'var(--text-muted)',
+              background: isEmojiPickerOpen ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
+              borderRadius: '8px',
+            }}
+          >
+            <Smile size={18} />
           </button>
 
           <input

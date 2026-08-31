@@ -85,6 +85,7 @@ export class ApiClient {
     displayName: string;
     email?: string;
     phone?: string;
+    avatarUrl?: string;
     password: string;
   }): Promise<{ user: UserProfile; token: string }> {
     const device = this.getDevice();
@@ -127,6 +128,28 @@ export class ApiClient {
     return { user: data.user, token: data.tokens.accessToken };
   }
 
+  public static async updateProfile(params: {
+    displayName?: string;
+    avatarUrl?: string;
+    phone?: string;
+    status?: string;
+  }): Promise<UserProfile> {
+    const res = await fetch(`${API_BASE}/auth/profile`, {
+      method: 'PATCH',
+      headers: this.authHeaders(),
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to update profile' }));
+      throw new Error(err.error || 'Failed to update profile');
+    }
+    const updated = await res.json();
+    const stored = JSON.parse(localStorage.getItem('securechat_user') || '{}');
+    const merged = { ...stored, ...updated };
+    localStorage.setItem('securechat_user', JSON.stringify(merged));
+    return merged;
+  }
+
   public static async getDirectoryUsers(): Promise<Array<{ id: string; username: string; displayName: string; role: string }>> {
     try {
       const res = await fetch(`${API_BASE}/auth/users`, {
@@ -151,6 +174,11 @@ export class ApiClient {
           deletedConvs = JSON.parse(localStorage.getItem('securechat_deleted_convs') || '[]');
         } catch {}
 
+        let currentUserId = '';
+        try {
+          currentUserId = JSON.parse(localStorage.getItem('securechat_user') || '{}')?.id || '';
+        } catch {}
+
         return rawList
           .filter((c: any) => !deletedConvs.includes(c.id))
           .map((c: any) => {
@@ -166,11 +194,27 @@ export class ApiClient {
 
             const secState = c.securitySummary?.securityState || (c.lastMessage?.securityEvents?.[0]?.indicatorColor) || 'GREEN';
 
+            // OpSec Display: Show ONLY recipient name for direct conversations
+            let title = c.title;
+            let avatar = c.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+
+            if (c.members && c.members.length > 0) {
+              const otherMembers = c.members.filter((m: any) => (m.userId || m.id) !== currentUserId);
+              if (c.type === 'DIRECT' || !title) {
+                if (otherMembers.length > 0) {
+                  title = otherMembers[0].displayName || otherMembers[0].username || otherMembers[0].user?.displayName || otherMembers[0].user?.username || 'Recipient';
+                  if (otherMembers[0].avatarUrl || otherMembers[0].user?.avatarUrl) {
+                    avatar = otherMembers[0].avatarUrl || otherMembers[0].user?.avatarUrl;
+                  }
+                }
+              }
+            }
+
             return {
               id: c.id,
-              title: c.title || (c.members?.map((m: any) => m.displayName || m.username).join(', ')) || 'Secure Channel',
+              title: title || 'Secure Contact',
               type: c.type,
-              avatar: c.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+              avatar,
               unreadCount: 0,
               isExcluded: c.isExcludedFromAi || false,
               lastMessageText: text || 'No messages yet',

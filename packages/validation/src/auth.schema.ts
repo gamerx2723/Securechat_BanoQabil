@@ -6,6 +6,7 @@ export const registerSchema = z.object({
   username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, 'Username must be alphanumeric with underscores only'),
   password: z.string().min(8, 'Password must be at least 8 characters long'),
   displayName: z.string().min(1).max(50),
+  avatarUrl: z.string().optional(),
   deviceId: z.string().min(10),
   deviceType: z.enum(['ANDROID', 'IOS', 'WEB', 'DESKTOP']),
   deviceName: z.string().min(1).max(50),
