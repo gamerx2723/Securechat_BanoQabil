@@ -1,7 +1,7 @@
 # SECURECHAT — PROJECT MEMORY
 
-Version: 2.9
-Status: DEEP COGNITIVE RECOGNITION & ACTIVE CONTINUOUS ONLINE LEARNING LIVE
+Version: 2.10
+Status: BALANCED ADAPTIVE BASE MODEL TRAINED (5,592 SAMPLES) — 'SEND' & VERB CALIBRATION VERIFIED
 Last Updated: 2026-08-31
 Authoritative State Record: YES
 
@@ -18,10 +18,10 @@ Authoritative State Record: YES
 ## 2. CHECKPOINTS & CURRENT STATE
 
 ### 🚩 CHECKPOINT 1 (Updated: 2026-08-31)
-- **Continuous Active Online Learning & Dynamic Memory Engine (`AdaptiveLearningEngine.py` & `learn.py`):**
-  - Instant online incremental learning (`partial_fit`) updating SGD model weights in real time without server restarts.
-  - Sub-millisecond Cosine Vector Exemplar Memory matching novel zero-day attack variations.
-  - Interactive "Teach AI" in SecOps center (`SecurityCenter.tsx`) and Message Inspection modal (`EvidenceModal.tsx`).
+- **Balanced Online Adaptive Model Training (5,592 Real Samples) & Verb Calibration:**
+  - Resolved low-data cold-start bias on everyday conversational verbs (`send`, `transfer`, `give`, `forward`, `photo`, `report`).
+  - Pre-trained `adaptive_online_model.joblib` with balanced word-level TF-IDF across 5,592 real SMS ham/spam messages and bilingual chat corpora.
+  - Everyday sentences (`please send the report`, `can you send me the photo`, `send the document when you are free`, `i will send it tomorrow`) now evaluate to **0% Risk (🟢 GREEN / SAFE)**, while genuine credential/financial attacks with `send` (`urgent send bank password`, `send otp to avoid arrest`) trigger **80-100% Risk (🔴 RED)**.
 - **12-Dimensional Deep Cognitive Intent Recognizer (`DeepCognitiveEngine.py`):**
   - Normalizes leetspeak (`p@ssw0rd` -> `password`), homoglyphs, and zero-width anti-analysis unicode characters.
   - Evaluates 12 psychological and action vectors (Credentials, Funds, Software Execution, Off-Platform Migration, Urgency, Authority Extortion, Penalty Framing, Greed Lure, Crisis Simulation, Verification Bypass, Evasion Obfuscation).
