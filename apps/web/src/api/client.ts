@@ -476,7 +476,58 @@ export class ApiClient {
       }
     }
 
-    // 3. Multilingual Social Engineering (Urgency / Fear / Impersonation / Roman Urdu Scams)
+    // 3. Zero-Day Cognitive Intent Logic & Evasion Reasoning
+    // A. Anti-analysis character spacing or hidden zero-width evasion
+    if (/[\u200B\u200C\u200D\uFEFF\u202A\u202E]/.test(text)) {
+      score += 50;
+      evidence.push({
+        category: 'SOCIAL_ENGINEERING',
+        signal: 'ZERO_WIDTH_EVASION',
+        confidence: 0.98,
+        detectionBasis: 'CONTEXT_ANALYSIS',
+        description: 'Zero-Day Anti-Analysis Evasion: Hidden zero-width Unicode characters detected in text.',
+      });
+    }
+
+    if (/\b([a-zA-Z0-9][\s\._-]){4,}[a-zA-Z0-9]\b/.test(text)) {
+      score += 40;
+      evidence.push({
+        category: 'SOCIAL_ENGINEERING',
+        signal: 'OBFUSCATED_SPACING',
+        confidence: 0.92,
+        detectionBasis: 'CONTEXT_ANALYSIS',
+        description: 'Artificial character-spacing/delimiter evasion pattern detected to bypass keyword filters.',
+      });
+    }
+
+    // B. Cognitive Intent Triangle (Action + Pressure + Bypass)
+    const hasAction = /\b(?:authenticate|sign\s*in|log\s*in|verify\s*identity|confirm\s*(?:credentials|details|account)|transfer|send\s*(?:money|funds|cash|amount|rs|pkr|\$)|download|install|run\s*this|open\s*attachment|apk|bhejo|paisay\s*de\s*do|transfer\s*karo)\b/i.test(text);
+    const hasPressure = /\b(?:within\s*(?:\d+\s*(?:mins?|hours?|seconds?)|today)|before\s*it\s*expires|deadline|right\s*now|at\s*once|otherwise|or\s*else|will\s*be\s*(?:lost|cancelled|suspended|blocked|deleted|terminated)|stuck|lost\s*my\s*phone|emergency|hospital|accident|earn\s*\$?\d+\s*daily|won\s*(?:lottery|prize|car|gold)|foran|jaldi|abhi\s*k\s*abhi|band\s*ho\s*jaye\s*ga|ammi\s*bimar)\b/i.test(text);
+    const hasBypass = /\b(?:ignore\s*(?:warning|security\s*alert|prompt)|bypass|do\s*not\s*(?:call|verify\s*with|report|ask)|share\s*(?:code|otp|pin|password|card|cvv|cnic)|tell\s*me\s*the\s*number|kisi\s*ko\s*mat\s*batana|code\s*batao|otp\s*send\s*karo)\b/i.test(text);
+
+    if (hasAction && hasPressure) {
+      score += 55;
+      evidence.push({
+        category: 'SOCIAL_ENGINEERING',
+        signal: 'ACTION_PRESSURE_COMPOUND',
+        confidence: 0.95,
+        detectionBasis: 'CONTEXT_ANALYSIS',
+        description: 'Zero-Day Cognitive Intent: Combines an urgent irreversible action request with asymmetric pressure.',
+      });
+    }
+
+    if (hasAction && hasBypass) {
+      score += 65;
+      evidence.push({
+        category: 'CREDENTIAL_HARVESTING',
+        signal: 'SECURITY_BYPASS_ATTEMPT',
+        confidence: 0.98,
+        detectionBasis: 'CONTEXT_ANALYSIS',
+        description: 'Zero-Day Critical Intent: Direct instruction to bypass verification or disclose confidential 2FA authentication state.',
+      });
+    }
+
+    // 4. Multilingual Social Engineering (Urgency / Fear / Impersonation / Roman Urdu Scams)
     if (/(?:urgent|immediately|foran|jaldi|block honay wala hai|account suspended|verify now|police|fia notice|emergency|suspended within|lottery|inaam|jeeto|bisp|ehsaas|atm block|send pin|otp code)/i.test(text)) {
       score += 45;
       evidence.push({
@@ -492,7 +543,12 @@ export class ApiClient {
     const color = finalScore >= 75 ? 'RED' : finalScore >= 25 ? 'ORANGE' : 'GREEN';
 
     const phishingEv = evidence.find(e => e.category === 'PHISHING');
-    const primaryThreat = phishingEv && finalScore >= 50 ? 'PHISHING' : (evidence.length > 0 ? evidence[0].category : 'SAFE');
+    const credEv = evidence.find(e => e.category === 'CREDENTIAL_HARVESTING');
+    const primaryThreat = phishingEv && finalScore >= 50
+      ? 'PHISHING'
+      : credEv && finalScore >= 50
+      ? 'CREDENTIAL_HARVESTING'
+      : (evidence.length > 0 ? evidence[0].category : 'SAFE');
 
     return {
       riskScore: finalScore,
@@ -506,7 +562,7 @@ export class ApiClient {
         ? `SUSPICIOUS: ${evidence[0]?.description || 'Potential security risks identified'}`
         : 'Clean message envelope. Zero security threats detected under Zero-Trust analysis.',
       recommendation: color === 'RED'
-        ? 'DANGER: Do not click any links or enter credentials. Link flagged as deceptive phishing.'
+        ? 'DANGER: Do not click any links or enter credentials. Threat identified under Zero-Day cognitive analysis.'
         : color === 'ORANGE'
         ? 'CAUTION: Exercise care before sharing information or opening links.'
         : 'Standard messaging safe to proceed.',
