@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { prisma } from '@securechat/database';
-import { RiskEngine } from '@securechat/security';
+import { ThreatEvaluationService } from '../services/threat_evaluation.service.js';
 import { sendMessageSchema, messageReactionSchema } from '@securechat/validation';
 import { AuthenticatedRequest, authMiddleware } from '../auth/jwt.service.js';
 import { wsGateway } from '../websocket/ws_gateway.js';
@@ -136,7 +136,7 @@ messagesRouter.post('/', async (req: AuthenticatedRequest, res: Response): Promi
       plaintext = parsed.plaintext || encryptedPayload;
     } catch {}
 
-    const analysis = RiskEngine.evaluateMessage(plaintext);
+    const analysis = await ThreatEvaluationService.evaluate(plaintext, conversationId, senderId);
 
     const message = await prisma.message.create({
       data: {

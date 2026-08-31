@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { prisma } from '@securechat/database';
-import { RiskEngine } from '@securechat/security';
+import { ThreatEvaluationService } from '../services/threat_evaluation.service.js';
 import { analyzeMessageSchema, securityFeedbackSchema } from '@securechat/validation';
 import { AuthenticatedRequest, authMiddleware } from '../auth/jwt.service.js';
 
@@ -22,8 +22,8 @@ securityRouter.post('/analyze', async (req: AuthenticatedRequest, res: Response)
     const { text, conversationId } = parseResult.data;
     const userId = req.user!.userId;
 
-    // Run deterministic rule engine
-    const analysis = RiskEngine.evaluateMessage(text);
+    // Run hybrid AI ML + deterministic evaluation
+    const analysis = await ThreatEvaluationService.evaluate(text, conversationId, userId);
 
     // If analysis indicates suspicious or critical risk, record real security event in database
     if (analysis.riskScore >= 25 && conversationId) {
@@ -36,7 +36,7 @@ securityRouter.post('/analyze', async (req: AuthenticatedRequest, res: Response)
           riskScore: analysis.riskScore,
           indicatorColor: analysis.indicatorColor,
           confidence: analysis.confidence / 100,
-          source: 'DETERMINISTIC_RULE_ENGINE',
+          source: 'ZERO_TRUST_AI_ENGINE',
           explanation: analysis.explanation,
           recommendation: analysis.recommendation,
         },

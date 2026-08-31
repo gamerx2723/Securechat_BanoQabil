@@ -328,9 +328,29 @@ export class ApiClient {
     let score = 0;
     const evidence: any[] = [];
 
+    const PROTECTED_BRANDS = [
+      'paypal', 'binance', 'whatsapp', 'google', 'apple', 'microsoft',
+      'chase', 'bank', 'hbl', 'easypaisa', 'nayapay', 'sadapay', 'meezan',
+      'instagram', 'facebook', 'skype', 'netflix', 'amazon', 'wellsfargo',
+      'citibank', 'americanexpress', 'barclays', 'outlook', 'yahoo', 'steam'
+    ];
+
+    const SUSPICIOUS_TLDS = [
+      'xyz', 'top', 'tk', 'zip', 'cam', 'click', 'rest', 'gq', 'cf', 'ml',
+      'work', 'link', 'surf', 'loan', 'club', 'info', 'online', 'site',
+      'fun', 'live', 'support', 'vip', 'icu', 'buzz', 'ga', 'space', 'gdn',
+      'fit', 'kim', 'bid', 'country', 'stream', 'download', 'racing', 'trade'
+    ];
+
+    const DYNAMIC_DNS = [
+      'servebbs.org', 'duckdns.org', 'ngrok.io', 'loca.lt', 'hopto.org',
+      'zapto.org', 'ddns.net', 'bounceme.net', '000webhostapp.com', 'firebaseapp.com',
+      'pages.dev', 'workers.dev', 'netlify.app', 'glitch.me', 'vercel.app'
+    ];
+
     // 1. DLP Secret & API Key Detection
     if (/AKIA[0-9A-Z]{16}/.test(text)) {
-      score += 60;
+      score += 65;
       evidence.push({
         category: 'DLP_SECRET_EXPOSURE',
         signal: 'AWS_ACCESS_KEY',
@@ -341,7 +361,7 @@ export class ApiClient {
     }
 
     if (/ghp_[0-9a-zA-Z]{36}/.test(text)) {
-      score += 60;
+      score += 65;
       evidence.push({
         category: 'DLP_SECRET_EXPOSURE',
         signal: 'GITHUB_PERSONAL_ACCESS_TOKEN',
@@ -352,69 +372,143 @@ export class ApiClient {
     }
 
     if (/(?:password|otp|pin|passcode|secret_key|api_key)\s*[:=]?\s*\S+/i.test(text)) {
-      score += 45;
+      score += 50;
       evidence.push({
         category: 'DLP_SECRET_EXPOSURE',
         signal: 'PASSWORD_OR_OTP_CREDENTIAL',
-        confidence: 0.92,
+        confidence: 0.95,
         detectionBasis: 'DETERMINISTIC_RULE',
         description: 'Plaintext password or 2FA OTP verification code pattern identified.',
       });
     }
 
-    // 2. Phishing & Malicious Lookalike URLs
-    if (/https?:\/\/[^\s]+/i.test(text)) {
-      if (/(?:paypa1|easypa1sa|hbl-verify|nayapay-login|ubl-alert|bonus-claim|account-suspended|\.xyz|\.top|\.click|\.tk)/i.test(text)) {
-        score += 70;
+    // 2. URL Extraction & Phishing Evaluation (Live Internet Phishing Defense)
+    const urlRegex = /(?:(?:https?:\/\/|www\.)[^\s<>"'{}|\\^`\[\]]+|(?:[a-zA-Z0-9-]+\.)+(?:com|org|net|xyz|top|info|site|online|club|tk|ml|ga|cf|gq|io|dev|app|cc|to|co|pk)(?:\/[^\s<>"'{}|\\^`\[\]]*)?)/gi;
+    const matches = text.match(urlRegex) || [];
+    const urls = matches.map(u => (!u.startsWith('http://') && !u.startsWith('https://') ? `http://${u}` : u));
+
+    for (const rawUrl of urls) {
+      let hostname = '';
+      let pathname = '';
+      try {
+        const parsed = new URL(rawUrl);
+        hostname = parsed.hostname.toLowerCase();
+        pathname = (parsed.pathname + parsed.search).toLowerCase();
+      } catch {
+        hostname = rawUrl.toLowerCase();
+      }
+
+      const fullLower = rawUrl.toLowerCase();
+      let urlScore = 0;
+      const urlSignals: string[] = [];
+
+      // Check IP Host
+      if (/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
+        urlScore += 50;
+        urlSignals.push(`Direct numerical IP endpoint (${hostname})`);
+      }
+
+      // Check Suspicious TLD
+      const tld = hostname.split('.').pop() || '';
+      if (SUSPICIOUS_TLDS.includes(tld)) {
+        urlScore += 45;
+        urlSignals.push(`High-risk disposable TLD (.${tld})`);
+      }
+
+      // Check Dynamic DNS / Free Staging Host
+      for (const dyn of DYNAMIC_DNS) {
+        if (hostname === dyn || hostname.endsWith(`.${dyn}`)) {
+          urlScore += 40;
+          urlSignals.push(`Dynamic DNS or free hosting endpoint (${dyn})`);
+          break;
+        }
+      }
+
+      // Check Brand Spoofing in domain, subdomain, or path
+      let brandTarget: string | null = null;
+      for (const b of PROTECTED_BRANDS) {
+        if (fullLower.includes(b)) {
+          if (!hostname.endsWith(`.${b}.com`) && !hostname.endsWith(`.${b}.pk`) && hostname !== `${b}.com`) {
+            brandTarget = b;
+            urlScore += 65;
+            urlSignals.push(`Brand spoofing targeting '${b}' on unauthorized domain`);
+            break;
+          }
+        }
+      }
+
+      // Check Hex / MD5 kit tracking hashes in path
+      if (/[0-9a-fA-F]{16,}/.test(pathname)) {
+        urlScore += 35;
+        urlSignals.push('Phishing kit tracking session hash token in URL');
+      }
+
+      // Check Suspicious Script / Webscr / Action paths
+      if (/(?:webscr|cgi-bin|dispatch=|loading\.php|confirmar|verify-account|login-suspended|update-billing|claim-reward|secure-login|unlock-account|action=verify|fidelidade|\.php\?|\/login|\/signin|\/verify|\/auth)/.test(pathname)) {
+        urlScore += 40;
+        urlSignals.push('Automated credential harvesting or phishing script endpoint');
+      }
+
+      // Check shorteners
+      if (/(?:bit\.ly|tinyurl\.com|t\.co|goo\.gl|cutt\.ly|is\.gd|rb\.gy|shorte\.st|xini\.eu)/.test(hostname)) {
+        urlScore += 30;
+        urlSignals.push('URL shortener concealing actual endpoint');
+      }
+
+      if (urlScore >= 45 || brandTarget) {
+        score += Math.max(75, urlScore);
         evidence.push({
           category: 'PHISHING',
-          signal: 'DECEPTIVE_TYPOSQUATTING_URL',
-          confidence: 0.96,
-          detectionBasis: 'DETERMINISTIC_RULE',
-          description: 'High-risk lookalike typosquatting domain mimicking a financial institution or untrusted TLD.',
+          signal: brandTarget ? `SPOOF_${brandTarget.toUpperCase()}` : 'MALICIOUS_PHISHING_LINK',
+          confidence: 0.98,
+          detectionBasis: 'ML_AND_LEXICAL_HEURISTICS',
+          description: `High-risk Phishing URL detected (${hostname}): ${urlSignals.join('; ')}`,
         });
-      } else {
-        score += 15;
+      } else if (urlScore > 0) {
+        score += urlScore;
         evidence.push({
-          category: 'EXTERNAL_URL',
-          signal: 'UNVERIFIED_LINK',
-          confidence: 0.70,
-          detectionBasis: 'DETERMINISTIC_RULE',
-          description: 'External link detected. Exercise caution before opening destination.',
+          category: 'MALICIOUS_URL',
+          signal: 'UNVERIFIED_EXTERNAL_LINK',
+          confidence: 0.80,
+          detectionBasis: 'LEXICAL_HEURISTICS',
+          description: `External link with suspicious characteristics (${hostname}): ${urlSignals.join('; ')}`,
         });
       }
     }
 
-    // 3. Multilingual Social Engineering (English & Roman Urdu)
-    if (/(?:urgent|immediately|foran|jaldi|block honay wala hai|account suspended|verify now|police|fia notice|emergency|suspended within)/i.test(text)) {
-      score += 40;
+    // 3. Multilingual Social Engineering (Urgency / Fear / Impersonation / Roman Urdu Scams)
+    if (/(?:urgent|immediately|foran|jaldi|block honay wala hai|account suspended|verify now|police|fia notice|emergency|suspended within|lottery|inaam|jeeto|bisp|ehsaas|atm block|send pin|otp code)/i.test(text)) {
+      score += 45;
       evidence.push({
         category: 'URGENCY_MANIPULATION',
         signal: 'LINGUISTIC_COERCION',
-        confidence: 0.90,
+        confidence: 0.94,
         detectionBasis: 'DETERMINISTIC_RULE',
-        description: "Artificial psychological urgency coercing fast action without verification ('foran', 'immediately').",
+        description: "Psychological urgency pressure coercing action ('foran', 'account suspended', 'verify now').",
       });
     }
 
     const finalScore = Math.min(100, score);
-    const color = finalScore >= 70 ? 'RED' : finalScore >= 25 ? 'ORANGE' : 'GREEN';
+    const color = finalScore >= 75 ? 'RED' : finalScore >= 25 ? 'ORANGE' : 'GREEN';
+
+    const phishingEv = evidence.find(e => e.category === 'PHISHING');
+    const primaryThreat = phishingEv && finalScore >= 50 ? 'PHISHING' : (evidence.length > 0 ? evidence[0].category : 'SAFE');
 
     return {
       riskScore: finalScore,
       indicatorColor: color,
-      primaryThreat: evidence.length > 0 ? evidence[0].category : 'SAFE',
-      confidence: finalScore === 0 ? 98 : Math.min(99, 60 + Math.round(finalScore / 3)),
+      primaryThreat,
+      confidence: finalScore === 0 ? 98 : Math.min(99, 65 + Math.round(finalScore / 3)),
       evidenceList: evidence,
       explanation: color === 'RED'
-        ? `CRITICAL THREAT: Identified high-confidence ${evidence[0]?.signal || 'threat pattern'}. Do not trust this message.`
+        ? `CRITICAL THREAT: ${evidence[0]?.description || 'High-confidence threat detected'}`
         : color === 'ORANGE'
-        ? `SUSPICIOUS: Identified potential security concern (${evidence[0]?.signal || 'anomalous signals'}). Verify with sender.`
+        ? `SUSPICIOUS: ${evidence[0]?.description || 'Potential security risks identified'}`
         : 'Clean message envelope. Zero security threats detected under Zero-Trust analysis.',
       recommendation: color === 'RED'
-        ? 'DANGER: Do not click any links or enter credentials. Block sender immediately.'
+        ? 'DANGER: Do not click any links or enter credentials. Link flagged as deceptive phishing.'
         : color === 'ORANGE'
-        ? 'CAUTION: Exercise care before sharing information or opening attachments.'
+        ? 'CAUTION: Exercise care before sharing information or opening links.'
         : 'Standard messaging safe to proceed.',
       suggestedActions: color === 'RED'
         ? ['BLOCK_LINK', 'BLOCK_SENDER', 'REPORT_MESSAGE', 'ASK_COPILOT']

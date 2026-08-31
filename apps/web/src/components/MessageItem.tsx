@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChatMessage, SecurityIndicatorColor } from '../types';
-import { ShieldCheck, ShieldAlert, Check, CheckCheck, Lock } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Check, CheckCheck, AlertTriangle } from 'lucide-react';
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -34,6 +34,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onInspectSecu
     }
   };
 
+  const isRed = analysis.indicatorColor === 'RED';
+  const isOrange = analysis.indicatorColor === 'ORANGE';
+
+  const bubbleBorder = isRed
+    ? '1px solid rgba(239, 68, 68, 0.6)'
+    : isOrange
+    ? '1px solid rgba(245, 158, 11, 0.5)'
+    : isSelf
+    ? '1px solid rgba(16, 185, 129, 0.2)'
+    : '1px solid var(--border-subtle)';
+
+  const bubbleShadow = isRed
+    ? '0 4px 20px rgba(239, 68, 68, 0.2)'
+    : isOrange
+    ? '0 4px 16px rgba(245, 158, 11, 0.15)'
+    : '0 4px 12px rgba(0, 0, 0, 0.15)';
+
   return (
     <div
       style={{
@@ -45,7 +62,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onInspectSecu
       }}
     >
       <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-        <span>{message.senderName}</span>
+        <span style={{ fontWeight: 600 }}>{message.senderName}</span>
         <span style={{ fontSize: '9px' }}>•</span>
         <span>{message.sentAt}</span>
       </div>
@@ -54,13 +71,36 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, onInspectSecu
         style={{
           maxWidth: '75%',
           background: isSelf ? 'var(--bg-bubble-self)' : 'var(--bg-bubble-other)',
-          border: isSelf ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid var(--border-subtle)',
+          border: bubbleBorder,
           borderRadius: isSelf ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
           padding: '12px 16px',
           position: 'relative',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          boxShadow: bubbleShadow,
+          transition: 'all 0.2s ease',
         }}
       >
+        {/* Prominent High-Risk Threat Banner inside bubble */}
+        {isRed && (
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              borderRadius: '8px',
+              padding: '6px 10px',
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: 'var(--red-critical)',
+              fontSize: '12px',
+              fontWeight: 700,
+            }}
+          >
+            <AlertTriangle size={14} />
+            <span>⚠️ {analysis.primaryThreat === 'PHISHING' ? 'DECEPTIVE PHISHING LINK DETECTED' : 'CRITICAL THREAT DETECTED'}</span>
+          </div>
+        )}
+
         {/* Decrypted Plaintext */}
         <div style={{ color: 'var(--text-primary)', fontSize: '14px', lineHeight: '1.5', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
           {message.plaintext}

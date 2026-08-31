@@ -25,7 +25,7 @@ export class RiskEngine {
     // 1. DLP Scan
     const dlpResult = DlpScanner.scan(text);
     if (dlpResult.hasSensitiveData) {
-      accumulatedRisk += 40;
+      accumulatedRisk += 45;
       for (const item of dlpResult.detectedItems) {
         evidenceList.push({
           category: 'DLP_SECRET_EXPOSURE',
@@ -42,11 +42,13 @@ export class RiskEngine {
     const analyzedUrls = urls.map(u => UrlAnalyzer.analyzeUrl(u));
     for (const urlInfo of analyzedUrls) {
       if (urlInfo.suspiciousScore > 20) {
-        accumulatedRisk += urlInfo.suspiciousScore * 0.8;
+        // High-confidence phishing boost
+        const weight = urlInfo.suspiciousScore >= 50 ? 1.0 : 0.8;
+        accumulatedRisk += urlInfo.suspiciousScore * weight;
         evidenceList.push({
-          category: urlInfo.typoBrandTarget ? 'PHISHING' : 'MALICIOUS_URL',
+          category: (urlInfo.typoBrandTarget || urlInfo.suspiciousScore >= 45) ? 'PHISHING' : 'MALICIOUS_URL',
           signal: `URL:${urlInfo.domain}`,
-          confidence: urlInfo.suspiciousScore / 100,
+          confidence: Math.max(0.85, urlInfo.suspiciousScore / 100),
           detectionBasis: 'DETERMINISTIC_RULE',
           description: urlInfo.reasons.join('; '),
         });
@@ -62,29 +64,34 @@ export class RiskEngine {
 
     // 4. Combined Threat Logic (e.g. Urgency + Suspicious URL = High confidence Phishing)
     const hasUrgency = evidenceList.some(e => e.category === 'URGENCY_MANIPULATION');
-    const hasSuspiciousUrl = analyzedUrls.some(u => u.suspiciousScore >= 40);
+    const hasSuspiciousUrl = analyzedUrls.some(u => u.suspiciousScore >= 35);
     const hasCredentialRequest = evidenceList.some(e => e.category === 'CREDENTIAL_HARVESTING');
 
     if (hasUrgency && hasSuspiciousUrl) {
-      accumulatedRisk += 30;
+      accumulatedRisk += 35;
       evidenceList.push({
         category: 'PHISHING',
         signal: 'COMPOUND_URGENCY_URL',
-        confidence: 0.92,
+        confidence: 0.95,
         detectionBasis: 'DETERMINISTIC_RULE',
-        description: 'Compound threat pattern: Combines artificial urgency with an external unverified link.',
+        description: 'Compound threat pattern: Combines artificial urgency pressure with an unverified destination link.',
       });
     }
 
     if (hasUrgency && hasCredentialRequest) {
-      accumulatedRisk += 35;
+      accumulatedRisk += 40;
       evidenceList.push({
         category: 'CREDENTIAL_HARVESTING',
         signal: 'COMPOUND_URGENCY_CREDENTIALS',
-        confidence: 0.95,
+        confidence: 0.98,
         detectionBasis: 'DETERMINISTIC_RULE',
         description: 'High-risk pattern: Direct solicitation of confidential credentials accompanied by urgency pressure.',
       });
+    }
+
+    // If phishing URL is detected with high score, ensure minimum risk threshold
+    if (analyzedUrls.some(u => u.suspiciousScore >= 55 || u.typoBrandTarget)) {
+      accumulatedRisk = Math.max(accumulatedRisk, 85);
     }
 
     // Clamp score 0 - 100
@@ -92,7 +99,7 @@ export class RiskEngine {
 
     // Determine Indicator Color
     let indicatorColor: SecurityIndicatorColor = 'GREEN';
-    if (finalScore >= 80) {
+    if (finalScore >= 75) {
       indicatorColor = 'RED';
     } else if (finalScore >= 25) {
       indicatorColor = 'ORANGE';
@@ -101,8 +108,17 @@ export class RiskEngine {
     // Determine Primary Threat
     let primaryThreat: ThreatCategory = 'SAFE';
     if (evidenceList.length > 0) {
-      const topEvidence = [...evidenceList].sort((a, b) => b.confidence - a.confidence)[0];
-      primaryThreat = topEvidence.category;
+      // Prioritize PHISHING and DLP_SECRET_EXPOSURE
+      const phishingEv = evidenceList.find(e => e.category === 'PHISHING');
+      const dlpEv = evidenceList.find(e => e.category === 'DLP_SECRET_EXPOSURE');
+      if (phishingEv && finalScore >= 50) {
+        primaryThreat = 'PHISHING';
+      } else if (dlpEv && finalScore >= 40) {
+        primaryThreat = 'DLP_SECRET_EXPOSURE';
+      } else {
+        const topEvidence = [...evidenceList].sort((a, b) => b.confidence - a.confidence)[0];
+        primaryThreat = topEvidence.category;
+      }
     }
 
     // Generate Human-Readable Explanation

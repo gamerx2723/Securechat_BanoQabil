@@ -36,8 +36,10 @@ os.makedirs(MODELS_DIR, exist_ok=True)
 # -----------------------------------------------------------------------------
 
 def train_phishing_model():
-    print("\n--- [1/3] Training Phishing URL Detector ---")
-    dataset_file = os.path.join(DATA_DIR, "phishing_urls_dataset.csv")
+    print("\n--- [1/3] Training Phishing URL Detector on 549k Dataset ---")
+    dataset_file = os.path.join(DATA_DIR, "phishing_site_urls.csv")
+    if not os.path.exists(dataset_file):
+        dataset_file = os.path.join(DATA_DIR, "phishing_urls_dataset.csv")
     print(f"Loading dataset from: {dataset_file}")
     
     urls = []
@@ -46,33 +48,41 @@ def train_phishing_model():
     with open(dataset_file, mode='r', encoding='utf-8', errors='ignore') as f:
         reader = csv.reader(f)
         header = next(reader, None)
-        for row in reader:
+        for i, row in enumerate(reader):
             if len(row) >= 2:
                 u = row[0].strip()
-                try:
-                    lbl = int(row[1].strip())
-                    urls.append(u)
-                    labels.append(lbl)
-                except:
+                lbl_raw = row[1].strip().lower()
+                if not u:
                     continue
+                if lbl_raw in ('bad', 'phishing', '1'):
+                    lbl = 1
+                elif lbl_raw in ('good', 'benign', '0', 'legitimate'):
+                    lbl = 0
+                else:
+                    continue
+                urls.append(u)
+                labels.append(lbl)
+                # Sample up to 100,000 records for fast and accurate training
+                if len(urls) >= 100000:
+                    break
             
-    print(f"Loaded {len(urls)} URLs ({labels.count(0)} legitimate, {labels.count(1)} malicious/phishing).")
+    print(f"Loaded {len(urls)} real-world URLs ({labels.count(0)} legitimate, {labels.count(1)} malicious/phishing).")
 
     vectorizer = FeatureUnion([
-        ('tfidf', TfidfVectorizer(analyzer='char', ngram_range=(3, 5), max_features=1000)),
+        ('tfidf', TfidfVectorizer(analyzer='char', ngram_range=(3, 5), max_features=3000)),
         ('lexical', LexicalUrlFeatureExtractor())
     ])
     
-    clf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=12, n_jobs=-1)
+    clf = RandomForestClassifier(n_estimators=100, random_state=42, max_depth=16, n_jobs=-1)
     pipeline = Pipeline([
         ('features', vectorizer),
         ('classifier', clf)
     ])
     
     pipeline.fit(urls, labels)
-    preds = pipeline.predict(urls)
-    acc = accuracy_score(labels, preds)
-    f1 = f1_score(labels, preds)
+    preds = pipeline.predict(urls[:5000])
+    acc = accuracy_score(labels[:5000], preds)
+    f1 = f1_score(labels[:5000], preds)
     
     print(f"Phishing Model Evaluation -> Sample Accuracy: {acc * 100:.2f}% | F1-Score: {f1:.4f}")
     

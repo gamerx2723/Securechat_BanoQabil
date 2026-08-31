@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage, ConversationItem, SecurityAnalysis } from '../types';
 import { MessageItem } from './MessageItem';
 import { ApiClient } from '../api/client';
-import { Send, Shield, ShieldCheck, ShieldAlert, Paperclip, AlertOctagon, EyeOff, Lock } from 'lucide-react';
+import { Send, Shield, ShieldCheck, ShieldAlert, Paperclip, AlertOctagon, AlertTriangle, Lock } from 'lucide-react';
 
 interface ChatAreaProps {
   conversation: ConversationItem;
@@ -20,7 +20,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   onTogglePrivacy,
 }) => {
   const [inputText, setInputText] = useState('');
-  const [dlpWarning, setDlpWarning] = useState<string | null>(null);
+  const [threatWarning, setThreatWarning] = useState<{ title: string; desc: string; color: 'RED' | 'ORANGE' } | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -28,10 +28,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Real-time pre-send DLP evaluation while typing
+  // Real-time pre-send threat & DLP evaluation while typing
   useEffect(() => {
     if (!inputText.trim()) {
-      setDlpWarning(null);
+      setThreatWarning(null);
       return;
     }
 
@@ -40,11 +40,24 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       const analysis = await ApiClient.analyzePreSend(inputText);
       setIsEvaluating(false);
 
-      if (analysis.riskScore >= 40 && analysis.evidenceList.some(e => e.category === 'DLP_SECRET_EXPOSURE')) {
-        const dlpEvidence = analysis.evidenceList.find(e => e.category === 'DLP_SECRET_EXPOSURE');
-        setDlpWarning(dlpEvidence ? dlpEvidence.description : 'Potential secret detected');
+      if (analysis.riskScore >= 25 && analysis.indicatorColor !== 'GREEN') {
+        const topEv = analysis.evidenceList[0];
+        let title = 'Security Advisory: ';
+        if (analysis.primaryThreat === 'PHISHING') {
+          title = 'Phishing Interception Alert: ';
+        } else if (analysis.primaryThreat === 'DLP_SECRET_EXPOSURE') {
+          title = 'Data Leak Prevention Alert: ';
+        } else if (analysis.primaryThreat === 'SOCIAL_ENGINEERING') {
+          title = 'Social Engineering Alert: ';
+        }
+
+        setThreatWarning({
+          title,
+          desc: topEv?.description || analysis.explanation,
+          color: analysis.indicatorColor === 'RED' ? 'RED' : 'ORANGE',
+        });
       } else {
-        setDlpWarning(null);
+        setThreatWarning(null);
       }
     }, 200);
 
@@ -58,7 +71,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     const analysis = await ApiClient.analyzePreSend(inputText);
     onSendMessage(inputText, analysis);
     setInputText('');
-    setDlpWarning(null);
+    setThreatWarning(null);
   };
 
   return (
@@ -102,7 +115,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               </span>
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              Identity Key: <code style={{ color: 'var(--text-secondary)' }}>0x8a92...3f1c</code> • Untrusted by Default
+              Channel State: <code style={{ color: 'var(--accent-cyan)' }}>Zero-Trust Verified</code> • End-to-End Encrypted
             </div>
           </div>
         </div>
@@ -120,18 +133,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               alignItems: 'center',
               gap: '6px',
             }}
-            title="Toggle AI chat monitoring exclusion"
           >
-            <EyeOff size={14} />
-            {conversation.isExcluded ? 'AI Excluded' : 'AI Monitored'}
+            {conversation.isExcluded ? <ShieldAlert size={14} /> : <Shield size={14} />}
+            {conversation.isExcluded ? 'AI Scanning Paused' : 'Guardian Active'}
           </button>
         </div>
       </header>
 
-      {/* Message Viewport */}
+      {/* Message Feed */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 0' }}>
         {/* Zero-Trust Notice */}
-        <div style={{ textAlign: 'center', margin: '0 20px 24px 20px' }}>
+        <div style={{ textAlign: 'center', margin: '0 0 20px 0' }}>
           <div
             style={{
               display: 'inline-flex',
@@ -160,27 +172,27 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         <div ref={scrollRef} />
       </div>
 
-      {/* Pre-Send DLP Interception Warning Banner */}
-      {dlpWarning && (
+      {/* Pre-Send Real-Time Threat Interception Warning Banner */}
+      {threatWarning && (
         <div
           className="fade-in"
           style={{
             margin: '0 20px 10px 20px',
-            background: 'rgba(245, 158, 11, 0.15)',
-            border: '1px solid rgba(245, 158, 11, 0.4)',
+            background: threatWarning.color === 'RED' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+            border: threatWarning.color === 'RED' ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(245, 158, 11, 0.4)',
             borderRadius: '8px',
             padding: '10px 14px',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            color: 'var(--orange-warn)',
+            color: threatWarning.color === 'RED' ? 'var(--red-critical)' : 'var(--orange-warn)',
             fontSize: '13px',
           }}
         >
-          <AlertOctagon size={18} style={{ flexShrink: 0 }} />
+          {threatWarning.color === 'RED' ? <AlertTriangle size={18} style={{ flexShrink: 0 }} /> : <AlertOctagon size={18} style={{ flexShrink: 0 }} />}
           <div style={{ flex: 1 }}>
-            <span style={{ fontWeight: 700 }}>Data Leak Prevention Alert: </span>
-            {dlpWarning}
+            <span style={{ fontWeight: 700 }}>{threatWarning.title}</span>
+            {threatWarning.desc}
           </div>
         </div>
       )}
@@ -200,7 +212,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           <input
             type="text"
             className="secure-input"
-            placeholder="Type an end-to-end encrypted message..."
+            placeholder="Type an end-to-end encrypted message or link..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
           />
