@@ -1,17 +1,18 @@
 import React from 'react';
 import { ConversationItem, SecurityIndicatorColor } from '../types';
-import { Shield, ShieldAlert, ShieldCheck, MessageSquare, Activity, ShieldQuestion, Plus, Lock, Search, LogOut } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, MessageSquare, Activity, ShieldQuestion, Plus, Lock, Search, LogOut, Crown } from 'lucide-react';
 
 interface SidebarProps {
   conversations: ConversationItem[];
   activeId: string;
   onSelect: (id: string) => void;
-  activeTab: 'CHATS' | 'GUARDIAN' | 'SECOPS';
-  onTabChange: (tab: 'CHATS' | 'GUARDIAN' | 'SECOPS') => void;
+  activeTab: 'CHATS' | 'GUARDIAN' | 'SECOPS' | 'ADMIN';
+  onTabChange: (tab: 'CHATS' | 'GUARDIAN' | 'SECOPS' | 'ADMIN') => void;
   onOpenCopilot: () => void;
   onNewChat: () => void;
   onLogout: () => void;
   currentUsername: string;
+  userRole?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -24,6 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNewChat,
   onLogout,
   currentUsername,
+  userRole = 'USER',
 }) => {
   const [search, setSearch] = React.useState('');
 
@@ -43,22 +45,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const isAdmin = userRole === 'ADMIN';
+
   return (
     <aside style={{ width: '340px', display: 'flex', flexDirection: 'column', height: '100vh', borderRight: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)' }}>
       {/* User Header */}
       <div style={{ padding: '16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg, #10b981, #0284c7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '16px', color: '#fff', boxShadow: '0 0 15px var(--green-glow)' }}>
-            {currentUsername.slice(0, 2).toUpperCase()}
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '12px',
+            background: isAdmin ? 'linear-gradient(135deg, #f59e0b, #ef4444)' : 'linear-gradient(135deg, #10b981, #0284c7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 'bold',
+            fontSize: '16px',
+            color: '#fff',
+            boxShadow: isAdmin ? '0 0 15px rgba(245, 158, 11, 0.4)' : '0 0 15px var(--green-glow)'
+          }}>
+            {isAdmin ? <Crown size={18} /> : currentUsername.slice(0, 2).toUpperCase()}
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               {currentUsername}
-              <Lock size={12} style={{ color: 'var(--green-safe)' }} />
+              {isAdmin ? (
+                <span style={{ fontSize: '9px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.4)' }}>ADMIN</span>
+              ) : (
+                <Lock size={12} style={{ color: 'var(--green-safe)' }} />
+              )}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--green-safe)', display: 'inline-block' }}></span>
-              E2EE Double Ratchet
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isAdmin ? '#fbbf24' : 'var(--green-safe)', display: 'inline-block' }}></span>
+              {isAdmin ? 'Master SuperAdmin Mode' : 'E2EE Double Ratchet'}
             </div>
           </div>
         </div>
@@ -82,69 +102,94 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ display: 'flex', padding: '8px 12px', gap: '6px', background: 'rgba(0, 0, 0, 0.2)' }}>
+      <div style={{ display: 'flex', padding: '8px 10px', gap: '4px', background: 'rgba(0, 0, 0, 0.2)' }}>
         <button
           onClick={() => onTabChange('CHATS')}
           style={{
             flex: 1,
-            padding: '8px 0',
+            padding: '7px 0',
             border: 'none',
             borderRadius: '6px',
             background: activeTab === 'CHATS' ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
             color: activeTab === 'CHATS' ? 'var(--text-primary)' : 'var(--text-muted)',
             fontWeight: 600,
-            fontSize: '13px',
+            fontSize: '12px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '6px'
+            gap: '4px'
           }}
         >
-          <MessageSquare size={14} /> Chats
+          <MessageSquare size={13} /> Chats
         </button>
 
         <button
           onClick={() => onTabChange('GUARDIAN')}
           style={{
             flex: 1,
-            padding: '8px 0',
+            padding: '7px 0',
             border: 'none',
             borderRadius: '6px',
             background: activeTab === 'GUARDIAN' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
             color: activeTab === 'GUARDIAN' ? 'var(--green-safe)' : 'var(--text-muted)',
             fontWeight: 600,
-            fontSize: '13px',
+            fontSize: '12px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '6px'
+            gap: '4px'
           }}
         >
-          <Shield size={14} /> Guardian AI
+          <Shield size={13} /> AI
         </button>
 
         <button
           onClick={() => onTabChange('SECOPS')}
           style={{
             flex: 1,
-            padding: '8px 0',
+            padding: '7px 0',
             border: 'none',
             borderRadius: '6px',
             background: activeTab === 'SECOPS' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
             color: activeTab === 'SECOPS' ? '#60a5fa' : 'var(--text-muted)',
             fontWeight: 600,
-            fontSize: '13px',
+            fontSize: '12px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '6px'
+            gap: '4px'
           }}
         >
-          <Activity size={14} /> SecOps
+          <Activity size={13} /> SecOps
         </button>
+
+        {/* Dynamic SuperAdmin Tab */}
+        {isAdmin && (
+          <button
+            onClick={() => onTabChange('ADMIN')}
+            style={{
+              flex: 1.2,
+              padding: '7px 0',
+              border: 'none',
+              borderRadius: '6px',
+              background: activeTab === 'ADMIN' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(245, 158, 11, 0.08)',
+              color: activeTab === 'ADMIN' ? '#fcd34d' : '#fbbf24',
+              fontWeight: 700,
+              fontSize: '12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+              borderBottom: activeTab === 'ADMIN' ? '2px solid #f59e0b' : 'none'
+            }}
+          >
+            <Crown size={13} /> Admin
+          </button>
+        )}
       </div>
 
       {/* Search Bar & New Chat Button */}

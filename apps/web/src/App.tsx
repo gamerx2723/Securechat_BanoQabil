@@ -8,6 +8,7 @@ import { EvidenceModal } from './components/EvidenceModal';
 import { CopilotDrawer } from './components/CopilotDrawer';
 import { AuthModal } from './components/AuthModal';
 import { NewChatModal } from './components/NewChatModal';
+import { AdminConsole } from './components/AdminConsole';
 import { ApiClient } from './api/client';
 
 export const App: React.FC = () => {
@@ -15,7 +16,7 @@ export const App: React.FC = () => {
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [activeConvId, setActiveConvId] = useState<string>('');
   const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>({});
-  const [activeTab, setActiveTab] = useState<'CHATS' | 'GUARDIAN' | 'SECOPS'>('CHATS');
+  const [activeTab, setActiveTab] = useState<'CHATS' | 'GUARDIAN' | 'SECOPS' | 'ADMIN'>('CHATS');
   const [inspectedMessage, setInspectedMessage] = useState<ChatMessage | null>(null);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
@@ -35,6 +36,10 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (currentUser) {
       loadConversations();
+      // If admin, default or allow admin tab
+      if (currentUser.role === 'ADMIN' && activeTab === 'ADMIN') {
+        setActiveTab('ADMIN');
+      }
     }
   }, [currentUser]);
 
@@ -149,6 +154,7 @@ export const App: React.FC = () => {
     setConversations([]);
     setActiveConvId('');
     setMessagesMap({});
+    setActiveTab('CHATS');
   };
 
   const handleTogglePrivacy = () => {
@@ -193,6 +199,7 @@ export const App: React.FC = () => {
         onNewChat={() => setIsNewChatOpen(true)}
         onLogout={handleLogout}
         currentUsername={currentUser.displayName || currentUser.username}
+        userRole={currentUser.role}
       />
 
       {/* Main Viewport Content */}
@@ -216,6 +223,10 @@ export const App: React.FC = () => {
 
         {activeTab === 'SECOPS' && (
           <SecurityCenter />
+        )}
+
+        {activeTab === 'ADMIN' && currentUser.role === 'ADMIN' && (
+          <AdminConsole />
         )}
 
         {/* Inspectable Evidence Modal */}

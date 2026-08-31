@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Lock, User, Key, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
+import { Shield, Lock, User, Key, CheckCircle, AlertCircle, Sparkles, Crown } from 'lucide-react';
 import { ApiClient } from '../api/client';
 import { UserProfile } from '../types';
 
@@ -66,7 +66,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-bold text-white tracking-tight">SecureChat Zero-Trust</h2>
-          <p className="text-xs text-slate-400 mt-1">E2EE Cryptographic Identity & Real-Time Security</p>
+          <p className="text-xs text-slate-400 mt-1">E2EE Cryptographic Identity & Database Management</p>
         </div>
 
         {/* Mode Tabs */}
@@ -110,7 +110,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                     required
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="e.g. alice or bob"
+                    placeholder="e.g. admin or alice"
                     className="w-full bg-slate-950 border border-slate-700/60 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
                   />
                 </div>
@@ -209,10 +209,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
           </button>
         </form>
 
-        {/* Quick Demo Logins */}
+        {/* Quick Demo Logins with Admin option */}
         {isLogin && (
-          <div className="mt-6 pt-6 border-t border-slate-800">
-            <p className="text-xs text-slate-400 text-center mb-3">Quick Demo Authentication:</p>
+          <div className="mt-6 pt-5 border-t border-slate-800">
+            <p className="text-xs text-slate-400 text-center mb-2.5">Quick Role Authentication:</p>
+            
+            {/* SuperAdmin Master Access Button */}
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('admin', 'AdminPass2026!')}
+              className="w-full mb-2 p-2.5 bg-gradient-to-r from-amber-500/15 to-red-500/15 hover:from-amber-500/25 hover:to-red-500/25 border border-amber-500/30 rounded-xl text-left transition-all flex items-center justify-between shadow-sm"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                  <Crown className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                    SuperAdmin Account
+                    <span className="px-1.5 py-0.2 text-[9px] bg-amber-500/30 text-amber-200 rounded">Full Access</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400">Manage all accounts, database & telemetries</div>
+                </div>
+              </div>
+              <div className="text-xs text-amber-400 font-bold">&rarr;</div>
+            </button>
+
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -221,7 +243,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
               >
                 <div className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-bold">A</div>
                 <div>
-                  <div className="text-xs font-bold text-white">Alice (Dev)</div>
+                  <div className="text-xs font-bold text-white">Alice (User)</div>
                   <div className="text-[10px] text-slate-400">@alice</div>
                 </div>
               </button>
@@ -233,7 +255,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
               >
                 <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">B</div>
                 <div>
-                  <div className="text-xs font-bold text-white">Bob (SecOps)</div>
+                  <div className="text-xs font-bold text-white">Bob (User)</div>
                   <div className="text-[10px] text-slate-400">@bob</div>
                 </div>
               </button>
