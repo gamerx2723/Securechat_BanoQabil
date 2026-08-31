@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { prisma } from '@securechat/database';
+import { RiskEngine } from '@securechat/security';
 import { sendMessageSchema, messageReactionSchema } from '@securechat/validation';
 import { AuthenticatedRequest, authMiddleware } from '../auth/jwt.service.js';
 import { wsGateway } from '../websocket/ws_gateway.js';
@@ -128,6 +129,15 @@ messagesRouter.post('/', async (req: AuthenticatedRequest, res: Response): Promi
       }
     }
 
+    // Extract plaintext to perform Zero-Trust AI Security Analysis
+    let plaintext = encryptedPayload;
+    try {
+      const parsed = JSON.parse(encryptedPayload);
+      plaintext = parsed.plaintext || encryptedPayload;
+    } catch {}
+
+    const analysis = RiskEngine.evaluateMessage(plaintext);
+
     const message = await prisma.message.create({
       data: {
         conversationId,
@@ -137,6 +147,20 @@ messagesRouter.post('/', async (req: AuthenticatedRequest, res: Response): Promi
         replyToMessageId,
         disappearsInSeconds,
         status: 'SENT',
+        securityEvents: {
+          create: {
+            userId: senderId,
+            conversationId,
+            type: analysis.primaryThreat,
+            severity: analysis.indicatorColor === 'RED' ? 'CRITICAL' : analysis.indicatorColor === 'ORANGE' ? 'MEDIUM' : 'LOW',
+            riskScore: analysis.riskScore,
+            indicatorColor: analysis.indicatorColor,
+            confidence: analysis.confidence / 100,
+            source: 'ZERO_TRUST_ANALYZER',
+            explanation: analysis.explanation,
+            recommendation: analysis.recommendation,
+          },
+        },
       },
       include: {
         sender: {
@@ -154,7 +178,7 @@ messagesRouter.post('/', async (req: AuthenticatedRequest, res: Response): Promi
       },
     });
 
-    // Update conversation timestamp
+    // Update conversation timestamp & security state
     await prisma.conversation.update({
       where: { id: conversationId },
       data: { updatedAt: new Date() },

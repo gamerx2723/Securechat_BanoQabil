@@ -23,7 +23,7 @@ export const App: React.FC = () => {
   const [copilotInitialQuery, setCopilotInitialQuery] = useState('');
   const wsRef = useRef<WebSocket | null>(null);
 
-  // Load conversations whenever authenticated user is active
+  // Load conversations from SQLite
   const loadConversations = async () => {
     if (!currentUser) return;
     const convs = await ApiClient.getConversations();
@@ -33,26 +33,48 @@ export const App: React.FC = () => {
     }
   };
 
+  // Load messages for active conversation
+  const loadActiveMessages = async (convId: string) => {
+    if (!currentUser || !convId) return;
+    const msgs = await ApiClient.getMessages(convId);
+    setMessagesMap((prev) => ({
+      ...prev,
+      [convId]: msgs,
+    }));
+  };
+
   useEffect(() => {
     if (currentUser) {
       loadConversations();
-      // If admin, default or allow admin tab
-      if (currentUser.role === 'ADMIN' && activeTab === 'ADMIN') {
-        setActiveTab('ADMIN');
-      }
     }
   }, [currentUser]);
 
-  // Load messages for active conversation
   useEffect(() => {
-    if (!currentUser || !activeConvId) return;
+    if (currentUser && activeConvId) {
+      loadActiveMessages(activeConvId);
+    }
+  }, [currentUser, activeConvId]);
 
-    ApiClient.getMessages(activeConvId).then((msgs) => {
-      setMessagesMap((prev) => ({
-        ...prev,
-        [activeConvId]: msgs,
-      }));
-    });
+  // Real-Time Background Auto-Sync (Every 1.5 seconds so messages arrive automatically without refresh)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const interval = setInterval(() => {
+      if (activeConvId) {
+        ApiClient.getMessages(activeConvId).then((latestMsgs) => {
+          setMessagesMap((prev) => {
+            const currentMsgs = prev[activeConvId] || [];
+            if (latestMsgs.length !== currentMsgs.length || JSON.stringify(latestMsgs) !== JSON.stringify(currentMsgs)) {
+              return { ...prev, [activeConvId]: latestMsgs };
+            }
+            return prev;
+          });
+        });
+      }
+      ApiClient.getConversations().then(setConversations);
+    }, 1500);
+
+    return () => clearInterval(interval);
   }, [currentUser, activeConvId]);
 
   // Real-time WebSocket connection
@@ -72,42 +94,9 @@ export const App: React.FC = () => {
           const payload = JSON.parse(event.data);
           if (payload.event === 'message:receive') {
             const raw = payload.data;
-            let text = '';
-            try {
-              const parsed = JSON.parse(raw.encryptedPayload);
-              text = parsed.plaintext || raw.encryptedPayload;
-            } catch {
-              text = raw.encryptedPayload;
+            if (raw.conversationId === activeConvId) {
+              loadActiveMessages(activeConvId);
             }
-
-            const secEvent = raw.securityEvents?.[0];
-            const incomingMsg: ChatMessage = {
-              id: raw.id,
-              conversationId: raw.conversationId,
-              senderId: raw.senderId,
-              senderName: raw.sender?.displayName || raw.sender?.username || 'Contact',
-              plaintext: text,
-              sentAt: new Date(raw.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              status: raw.status || 'DELIVERED',
-              isSelf: raw.senderId === currentUser.id,
-              reactions: raw.reactions || [],
-              securityAnalysis: {
-                riskScore: secEvent?.riskScore || 0,
-                indicatorColor: secEvent?.indicatorColor || 'GREEN',
-                primaryThreat: secEvent?.type || 'SAFE',
-                confidence: secEvent?.confidence ? Math.round(secEvent.confidence * 100) : 95,
-                evidenceList: [],
-                explanation: secEvent?.explanation || 'Clean message envelope.',
-                recommendation: secEvent?.recommendation || 'Safe.',
-                suggestedActions: secEvent?.recommendation ? [secEvent.recommendation] : [],
-              },
-            };
-
-            setMessagesMap((prev) => ({
-              ...prev,
-              [raw.conversationId]: [...(prev[raw.conversationId] || []), incomingMsg],
-            }));
-
             loadConversations();
           }
         } catch {}
@@ -117,7 +106,7 @@ export const App: React.FC = () => {
         ws.close();
       };
     } catch {}
-  }, [currentUser]);
+  }, [currentUser, activeConvId]);
 
   const handleSendMessage = async (text: string, _analysis: SecurityAnalysis) => {
     if (!activeConvId) return;
@@ -143,6 +132,9 @@ export const App: React.FC = () => {
             : c
         )
       );
+
+      // Re-sync conversation messages
+      loadActiveMessages(activeConvId);
     } catch (err: any) {
       console.error('Send error:', err);
     }
@@ -192,7 +184,10 @@ export const App: React.FC = () => {
       <Sidebar
         conversations={conversations}
         activeId={activeConvId}
-        onSelect={(id) => setActiveConvId(id)}
+        onSelect={(id) => {
+          setActiveConvId(id);
+          loadActiveMessages(id);
+        }}
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab)}
         onOpenCopilot={() => setIsCopilotOpen(true)}
@@ -252,6 +247,7 @@ export const App: React.FC = () => {
             onCreated={(newConv) => {
               loadConversations();
               setActiveConvId(newConv.id);
+              loadActiveMessages(newConv.id);
             }}
           />
         )}

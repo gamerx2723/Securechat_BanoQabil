@@ -157,7 +157,7 @@ export class ApiClient {
             }
           }
 
-          const secState = c.securitySummary?.securityState || 'GREEN';
+          const secState = c.securitySummary?.securityState || (c.lastMessage?.securityEvents?.[0]?.indicatorColor) || 'GREEN';
 
           return {
             id: c.id,
@@ -211,23 +211,26 @@ export class ApiClient {
             text = m.encryptedPayload;
           }
 
+          // Evaluate with local AI rule analyzer to get full threat signals and evidence
+          const evaluated = this.clientSideEvaluate(text);
           const secEvent = m.securityEvents?.[0];
+
           const analysis: SecurityAnalysis = {
-            riskScore: secEvent?.riskScore || 0,
-            indicatorColor: secEvent?.indicatorColor || 'GREEN',
-            primaryThreat: secEvent?.type || 'SAFE',
-            confidence: secEvent?.confidence ? Math.round(secEvent.confidence * 100) : 95,
-            evidenceList: [],
-            explanation: secEvent?.explanation || 'Clean message envelope.',
-            recommendation: secEvent?.recommendation || 'Safe.',
-            suggestedActions: secEvent?.recommendation ? [secEvent.recommendation] : [],
+            riskScore: secEvent?.riskScore !== undefined ? secEvent.riskScore : evaluated.riskScore,
+            indicatorColor: secEvent?.indicatorColor || evaluated.indicatorColor,
+            primaryThreat: secEvent?.type || evaluated.primaryThreat,
+            confidence: secEvent?.confidence ? Math.round(secEvent.confidence * 100) : evaluated.confidence,
+            evidenceList: evaluated.evidenceList,
+            explanation: secEvent?.explanation || evaluated.explanation,
+            recommendation: secEvent?.recommendation || evaluated.recommendation,
+            suggestedActions: evaluated.suggestedActions,
           };
 
           return {
             id: m.id,
             conversationId: m.conversationId,
             senderId: m.senderId,
-            senderName: m.sender?.displayName || m.sender?.username || 'Sender',
+            senderName: m.sender?.displayName || m.sender?.username || (m.senderId === currentUser?.id ? 'You' : 'Contact'),
             plaintext: text,
             sentAt: new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             status: m.status || 'SENT',
@@ -262,7 +265,7 @@ export class ApiClient {
       headers: this.authHeaders(),
       body: JSON.stringify({
         conversationId,
-        recipientDeviceId: 'BROADCAST',
+        recipientDeviceId: 'BROADCAST_ALL',
         encryptedPayload,
       }),
     });
@@ -321,84 +324,102 @@ export class ApiClient {
     };
   }
 
-  private static clientSideEvaluate(text: string): SecurityAnalysis {
+  public static clientSideEvaluate(text: string): SecurityAnalysis {
     let score = 0;
     const evidence: any[] = [];
 
+    // 1. DLP Secret & API Key Detection
     if (/AKIA[0-9A-Z]{16}/.test(text)) {
-      score += 50;
+      score += 60;
       evidence.push({
         category: 'DLP_SECRET_EXPOSURE',
-        signal: 'AWS_KEY',
+        signal: 'AWS_ACCESS_KEY',
         confidence: 0.99,
         detectionBasis: 'DETERMINISTIC_RULE',
-        description: 'AWS Access Key ID detected. Outbound credential leak prevented.',
+        description: 'Outbound AWS Access Key ID detected. Prevented unauthorized credential exposure.',
       });
     }
 
     if (/ghp_[0-9a-zA-Z]{36}/.test(text)) {
-      score += 50;
+      score += 60;
       evidence.push({
         category: 'DLP_SECRET_EXPOSURE',
-        signal: 'GITHUB_TOKEN',
+        signal: 'GITHUB_PERSONAL_ACCESS_TOKEN',
         confidence: 0.99,
         detectionBasis: 'DETERMINISTIC_RULE',
-        description: 'GitHub Personal Access Token detected.',
+        description: 'GitHub Personal Access Token token detected.',
       });
     }
 
-    if (/(?:password|otp|pin|passcode)\s*[:=]?\s*\S+/i.test(text)) {
-      score += 40;
+    if (/(?:password|otp|pin|passcode|secret_key|api_key)\s*[:=]?\s*\S+/i.test(text)) {
+      score += 45;
       evidence.push({
         category: 'DLP_SECRET_EXPOSURE',
-        signal: 'PASSWORD_OR_OTP',
+        signal: 'PASSWORD_OR_OTP_CREDENTIAL',
         confidence: 0.92,
         detectionBasis: 'DETERMINISTIC_RULE',
-        description: 'Plaintext password or OTP verification code pattern.',
+        description: 'Plaintext password or 2FA OTP verification code pattern identified.',
       });
     }
 
+    // 2. Phishing & Malicious Lookalike URLs
     if (/https?:\/\/[^\s]+/i.test(text)) {
-      if (/(?:paypa1|easypa1sa|bank-verify|login-update|bonus-claim|\.xyz|\.top)/i.test(text)) {
-        score += 65;
+      if (/(?:paypa1|easypa1sa|hbl-verify|nayapay-login|ubl-alert|bonus-claim|account-suspended|\.xyz|\.top|\.click|\.tk)/i.test(text)) {
+        score += 70;
         evidence.push({
           category: 'PHISHING',
-          signal: 'LOOKALIKE_URL',
-          confidence: 0.94,
+          signal: 'DECEPTIVE_TYPOSQUATTING_URL',
+          confidence: 0.96,
           detectionBasis: 'DETERMINISTIC_RULE',
-          description: 'Deceptive typosquatting domain or high-risk phishing TLD.',
+          description: 'High-risk lookalike typosquatting domain mimicking a financial institution or untrusted TLD.',
+        });
+      } else {
+        score += 15;
+        evidence.push({
+          category: 'EXTERNAL_URL',
+          signal: 'UNVERIFIED_LINK',
+          confidence: 0.70,
+          detectionBasis: 'DETERMINISTIC_RULE',
+          description: 'External link detected. Exercise caution before opening destination.',
         });
       }
     }
 
-    if (/(?:urgent|immediately|foran|jaldi|block honay wala hai|account suspended|verify now|police)/i.test(text)) {
-      score += 35;
+    // 3. Multilingual Social Engineering (English & Roman Urdu)
+    if (/(?:urgent|immediately|foran|jaldi|block honay wala hai|account suspended|verify now|police|fia notice|emergency|suspended within)/i.test(text)) {
+      score += 40;
       evidence.push({
         category: 'URGENCY_MANIPULATION',
         signal: 'LINGUISTIC_COERCION',
-        confidence: 0.88,
+        confidence: 0.90,
         detectionBasis: 'DETERMINISTIC_RULE',
-        description: 'Artificial urgency pressure coercing immediate action.',
+        description: "Artificial psychological urgency coercing fast action without verification ('foran', 'immediately').",
       });
     }
 
     const finalScore = Math.min(100, score);
-    const color = finalScore >= 80 ? 'RED' : finalScore >= 25 ? 'ORANGE' : 'GREEN';
+    const color = finalScore >= 70 ? 'RED' : finalScore >= 25 ? 'ORANGE' : 'GREEN';
 
     return {
       riskScore: finalScore,
       indicatorColor: color,
       primaryThreat: evidence.length > 0 ? evidence[0].category : 'SAFE',
-      confidence: finalScore === 0 ? 98 : Math.min(99, 50 + Math.round(finalScore / 2)),
+      confidence: finalScore === 0 ? 98 : Math.min(99, 60 + Math.round(finalScore / 3)),
       evidenceList: evidence,
-      explanation: color === 'GREEN' 
-        ? 'No security threats detected in this message.' 
-        : `Identified ${evidence.length} security concern(s) under Zero-Trust analysis.`,
-      recommendation: color === 'RED' 
-        ? 'DANGER: Do not interact with links or provide confidential information.' 
-        : color === 'ORANGE' ? 'Caution: Verify sender before proceeding.' : 'Safe.',
-      suggestedActions: color === 'RED' 
-        ? ['BLOCK_LINK', 'REPORT_MESSAGE', 'ASK_COPILOT'] 
+      explanation: color === 'RED'
+        ? `CRITICAL THREAT: Identified high-confidence ${evidence[0]?.signal || 'threat pattern'}. Do not trust this message.`
+        : color === 'ORANGE'
+        ? `SUSPICIOUS: Identified potential security concern (${evidence[0]?.signal || 'anomalous signals'}). Verify with sender.`
+        : 'Clean message envelope. Zero security threats detected under Zero-Trust analysis.',
+      recommendation: color === 'RED'
+        ? 'DANGER: Do not click any links or enter credentials. Block sender immediately.'
+        : color === 'ORANGE'
+        ? 'CAUTION: Exercise care before sharing information or opening attachments.'
+        : 'Standard messaging safe to proceed.',
+      suggestedActions: color === 'RED'
+        ? ['BLOCK_LINK', 'BLOCK_SENDER', 'REPORT_MESSAGE', 'ASK_COPILOT']
+        : color === 'ORANGE'
+        ? ['ASK_COPILOT', 'VERIFY_SENDER']
         : ['ASK_COPILOT'],
     };
   }
