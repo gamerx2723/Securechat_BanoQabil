@@ -174,3 +174,32 @@ conversationsRouter.patch('/:id/privacy', async (req: AuthenticatedRequest, res:
     res.status(500).json({ error: 'Failed to update conversation privacy' });
   }
 });
+
+conversationsRouter.delete('/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const id = String(req.params.id);
+    const userId = req.user!.userId;
+
+    // Delete messages, reactions, security events, members, and conversation
+    await prisma.messageReaction.deleteMany({
+      where: { message: { conversationId: id } },
+    });
+    await prisma.securityEvent.deleteMany({
+      where: { conversationId: id },
+    });
+    await prisma.message.deleteMany({
+      where: { conversationId: id },
+    });
+    await prisma.conversationMember.deleteMany({
+      where: { conversationId: id },
+    });
+    await prisma.conversation.deleteMany({
+      where: { id },
+    });
+
+    res.json({ success: true, message: 'Conversation and all associated data permanently deleted from database.' });
+  } catch (error) {
+    console.error('Delete conversation error:', error);
+    res.status(500).json({ error: 'Failed to delete conversation' });
+  }
+});

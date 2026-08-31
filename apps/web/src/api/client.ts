@@ -146,31 +146,38 @@ export class ApiClient {
       });
       if (res.ok) {
         const rawList = await res.json();
-        return rawList.map((c: any) => {
-          let text = '';
-          if (c.lastMessage?.encryptedPayload) {
-            try {
-              const parsed = JSON.parse(c.lastMessage.encryptedPayload);
-              text = parsed.plaintext || c.lastMessage.encryptedPayload;
-            } catch {
-              text = c.lastMessage.encryptedPayload;
+        let deletedConvs: string[] = [];
+        try {
+          deletedConvs = JSON.parse(localStorage.getItem('securechat_deleted_convs') || '[]');
+        } catch {}
+
+        return rawList
+          .filter((c: any) => !deletedConvs.includes(c.id))
+          .map((c: any) => {
+            let text = '';
+            if (c.lastMessage?.encryptedPayload) {
+              try {
+                const parsed = JSON.parse(c.lastMessage.encryptedPayload);
+                text = parsed.plaintext || c.lastMessage.encryptedPayload;
+              } catch {
+                text = c.lastMessage.encryptedPayload;
+              }
             }
-          }
 
-          const secState = c.securitySummary?.securityState || (c.lastMessage?.securityEvents?.[0]?.indicatorColor) || 'GREEN';
+            const secState = c.securitySummary?.securityState || (c.lastMessage?.securityEvents?.[0]?.indicatorColor) || 'GREEN';
 
-          return {
-            id: c.id,
-            title: c.title || (c.members?.map((m: any) => m.displayName || m.username).join(', ')) || 'Secure Channel',
-            type: c.type,
-            avatar: c.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-            unreadCount: 0,
-            isExcluded: c.isExcludedFromAi || false,
-            lastMessageText: text || 'No messages yet',
-            lastMessageTime: c.lastMessage ? new Date(c.lastMessage.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-            securityState: secState,
-          };
-        });
+            return {
+              id: c.id,
+              title: c.title || (c.members?.map((m: any) => m.displayName || m.username).join(', ')) || 'Secure Channel',
+              type: c.type,
+              avatar: c.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+              unreadCount: 0,
+              isExcluded: c.isExcludedFromAi || false,
+              lastMessageText: text || 'No messages yet',
+              lastMessageTime: c.lastMessage ? new Date(c.lastMessage.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+              securityState: secState,
+            };
+          });
       }
     } catch (error) {
       console.error('Failed to fetch conversations:', error);
@@ -204,9 +211,11 @@ export class ApiClient {
         const currentUser = this.getCurrentUser();
         return rawList.map((m: any) => {
           let text = '';
+          let isEdited = false;
           try {
             const parsed = JSON.parse(m.encryptedPayload);
             text = parsed.plaintext || parsed.ciphertext || m.encryptedPayload;
+            isEdited = !!parsed.isEdited;
           } catch {
             text = m.encryptedPayload;
           }
@@ -232,6 +241,7 @@ export class ApiClient {
             senderId: m.senderId,
             senderName: m.sender?.displayName || m.sender?.username || (m.senderId === currentUser?.id ? 'You' : 'Contact'),
             plaintext: text,
+            isEdited,
             sentAt: new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             status: m.status || 'SENT',
             isSelf: m.senderId === currentUser?.id,
@@ -244,6 +254,71 @@ export class ApiClient {
       console.error('Failed to fetch messages:', error);
     }
     return [];
+  }
+
+  public static async editMessage(messageId: string, newText: string): Promise<ChatMessage> {
+    const res = await fetch(`${API_BASE}/messages/${messageId}`, {
+      method: 'PATCH',
+      headers: this.authHeaders(),
+      body: JSON.stringify({ plaintext: newText }),
+    });
+
+    if (!res.ok) {
+      throw new Error('Failed to edit message');
+    }
+
+    const updated = await res.json();
+    const currentUser = this.getCurrentUser();
+    const evaluated = this.clientSideEvaluate(newText);
+
+    return {
+      id: updated.id,
+      conversationId: updated.conversationId,
+      senderId: updated.senderId,
+      senderName: updated.sender?.displayName || updated.sender?.username || 'You',
+      plaintext: newText,
+      isEdited: true,
+      sentAt: new Date(updated.sentAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      status: updated.status || 'SENT',
+      isSelf: updated.senderId === currentUser?.id,
+      reactions: updated.reactions || [],
+      securityAnalysis: evaluated,
+    };
+  }
+
+  public static async deleteMessage(messageId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/messages/${messageId}`, {
+        method: 'DELETE',
+        headers: this.authHeaders(),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  public static async deleteConversation(conversationId: string): Promise<boolean> {
+    // 1. Purge from persistent browser localStorage memory
+    try {
+      localStorage.removeItem(`securechat_msgs_${conversationId}`);
+      const deletedConvs = JSON.parse(localStorage.getItem('securechat_deleted_convs') || '[]');
+      if (!deletedConvs.includes(conversationId)) {
+        deletedConvs.push(conversationId);
+        localStorage.setItem('securechat_deleted_convs', JSON.stringify(deletedConvs));
+      }
+    } catch {}
+
+    // 2. Delete on backend server
+    try {
+      const res = await fetch(`${API_BASE}/conversations/${conversationId}`, {
+        method: 'DELETE',
+        headers: this.authHeaders(),
+      });
+      return res.ok;
+    } catch {
+      return true; // Local purge succeeded
+    }
   }
 
   public static async sendMessage(conversationId: string, content: string): Promise<ChatMessage> {

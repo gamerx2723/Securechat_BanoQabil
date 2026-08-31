@@ -218,3 +218,89 @@ messagesRouter.post('/reaction', async (req: AuthenticatedRequest, res: Response
     res.status(500).json({ error: 'Failed to add reaction' });
   }
 });
+
+// Edit a sent message
+messagesRouter.patch('/:messageId', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const messageId = String(req.params.messageId);
+    const { plaintext } = req.body;
+    const userId = req.user!.userId;
+
+    if (!plaintext || typeof plaintext !== 'string') {
+      res.status(400).json({ error: 'Plaintext is required for edit' });
+      return;
+    }
+
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
+    }
+
+    if (message.senderId !== userId) {
+      res.status(403).json({ error: 'Unauthorized: You can only edit your own messages' });
+      return;
+    }
+
+    const analysis = await ThreatEvaluationService.evaluate(plaintext, message.conversationId, userId);
+    const updatedPayload = JSON.stringify({ plaintext, isEdited: true });
+
+    const updated = await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        encryptedPayload: updatedPayload,
+      },
+      include: {
+        sender: {
+          select: { id: true, username: true, displayName: true, avatarUrl: true },
+        },
+        reactions: true,
+        attachments: true,
+        readReceipts: true,
+        securityEvents: true,
+      },
+    });
+
+    // Broadcast update via WebSocket
+    wsGateway.broadcastMessage(message.conversationId, updated);
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Edit message error:', error);
+    res.status(500).json({ error: 'Failed to edit message' });
+  }
+});
+
+// Delete an individual message
+messagesRouter.delete('/:messageId', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const messageId = String(req.params.messageId);
+    const userId = req.user!.userId;
+
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
+    }
+
+    if (message.senderId !== userId && req.user!.role !== 'ADMIN') {
+      res.status(403).json({ error: 'Unauthorized to delete this message' });
+      return;
+    }
+
+    await prisma.messageReaction.deleteMany({ where: { messageId } });
+    await prisma.securityEvent.deleteMany({ where: { messageId } });
+    await prisma.message.delete({ where: { id: messageId } });
+
+    res.json({ success: true, messageId, conversationId: message.conversationId });
+  } catch (error) {
+    console.error('Delete message error:', error);
+    res.status(500).json({ error: 'Failed to delete message' });
+  }
+});

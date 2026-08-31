@@ -30,6 +30,8 @@ interface ChatAreaProps {
   onBlockUser?: (conversationId: string) => void;
   onReportChat?: (conversationId: string) => void;
   onDeleteChat?: (conversationId: string) => void;
+  onEditMessage?: (messageId: string, newText: string) => void;
+  onDeleteMessage?: (messageId: string) => void;
 }
 
 export const ChatArea: React.FC<ChatAreaProps> = ({
@@ -43,6 +45,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   onBlockUser,
   onReportChat,
   onDeleteChat,
+  onEditMessage,
+  onDeleteMessage,
 }) => {
   const [inputText, setInputText] = useState('');
   const [threatWarning, setThreatWarning] = useState<{ title: string; desc: string; color: 'RED' | 'ORANGE' } | null>(null);
@@ -534,7 +538,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       {/* Messages Stream */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 0', position: 'relative' }}>
         {messages.map((msg) => (
-          <MessageItem key={msg.id} message={msg} onInspectSecurity={onInspectSecurity} />
+          <MessageItem
+            key={msg.id}
+            message={msg}
+            onInspectSecurity={onInspectSecurity}
+            onEditMessage={onEditMessage}
+            onDeleteMessage={onDeleteMessage}
+          />
         ))}
         <div ref={scrollRef} />
       </div>

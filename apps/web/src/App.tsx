@@ -172,11 +172,59 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleDeleteChat = (conversationId: string) => {
-    setMessagesMap((prev) => ({ ...prev, [conversationId]: [] }));
-    setConversations((prev) =>
-      prev.map((c) => (c.id === conversationId ? { ...c, lastMessageText: 'Chat cleared', lastMessageTime: 'Now' } : c))
-    );
+  const handleDeleteChat = async (conversationId: string) => {
+    // 1. Purge from persistent browser storage and backend
+    await ApiClient.deleteConversation(conversationId);
+
+    // 2. Clear from React memory state
+    setMessagesMap((prev) => {
+      const updated = { ...prev };
+      delete updated[conversationId];
+      return updated;
+    });
+    setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+    if (activeConvId === conversationId) {
+      setActiveConvId('');
+    }
+  };
+
+  const handleEditMessage = async (messageId: string, newText: string) => {
+    try {
+      const updated = await ApiClient.editMessage(messageId, newText);
+      setMessagesMap((prev) => {
+        const list = prev[activeConvId] || [];
+        return {
+          ...prev,
+          [activeConvId]: list.map((m) =>
+            m.id === messageId
+              ? {
+                  ...m,
+                  plaintext: newText,
+                  isEdited: true,
+                  securityAnalysis: updated.securityAnalysis,
+                }
+              : m
+          ),
+        };
+      });
+    } catch (e) {
+      console.error('Failed to edit message:', e);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      await ApiClient.deleteMessage(messageId);
+      setMessagesMap((prev) => {
+        const list = prev[activeConvId] || [];
+        return {
+          ...prev,
+          [activeConvId]: list.filter((m) => m.id !== messageId),
+        };
+      });
+    } catch (e) {
+      console.error('Failed to delete message:', e);
+    }
   };
 
   const handleOpenCopilotWithQuery = (query: string) => {
@@ -235,6 +283,8 @@ export const App: React.FC = () => {
             onBlockUser={handleBlockUser}
             onReportChat={handleReportChat}
             onDeleteChat={handleDeleteChat}
+            onEditMessage={handleEditMessage}
+            onDeleteMessage={handleDeleteMessage}
           />
         )}
 
