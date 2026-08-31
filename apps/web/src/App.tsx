@@ -157,6 +157,28 @@ export const App: React.FC = () => {
     );
   };
 
+  const handleBlockUser = (conversationId: string) => {
+    setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+    if (activeConvId === conversationId) {
+      setActiveConvId('');
+    }
+  };
+
+  const handleReportChat = async (conversationId: string) => {
+    const msgs = messagesMap[conversationId] || [];
+    if (msgs.length > 0) {
+      const transcript = msgs.map((m) => `${m.senderName}: ${m.plaintext}`).slice(-8).join(' \n ');
+      await ApiClient.reportMessage(transcript, 'THREAT', conversationId, 90, 'USER_REPORTED_CONVERSATION');
+    }
+  };
+
+  const handleDeleteChat = (conversationId: string) => {
+    setMessagesMap((prev) => ({ ...prev, [conversationId]: [] }));
+    setConversations((prev) =>
+      prev.map((c) => (c.id === conversationId ? { ...c, lastMessageText: 'Chat cleared', lastMessageTime: 'Now' } : c))
+    );
+  };
+
   const handleOpenCopilotWithQuery = (query: string) => {
     setCopilotInitialQuery(query);
     setIsCopilotOpen(true);
@@ -210,6 +232,9 @@ export const App: React.FC = () => {
             onTogglePrivacy={handleTogglePrivacy}
             onOpenTopicModal={() => setIsTopicModalOpen(true)}
             onOpenCopilot={() => setIsCopilotOpen(true)}
+            onBlockUser={handleBlockUser}
+            onReportChat={handleReportChat}
+            onDeleteChat={handleDeleteChat}
           />
         )}
 
