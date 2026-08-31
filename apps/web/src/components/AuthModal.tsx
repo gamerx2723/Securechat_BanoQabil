@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Lock, User, Key, CheckCircle, AlertCircle, Sparkles, Crown } from 'lucide-react';
+import { Shield, Lock, User, Key, AlertCircle, Sparkles, Crown, ArrowRight } from 'lucide-react';
 import { ApiClient } from '../api/client';
 import { UserProfile } from '../types';
 
@@ -59,129 +59,218 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
-      <div className="relative w-full max-w-md bg-slate-900 border border-slate-700/60 rounded-2xl p-8 shadow-2xl shadow-cyan-950/40">
-        <div className="flex flex-col items-center mb-6 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/30 mb-3">
-            <Shield className="w-8 h-8 text-white" />
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 9999,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'radial-gradient(circle at 50% 30%, rgba(6, 182, 212, 0.12), rgba(6, 9, 17, 0.96) 70%)',
+      backdropFilter: 'blur(16px)',
+      padding: '20px',
+    }}>
+      <div className="glass-modal fade-in" style={{
+        width: '100%',
+        maxWidth: '460px',
+        borderRadius: '24px',
+        padding: '36px',
+        boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 50px rgba(6, 182, 212, 0.15)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+      }}>
+        {/* Logo & Header */}
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <div style={{
+            width: '60px',
+            height: '60px',
+            borderRadius: '18px',
+            background: 'linear-gradient(135deg, #0284c7, #06b6d4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 16px',
+            boxShadow: '0 0 30px rgba(6, 182, 212, 0.4)',
+          }}>
+            <Shield size={32} color="#ffffff" />
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">SecureChat Zero-Trust</h2>
-          <p className="text-xs text-slate-400 mt-1">E2EE Cryptographic Identity & Database Management</p>
+          <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: '0 0 6px' }}>
+            SecureChat Zero-Trust
+          </h2>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+            E2EE Signal Ratchet & AI Security Gateway
+          </p>
         </div>
 
-        {/* Mode Tabs */}
-        <div className="flex bg-slate-800/80 p-1 rounded-xl mb-6 border border-slate-700/50">
+        {/* Tab Switcher */}
+        <div style={{
+          display: 'flex',
+          background: 'rgba(0, 0, 0, 0.35)',
+          padding: '4px',
+          borderRadius: '12px',
+          marginBottom: '24px',
+          border: '1px solid var(--border-subtle)',
+        }}>
           <button
             type="button"
             onClick={() => { setIsLogin(true); setError(null); }}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
-              isLogin ? 'bg-cyan-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-            }`}
+            style={{
+              flex: 1,
+              padding: '10px 0',
+              border: 'none',
+              borderRadius: '9px',
+              fontWeight: 700,
+              fontSize: '13px',
+              cursor: 'pointer',
+              background: isLogin ? 'linear-gradient(135deg, #0284c7, #06b6d4)' : 'transparent',
+              color: isLogin ? '#ffffff' : 'var(--text-secondary)',
+              boxShadow: isLogin ? '0 0 15px rgba(6, 182, 212, 0.35)' : 'none',
+              transition: 'all 0.2s ease',
+            }}
           >
             Sign In
           </button>
           <button
             type="button"
             onClick={() => { setIsLogin(false); setError(null); }}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
-              !isLogin ? 'bg-cyan-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-            }`}
+            style={{
+              flex: 1,
+              padding: '10px 0',
+              border: 'none',
+              borderRadius: '9px',
+              fontWeight: 700,
+              fontSize: '13px',
+              cursor: 'pointer',
+              background: !isLogin ? 'linear-gradient(135deg, #0284c7, #06b6d4)' : 'transparent',
+              color: !isLogin ? '#ffffff' : 'var(--text-secondary)',
+              boxShadow: !isLogin ? '0 0 15px rgba(6, 182, 212, 0.35)' : 'none',
+              transition: 'all 0.2s ease',
+            }}
           >
             Create Account
           </button>
         </div>
 
+        {/* Error Alert */}
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 flex items-center gap-2 text-xs text-rose-400 animate-shake">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+          <div className="animate-shake" style={{
+            marginBottom: '18px',
+            padding: '12px 16px',
+            borderRadius: '10px',
+            background: 'rgba(244, 63, 94, 0.12)',
+            border: '1px solid rgba(244, 63, 94, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            color: '#fb7185',
+            fontSize: '12px',
+            fontWeight: 600,
+          }}>
+            <AlertCircle size={16} style={{ flexShrink: 0 }} />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Form Fields */}
+        <form onSubmit={handleSubmit}>
           {isLogin ? (
             <>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Username or Email</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Username or Email
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <User size={16} style={{ position: 'absolute', left: '14px', color: 'var(--text-muted)' }} />
                   <input
                     type="text"
                     required
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     placeholder="e.g. admin or alice"
-                    className="w-full bg-slate-950 border border-slate-700/60 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                    className="secure-input"
+                    style={{ paddingLeft: '40px' }}
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Password
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Lock size={16} style={{ position: 'absolute', left: '14px', color: 'var(--text-muted)' }} />
                   <input
                     type="password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter password"
-                    className="w-full bg-slate-950 border border-slate-700/60 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                    className="secure-input"
+                    style={{ paddingLeft: '40px' }}
                   />
                 </div>
               </div>
             </>
           ) : (
             <>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Username (Handle)</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Username (Handle)
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <User size={16} style={{ position: 'absolute', left: '14px', color: 'var(--text-muted)' }} />
                   <input
                     type="text"
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="e.g. charlie_dev"
-                    className="w-full bg-slate-950 border border-slate-700/60 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                    className="secure-input"
+                    style={{ paddingLeft: '40px' }}
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Display Name</label>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Display Name
+                </label>
                 <input
                   type="text"
                   required
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="e.g. Charlie Ross"
-                  className="w-full bg-slate-950 border border-slate-700/60 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                  className="secure-input"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Email (Optional)</label>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Email (Optional)
+                </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="charlie@example.com"
-                  className="w-full bg-slate-950 border border-slate-700/60 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                  className="secure-input"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Create Password
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Lock size={16} style={{ position: 'absolute', left: '14px', color: 'var(--text-muted)' }} />
                   <input
                     type="password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Create secure password"
-                    className="w-full bg-slate-950 border border-slate-700/60 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                    placeholder="Choose a strong password"
+                    className="secure-input"
+                    style={{ paddingLeft: '40px' }}
                   />
                 </div>
               </div>
@@ -191,72 +280,127 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-cyan-600/30 transition-all flex items-center justify-center gap-2 mt-6 disabled:opacity-50"
+            className="btn-primary"
+            style={{
+              width: '100%',
+              padding: '14px',
+              fontSize: '14px',
+              borderRadius: '12px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.7 : 1,
+            }}
           >
             {loading ? (
-              <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+              <span>Authenticating Cryptographic Vault...</span>
             ) : isLogin ? (
               <>
-                <Key className="w-4 h-4" />
-                Authenticate & Unlock Vault
+                <Key size={16} /> Authenticate & Unlock Vault
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4" />
-                Generate Keys & Create Account
+                <Sparkles size={16} /> Generate Keys & Register Account
               </>
             )}
           </button>
         </form>
 
-        {/* Quick Demo Logins with Admin option */}
+        {/* Quick Role Selection */}
         {isLogin && (
-          <div className="mt-6 pt-5 border-t border-slate-800">
-            <p className="text-xs text-slate-400 text-center mb-2.5">Quick Role Authentication:</p>
-            
+          <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ textAlign: 'center', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '12px' }}>
+              Quick Demo Logins
+            </div>
+
             {/* SuperAdmin Master Access Button */}
             <button
               type="button"
               onClick={() => handleQuickLogin('admin', 'AdminPass2026!')}
-              className="w-full mb-2 p-2.5 bg-gradient-to-r from-amber-500/15 to-red-500/15 hover:from-amber-500/25 hover:to-red-500/25 border border-amber-500/30 rounded-xl text-left transition-all flex items-center justify-between shadow-sm"
+              style={{
+                width: '100%',
+                marginBottom: '10px',
+                padding: '12px 14px',
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(239, 68, 68, 0.15))',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                textAlign: 'left',
+                boxShadow: '0 0 15px rgba(245, 158, 11, 0.15)',
+                transition: 'all 0.2s ease',
+              }}
             >
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
-                  <Crown className="w-4 h-4" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: 'rgba(245, 158, 11, 0.25)',
+                  color: '#fbbf24',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                }}>
+                  <Crown size={18} />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#fef08a', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     SuperAdmin Account
-                    <span className="px-1.5 py-0.2 text-[9px] bg-amber-500/30 text-amber-200 rounded">Full Access</span>
+                    <span style={{ fontSize: '9px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', background: '#f59e0b', color: '#000' }}>MASTER</span>
                   </div>
-                  <div className="text-[10px] text-slate-400">Manage all accounts, database & telemetries</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Manage database, user accounts & telemetry</div>
                 </div>
               </div>
-              <div className="text-xs text-amber-400 font-bold">&rarr;</div>
+              <ArrowRight size={16} color="#fbbf24" />
             </button>
 
-            <div className="grid grid-cols-2 gap-2">
+            {/* Standard User Quick Select */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <button
                 type="button"
                 onClick={() => handleQuickLogin('alice', 'Password123!')}
-                className="p-2.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-xl text-left transition-colors flex items-center gap-2"
+                style={{
+                  padding: '10px 12px',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.15s ease',
+                }}
               >
-                <div className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-bold">A</div>
+                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>A</div>
                 <div>
-                  <div className="text-xs font-bold text-white">Alice (User)</div>
-                  <div className="text-[10px] text-slate-400">@alice</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>Alice Vance</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>User View</div>
                 </div>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleQuickLogin('bob', 'Password123!')}
-                className="p-2.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-xl text-left transition-colors flex items-center gap-2"
+                style={{
+                  padding: '10px 12px',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.15s ease',
+                }}
               >
-                <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">B</div>
+                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--green-safe)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>B</div>
                 <div>
-                  <div className="text-xs font-bold text-white">Bob (User)</div>
-                  <div className="text-[10px] text-slate-400">@bob</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>Bob Martinez</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>User View</div>
                 </div>
               </button>
             </div>

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Users, Database, AlertTriangle, UserPlus, Trash2, ShieldCheck, ShieldAlert, RefreshCw, Key, Lock, Activity, CheckCircle, Ban } from 'lucide-react';
+import { Shield, Users, Database, AlertTriangle, UserPlus, Trash2, ShieldCheck, ShieldAlert, RefreshCw, Key, Lock, Activity, CheckCircle, Ban, Crown, ArrowRight, X } from 'lucide-react';
 import { ApiClient } from '../api/client';
 
 export const AdminConsole: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'USERS' | 'CONVERSATIONS' | 'DATABASE' | 'TELEMETRY'>('USERS');
+  const [activeSubTab, setActiveSubTab] = useState<'USERS' | 'CONVERSATIONS' | 'TELEMETRY'>('USERS');
   const [users, setUsers] = useState<any[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
   const [telemetry, setTelemetry] = useState<any>(null);
@@ -102,7 +102,7 @@ export const AdminConsole: React.FC = () => {
         body: JSON.stringify({ role: newRole }),
       });
       if (res.ok) loadData();
-    } catch (err) {
+    } catch {
       alert('Failed to update role');
     }
   };
@@ -118,7 +118,7 @@ export const AdminConsole: React.FC = () => {
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) loadData();
-    } catch (err) {
+    } catch {
       alert('Failed to update status');
     }
   };
@@ -136,7 +136,7 @@ export const AdminConsole: React.FC = () => {
         const err = await res.json();
         alert(err.error || 'Failed to delete user');
       }
-    } catch (err) {
+    } catch {
       alert('Failed to delete user');
     }
   };
@@ -150,324 +150,413 @@ export const AdminConsole: React.FC = () => {
         headers: authHeaders(),
       });
       if (res.ok) loadData();
-    } catch (err) {
+    } catch {
       alert('Failed to delete conversation');
     }
   };
 
   return (
-    <div className="flex-1 h-screen overflow-y-auto bg-slate-950 text-slate-100 p-8 custom-scrollbar">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-6 border-b border-slate-800 mb-8">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-amber-500 to-red-600 flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
-            <Shield className="w-6 h-6" />
+    <div style={{ flex: 1, height: '100vh', overflowY: 'auto', background: 'var(--bg-primary)', padding: '32px', color: 'var(--text-primary)' }}>
+      {/* Header Banner */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '24px', borderBottom: '1px solid var(--border-subtle)', marginBottom: '28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{
+            width: '52px',
+            height: '52px',
+            borderRadius: '16px',
+            background: 'linear-gradient(135deg, #f59e0b, #ef4444)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            boxShadow: '0 0 25px rgba(245, 158, 11, 0.35)',
+          }}>
+            <Crown size={28} />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-white tracking-tight">SuperAdmin Management Portal</h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                MASTER ROOT ACCESS
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                SuperAdmin Governance Console
+              </h1>
+              <span style={{ fontSize: '10px', fontWeight: 800, padding: '3px 8px', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
+                ROOT PERMISSIONS
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">Full database governance, user account management & zero-trust threat telemetry</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+              Full database governance, user account management & zero-trust threat telemetry
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
             onClick={loadData}
             disabled={loading}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 flex items-center gap-2 transition-colors"
+            className="btn-ghost"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             Refresh Data
           </button>
 
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/20 flex items-center gap-2 transition-all"
+            className="btn-primary"
+            style={{ fontSize: '12px', padding: '9px 16px' }}
           >
-            <UserPlus className="w-4 h-4" />
-            Create Account
+            <UserPlus size={16} /> Provision User
           </button>
         </div>
       </div>
 
       {/* Metrics Banner */}
       {telemetry && (
-        <div className="grid grid-cols-4 gap-4 mb-8">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
+          <div className="glass-panel" style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
               <span>Total Accounts</span>
-              <Users className="w-4 h-4 text-cyan-400" />
+              <Users size={18} color="var(--accent-cyan)" />
             </div>
-            <div className="text-2xl font-bold text-white">{telemetry.metrics.totalUsers}</div>
-            <div className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
-              <CheckCircle className="w-3 h-3" /> All active in SQLite DB
+            <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)' }}>{telemetry.metrics.totalUsers}</div>
+            <div style={{ fontSize: '11px', color: 'var(--green-safe)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <CheckCircle size={12} /> Active in SQLite Database
             </div>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <div className="glass-panel" style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
               <span>Registered Devices</span>
-              <Key className="w-4 h-4 text-amber-400" />
+              <Key size={18} color="var(--orange-warn)" />
             </div>
-            <div className="text-2xl font-bold text-white">{telemetry.metrics.totalDevices}</div>
-            <div className="text-[11px] text-cyan-400 mt-1">E2EE Curve25519 Keys</div>
+            <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)' }}>{telemetry.metrics.totalDevices}</div>
+            <div style={{ fontSize: '11px', color: 'var(--accent-cyan)', marginTop: '4px' }}>
+              E2EE Curve25519 Keys
+            </div>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <div className="glass-panel" style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
               <span>Encrypted Messages</span>
-              <Lock className="w-4 h-4 text-emerald-400" />
+              <Lock size={18} color="var(--green-safe)" />
             </div>
-            <div className="text-2xl font-bold text-white">{telemetry.metrics.totalMessages}</div>
-            <div className="text-[11px] text-slate-400 mt-1">Double Ratchet Frames</div>
+            <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)' }}>{telemetry.metrics.totalMessages}</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+              Double Ratchet Frames
+            </div>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <div className="glass-panel" style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
               <span>Security Interceptions</span>
-              <ShieldAlert className="w-4 h-4 text-rose-400" />
+              <ShieldAlert size={18} color="var(--red-critical)" />
             </div>
-            <div className="text-2xl font-bold text-rose-400">{telemetry.metrics.totalSecurityEvents}</div>
-            <div className="text-[11px] text-rose-400/80 mt-1">{telemetry.metrics.redEvents} Critical Blocks</div>
+            <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--red-critical)' }}>{telemetry.metrics.totalSecurityEvents}</div>
+            <div style={{ fontSize: '11px', color: '#fb7185', marginTop: '4px' }}>
+              {telemetry.metrics.redEvents} Critical Threat Blocks
+            </div>
           </div>
         </div>
       )}
 
       {/* Sub Tabs */}
-      <div className="flex border-b border-slate-800 mb-6 gap-6">
+      <div style={{ display: 'flex', gap: '20px', borderBottom: '1px solid var(--border-subtle)', marginBottom: '24px' }}>
         <button
           onClick={() => setActiveSubTab('USERS')}
-          className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
-            activeSubTab === 'USERS' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
+          style={{
+            paddingBottom: '12px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeSubTab === 'USERS' ? '2px solid var(--accent-cyan)' : '2px solid transparent',
+            color: activeSubTab === 'USERS' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+            fontWeight: 700,
+            fontSize: '14px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
         >
-          <Users className="w-4 h-4" />
-          All User Accounts ({users.length})
+          <Users size={16} /> User Accounts Directory ({users.length})
         </button>
 
         <button
           onClick={() => setActiveSubTab('CONVERSATIONS')}
-          className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
-            activeSubTab === 'CONVERSATIONS' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
+          style={{
+            paddingBottom: '12px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeSubTab === 'CONVERSATIONS' ? '2px solid var(--accent-cyan)' : '2px solid transparent',
+            color: activeSubTab === 'CONVERSATIONS' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+            fontWeight: 700,
+            fontSize: '14px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
         >
-          <Database className="w-4 h-4" />
-          Database Channels ({conversations.length})
+          <Database size={16} /> Database Channels ({conversations.length})
         </button>
 
         <button
           onClick={() => setActiveSubTab('TELEMETRY')}
-          className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${
-            activeSubTab === 'TELEMETRY' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
+          style={{
+            paddingBottom: '12px',
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeSubTab === 'TELEMETRY' ? '2px solid var(--accent-cyan)' : '2px solid transparent',
+            color: activeSubTab === 'TELEMETRY' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+            fontWeight: 700,
+            fontSize: '14px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
         >
-          <Activity className="w-4 h-4" />
-          Live Threat Logs ({telemetry?.recentEvents?.length || 0})
+          <Activity size={16} /> Threat Audit Stream ({telemetry?.recentEvents?.length || 0})
         </button>
       </div>
 
-      {/* 1. USERS TAB */}
+      {/* 1. USERS DIRECTORY TAB */}
       {activeSubTab === 'USERS' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-          <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white">Database User Accounts</h3>
-            <span className="text-xs text-slate-400">Total: {users.length} registered accounts</span>
+        <div className="glass-panel" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Registered Database Accounts</h3>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{users.length} Total Users</span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800">
-                <tr>
-                  <th className="p-3.5">User Identity</th>
-                  <th className="p-3.5">Role</th>
-                  <th className="p-3.5">Status</th>
-                  <th className="p-3.5">Devices / E2EE Keys</th>
-                  <th className="p-3.5">Activity</th>
-                  <th className="p-3.5">Created Date</th>
-                  <th className="p-3.5 text-right">Admin Actions</th>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ background: 'rgba(0, 0, 0, 0.4)', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <th style={{ padding: '14px 20px' }}>User Identity</th>
+                <th style={{ padding: '14px 20px' }}>Role</th>
+                <th style={{ padding: '14px 20px' }}>Status</th>
+                <th style={{ padding: '14px 20px' }}>Device Keys</th>
+                <th style={{ padding: '14px 20px' }}>Activity</th>
+                <th style={{ padding: '14px 20px' }}>Created</th>
+                <th style={{ padding: '14px 20px', textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{
+                        width: '34px',
+                        height: '34px',
+                        borderRadius: '10px',
+                        background: u.role === 'ADMIN' ? 'linear-gradient(135deg, #f59e0b, #ef4444)' : 'linear-gradient(135deg, #0284c7, #06b6d4)',
+                        color: '#fff',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '13px',
+                      }}>
+                        {u.displayName?.charAt(0) || u.username.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{u.displayName || u.username}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>@{u.username} {u.email ? `• ${u.email}` : ''}</div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td style={{ padding: '14px 20px' }}>
+                    <span style={{
+                      fontSize: '10px',
+                      fontWeight: 800,
+                      padding: '3px 7px',
+                      borderRadius: '5px',
+                      background: u.role === 'ADMIN' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                      color: u.role === 'ADMIN' ? '#fbbf24' : 'var(--text-secondary)',
+                      border: u.role === 'ADMIN' ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-subtle)',
+                    }}>
+                      {u.role}
+                    </span>
+                  </td>
+
+                  <td style={{ padding: '14px 20px' }}>
+                    <span style={{
+                      fontSize: '10px',
+                      fontWeight: 800,
+                      padding: '3px 7px',
+                      borderRadius: '5px',
+                      background: u.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+                      color: u.status === 'ACTIVE' ? 'var(--green-safe)' : 'var(--red-critical)',
+                    }}>
+                      {u.status}
+                    </span>
+                  </td>
+
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
+                      {u.devices?.length || 0} Device(s)
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Curve25519 Initialized</div>
+                  </td>
+
+                  <td style={{ padding: '14px 20px', color: 'var(--text-secondary)' }}>
+                    <div>{u._count?.sentMessages || 0} messages</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{u._count?.conversationMembers || 0} channels</div>
+                  </td>
+
+                  <td style={{ padding: '14px 20px', color: 'var(--text-muted)', fontSize: '12px' }}>
+                    {new Date(u.createdAt).toLocaleDateString()}
+                  </td>
+
+                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                      <button
+                        onClick={() => handleChangeRole(u.id, u.role)}
+                        style={{ padding: '5px 10px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        {u.role === 'ADMIN' ? 'Demote' : 'Make Admin'}
+                      </button>
+
+                      <button
+                        onClick={() => handleToggleStatus(u.id, u.status)}
+                        style={{
+                          padding: '5px 10px',
+                          background: u.status === 'ACTIVE' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                          border: 'none',
+                          borderRadius: '6px',
+                          color: u.status === 'ACTIVE' ? 'var(--orange-warn)' : 'var(--green-safe)',
+                          fontSize: '11px',
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {u.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteUser(u.id, u.username)}
+                        style={{ padding: '5px 8px', background: 'rgba(244, 63, 94, 0.15)', border: 'none', borderRadius: '6px', color: 'var(--red-critical)', cursor: 'pointer' }}
+                        title="Delete User"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="p-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-600 to-blue-600 text-white font-bold flex items-center justify-center text-xs">
-                          {u.displayName?.charAt(0) || u.username.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="font-bold text-white">{u.displayName || u.username}</div>
-                          <div className="text-[11px] text-slate-400">@{u.username} {u.email ? `• ${u.email}` : ''}</div>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="p-3.5">
-                      <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
-                        u.role === 'ADMIN' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-slate-800 text-slate-300'
-                      }`}>
-                        {u.role}
-                      </span>
-                    </td>
-
-                    <td className="p-3.5">
-                      <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
-                        u.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
-                      }`}>
-                        {u.status}
-                      </span>
-                    </td>
-
-                    <td className="p-3.5">
-                      <div className="text-slate-300 font-mono text-[11px]">
-                        {u.devices?.length || 0} Device(s)
-                      </div>
-                      <div className="text-[10px] text-slate-500">Curve25519 Provisioned</div>
-                    </td>
-
-                    <td className="p-3.5 text-slate-300">
-                      <div>{u._count?.sentMessages || 0} msgs sent</div>
-                      <div className="text-[10px] text-slate-500">{u._count?.conversationMembers || 0} channels</div>
-                    </td>
-
-                    <td className="p-3.5 text-slate-400">
-                      {new Date(u.createdAt).toLocaleDateString()}
-                    </td>
-
-                    <td className="p-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => handleChangeRole(u.id, u.role)}
-                          title="Toggle Admin / User Role"
-                          className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-slate-300 border border-slate-700"
-                        >
-                          {u.role === 'ADMIN' ? 'Demote to User' : 'Make Admin'}
-                        </button>
-
-                        <button
-                          onClick={() => handleToggleStatus(u.id, u.status)}
-                          title="Suspend / Activate Account"
-                          className={`px-2 py-1 rounded text-[11px] font-semibold ${
-                            u.status === 'ACTIVE' ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                          }`}
-                        >
-                          {u.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
-                        </button>
-
-                        <button
-                          onClick={() => handleDeleteUser(u.id, u.username)}
-                          title="Permanently Delete Account"
-                          className="p-1 rounded bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
       {/* 2. CONVERSATIONS TAB */}
       {activeSubTab === 'CONVERSATIONS' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-          <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white">Database Channels & Conversations</h3>
-            <span className="text-xs text-slate-400">{conversations.length} total channels</span>
+        <div className="glass-panel" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Active Database Communication Channels</h3>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{conversations.length} Total</span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800">
-                <tr>
-                  <th className="p-3.5">Channel Name / ID</th>
-                  <th className="p-3.5">Type</th>
-                  <th className="p-3.5">Members</th>
-                  <th className="p-3.5">Message Count</th>
-                  <th className="p-3.5">Last Active</th>
-                  <th className="p-3.5 text-right">Actions</th>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ background: 'rgba(0, 0, 0, 0.4)', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <th style={{ padding: '14px 20px' }}>Channel Name / ID</th>
+                <th style={{ padding: '14px 20px' }}>Type</th>
+                <th style={{ padding: '14px 20px' }}>Members</th>
+                <th style={{ padding: '14px 20px' }}>Message Count</th>
+                <th style={{ padding: '14px 20px' }}>Last Updated</th>
+                <th style={{ padding: '14px 20px', textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {conversations.map((c) => (
+                <tr key={c.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.title || 'Direct Conversation'}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{c.id}</div>
+                  </td>
+
+                  <td style={{ padding: '14px 20px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 800, padding: '3px 7px', borderRadius: '5px', background: 'rgba(6, 182, 212, 0.15)', color: 'var(--accent-cyan)' }}>
+                      {c.type}
+                    </span>
+                  </td>
+
+                  <td style={{ padding: '14px 20px', color: 'var(--text-secondary)' }}>
+                    {c.members?.map((m: any) => m.user?.displayName || m.user?.username).join(', ') || 'No members'}
+                  </td>
+
+                  <td style={{ padding: '14px 20px', fontFamily: 'var(--font-mono)' }}>
+                    {c._count?.messages || 0} frames
+                  </td>
+
+                  <td style={{ padding: '14px 20px', color: 'var(--text-muted)', fontSize: '12px' }}>
+                    {new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </td>
+
+                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                    <button
+                      onClick={() => handleDeleteConversation(c.id)}
+                      style={{ padding: '6px 10px', background: 'rgba(244, 63, 94, 0.15)', border: 'none', borderRadius: '6px', color: 'var(--red-critical)', cursor: 'pointer' }}
+                      title="Delete Channel"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {conversations.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="p-3.5">
-                      <div className="font-bold text-white">{c.title || 'Direct Chat'}</div>
-                      <div className="text-[10px] text-slate-500 font-mono">{c.id}</div>
-                    </td>
-                    <td className="p-3.5">
-                      <span className="px-2 py-0.5 rounded bg-slate-800 text-cyan-400 font-bold text-[10px]">
-                        {c.type}
-                      </span>
-                    </td>
-                    <td className="p-3.5 text-slate-300">
-                      {c.members?.map((m: any) => m.user?.displayName || m.user?.username).join(', ') || 'No members'}
-                    </td>
-                    <td className="p-3.5 text-slate-300 font-mono">
-                      {c._count?.messages || 0} msgs
-                    </td>
-                    <td className="p-3.5 text-slate-400">
-                      {new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td className="p-3.5 text-right">
-                      <button
-                        onClick={() => handleDeleteConversation(c.id)}
-                        title="Delete Channel"
-                        className="p-1.5 rounded bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* 3. THREAT LOGS TAB */}
+      {/* 3. TELEMETRY TAB */}
       {activeSubTab === 'TELEMETRY' && telemetry && (
-        <div className="space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-            <h3 className="text-sm font-bold text-white mb-4">Threat Detection Breakdown</h3>
-            <div className="grid grid-cols-3 gap-3">
+        <div>
+          <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', marginBottom: '24px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '16px' }}>Threat Category Distribution</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
               {telemetry.threatBreakdown?.map((t: any) => (
-                <div key={t.category} className="p-3 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-300">{t.category}</span>
-                  <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 font-bold text-xs">{t.count} detected</span>
+                <div key={t.category} style={{ padding: '14px', background: 'rgba(0, 0, 0, 0.35)', border: '1px solid var(--border-subtle)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{t.category}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 800, padding: '2px 8px', borderRadius: '6px', background: 'rgba(244, 63, 94, 0.2)', color: 'var(--red-critical)' }}>
+                    {t.count} detected
+                  </span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-            <div className="p-4 border-b border-slate-800">
-              <h3 className="text-sm font-bold text-white">Real-Time Security Event Audit Stream</h3>
+          <div className="glass-panel" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Real-Time Security Event Audit Stream</h3>
             </div>
-            <div className="divide-y divide-slate-800/60 max-h-96 overflow-y-auto">
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
               {telemetry.recentEvents?.map((e: any) => (
-                <div key={e.id} className="p-3.5 flex items-center justify-between hover:bg-slate-800/30">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2.5 h-2.5 rounded-full ${e.indicatorColor === 'RED' ? 'bg-rose-500 animate-ping' : e.indicatorColor === 'ORANGE' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      background: e.indicatorColor === 'RED' ? 'var(--red-critical)' : e.indicatorColor === 'ORANGE' ? 'var(--orange-warn)' : 'var(--green-safe)',
+                      boxShadow: e.indicatorColor === 'RED' ? '0 0 10px var(--red-glow)' : 'none',
+                    }} />
                     <div>
-                      <div className="text-xs font-bold text-white flex items-center gap-2">
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span>{e.type}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{e.severity}</span>
+                        <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-secondary)' }}>{e.severity}</span>
                       </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">{e.explanation || 'Zero trust security inspection event.'}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        {e.explanation || 'Zero trust security inspection event.'}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-xs font-mono font-bold text-rose-400">{e.riskScore}% Risk</div>
-                    <div className="text-[10px] text-slate-500">{new Date(e.createdAt).toLocaleTimeString()}</div>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--red-critical)' }}>
+                      {e.riskScore}% Risk
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{new Date(e.createdAt).toLocaleTimeString()}</div>
                   </div>
                 </div>
               ))}
@@ -478,86 +567,123 @@ export const AdminConsole: React.FC = () => {
 
       {/* CREATE USER MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
-          <div className="relative w-full max-w-md bg-slate-900 border border-slate-700/60 rounded-2xl p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-cyan-400" />
-              Provision New User Account
-            </h3>
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(12px)',
+          padding: '20px',
+        }}>
+          <div className="glass-modal fade-in" style={{
+            width: '100%',
+            maxWidth: '440px',
+            borderRadius: '20px',
+            padding: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(6, 182, 212, 0.2)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                <UserPlus size={18} color="var(--accent-cyan)" /> Provision User Account
+              </h3>
+              <button onClick={() => setShowCreateModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
 
-            <form onSubmit={handleCreateUser} className="space-y-3.5">
+            <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Username</label>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Username
+                </label>
                 <input
                   type="text"
                   required
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder="e.g. dev_analyst"
-                  className="w-full bg-slate-950 border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  placeholder="e.g. sec_engineer"
+                  className="secure-input"
+                  style={{ padding: '9px 12px', fontSize: '13px' }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Display Name</label>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Display Name
+                </label>
                 <input
                   type="text"
                   required
                   value={newDisplayName}
                   onChange={(e) => setNewDisplayName(e.target.value)}
-                  placeholder="e.g. Developer Analyst"
-                  className="w-full bg-slate-950 border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  placeholder="e.g. Security Engineer"
+                  className="secure-input"
+                  style={{ padding: '9px 12px', fontSize: '13px' }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Email (Optional)</label>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Email (Optional)
+                </label>
                 <input
                   type="email"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="analyst@securechat.internal"
-                  className="w-full bg-slate-950 border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  placeholder="engineer@securechat.internal"
+                  className="secure-input"
+                  style={{ padding: '9px 12px', fontSize: '13px' }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Initial Password</label>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Initial Password
+                </label>
                 <input
                   type="password"
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Set initial password"
-                  className="w-full bg-slate-950 border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  className="secure-input"
+                  style={{ padding: '9px 12px', fontSize: '13px' }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Account Role</label>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Account Role
+                </label>
                 <select
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value as any)}
-                  className="w-full bg-slate-950 border border-slate-700/60 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  className="secure-input"
+                  style={{ padding: '9px 12px', fontSize: '13px' }}
                 >
                   <option value="USER">Standard User (Messaging & Guardian)</option>
                   <option value="ADMIN">SuperAdmin (Full DB & User Control)</option>
                 </select>
               </div>
 
-              <div className="flex gap-2 pt-3">
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300"
+                  className="btn-ghost"
+                  style={{ flex: 1, padding: '10px' }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-xs font-bold text-white shadow-md shadow-cyan-500/20"
+                  className="btn-primary"
+                  style={{ flex: 1, padding: '10px' }}
                 >
-                  Create & Provision Keys
+                  Create & Provision
                 </button>
               </div>
             </form>

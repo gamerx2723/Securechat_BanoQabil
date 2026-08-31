@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Users, Plus, X, Shield, Search } from 'lucide-react';
+import { User, Users, Plus, X, Shield, Search, Check } from 'lucide-react';
 import { ApiClient } from '../api/client';
 
 interface NewChatModalProps {
@@ -7,7 +7,7 @@ interface NewChatModalProps {
   onCreated: (newConv: any) => void;
 }
 
-export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onClose: _close, onCreated }) => {
+export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onCreated }) => {
   const [users, setUsers] = useState<Array<{ id: string; username: string; displayName: string; role: string }>>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [groupTitle, setGroupTitle] = useState('');
@@ -62,75 +62,140 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onClose: _c
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
-      <div className="relative w-full max-w-md bg-slate-900 border border-slate-700/60 rounded-2xl p-6 shadow-2xl">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
-              <Plus className="w-5 h-5" />
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 9999,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'rgba(0, 0, 0, 0.8)',
+      backdropFilter: 'blur(12px)',
+      padding: '20px',
+    }}>
+      <div className="glass-modal fade-in" style={{
+        width: '100%',
+        maxWidth: '460px',
+        borderRadius: '20px',
+        padding: '24px',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(16, 185, 129, 0.2)',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--green-safe)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Plus size={20} />
             </div>
-            <h3 className="text-lg font-bold text-white">Start New Secure Chat</h3>
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Start New Secure Chat</h3>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>Double Ratchet E2EE Key Exchange</p>
+            </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
-            <X className="w-5 h-5" />
+          <button
+            onClick={onClose}
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+          >
+            <X size={20} />
           </button>
         </div>
 
-        {/* Type toggle */}
-        <div className="flex bg-slate-800/80 p-1 rounded-xl mb-4 border border-slate-700/50">
+        {/* Mode Toggle */}
+        <div style={{
+          display: 'flex',
+          background: 'rgba(0, 0, 0, 0.35)',
+          padding: '4px',
+          borderRadius: '10px',
+          marginBottom: '16px',
+          border: '1px solid var(--border-subtle)',
+        }}>
           <button
             type="button"
             onClick={() => { setIsGroup(false); setSelectedUserIds([]); }}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
-              !isGroup ? 'bg-cyan-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-            }`}
+            style={{
+              flex: 1,
+              padding: '8px 0',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: 700,
+              fontSize: '12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              background: !isGroup ? 'var(--green-safe)' : 'transparent',
+              color: !isGroup ? '#000' : 'var(--text-secondary)',
+              transition: 'all 0.2s ease',
+            }}
           >
-            <User className="w-3.5 h-3.5" />
-            Direct 1:1 Chat
+            <User size={14} /> Direct 1:1 Chat
           </button>
           <button
             type="button"
             onClick={() => { setIsGroup(true); setSelectedUserIds([]); }}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
-              isGroup ? 'bg-cyan-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-            }`}
+            style={{
+              flex: 1,
+              padding: '8px 0',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: 700,
+              fontSize: '12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              background: isGroup ? 'var(--green-safe)' : 'transparent',
+              color: isGroup ? '#000' : 'var(--text-secondary)',
+              transition: 'all 0.2s ease',
+            }}
           >
-            <Users className="w-3.5 h-3.5" />
-            Secure Group
+            <Users size={14} /> Secure Group
           </button>
         </div>
 
+        {/* Group Name input */}
         {isGroup && (
-          <div className="mb-4">
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Group Channel Name</label>
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+              Group Channel Name
+            </label>
             <input
               type="text"
               value={groupTitle}
               onChange={(e) => setGroupTitle(e.target.value)}
-              placeholder="e.g. Threat Intel Team"
-              className="w-full bg-slate-950 border border-slate-700/60 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+              placeholder="e.g. Red Team SecOps"
+              className="secure-input"
+              style={{ padding: '8px 12px', fontSize: '13px' }}
             />
           </div>
         )}
 
         {/* Search */}
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
+          <Search size={14} style={{ position: 'absolute', left: '12px', color: 'var(--text-muted)' }} />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search directory by username..."
-            className="w-full bg-slate-950 border border-slate-700/60 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+            className="secure-input"
+            style={{ padding: '8px 12px 8px 34px', fontSize: '12px' }}
           />
         </div>
 
-        {error && <div className="text-xs text-rose-400 mb-2">{error}</div>}
+        {error && (
+          <div style={{ color: 'var(--red-critical)', fontSize: '11px', marginBottom: '8px', fontWeight: 600 }}>
+            {error}
+          </div>
+        )}
 
-        {/* Directory List */}
-        <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+        {/* Users List */}
+        <div style={{ maxHeight: '220px', overflowY: 'auto', paddingRight: '4px', marginBottom: '18px' }}>
           {filteredUsers.length === 0 ? (
-            <div className="text-center py-6 text-xs text-slate-500">No other registered users found</div>
+            <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: '12px' }}>
+              No contacts found
+            </div>
           ) : (
             filteredUsers.map((u) => {
               const selected = selectedUserIds.includes(u.id);
@@ -138,23 +203,52 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onClose: _c
                 <div
                   key={u.id}
                   onClick={() => toggleSelectUser(u.id)}
-                  className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all border ${
-                    selected
-                      ? 'bg-cyan-950/40 border-cyan-500/50 text-white'
-                      : 'bg-slate-800/40 border-slate-700/30 hover:bg-slate-800/80 text-slate-300'
-                  }`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    marginBottom: '6px',
+                    background: selected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                    border: selected ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--border-subtle)',
+                    transition: 'all 0.15s ease',
+                  }}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 text-white flex items-center justify-center font-bold text-xs">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #0284c7, #06b6d4)',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                    }}>
                       {u.displayName.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-white">{u.displayName}</div>
-                      <div className="text-[11px] text-slate-400">@{u.username} &bull; <span className="text-cyan-400">E2EE Verified</span></div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{u.displayName}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>@{u.username} • <span style={{ color: 'var(--green-safe)' }}>Verified</span></div>
                     </div>
                   </div>
-                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${selected ? 'border-cyan-400 bg-cyan-400 text-black' : 'border-slate-600'}`}>
-                    {selected && <div className="w-1.5 h-1.5 rounded-full bg-slate-950" />}
+
+                  <div style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    border: selected ? 'none' : '1px solid var(--border-medium)',
+                    background: selected ? 'var(--green-safe)' : 'transparent',
+                    color: '#000',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    {selected && <Check size={12} strokeWidth={3} />}
                   </div>
                 </div>
               );
@@ -162,11 +256,13 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onClose: _c
           )}
         </div>
 
-        <div className="mt-5 flex gap-2">
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: '10px' }}>
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300"
+            className="btn-ghost"
+            style={{ flex: 1, padding: '10px' }}
           >
             Cancel
           </button>
@@ -174,9 +270,10 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose, onClose: _c
             type="button"
             onClick={handleCreate}
             disabled={loading || selectedUserIds.length === 0}
-            className="flex-1 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-1.5"
+            className="btn-success"
+            style={{ flex: 1, padding: '10px', opacity: (loading || selectedUserIds.length === 0) ? 0.5 : 1, cursor: (loading || selectedUserIds.length === 0) ? 'not-allowed' : 'pointer' }}
           >
-            {loading ? 'Creating...' : 'Open Secure Channel'}
+            {loading ? 'Opening...' : 'Open Secure Channel'}
           </button>
         </div>
       </div>
