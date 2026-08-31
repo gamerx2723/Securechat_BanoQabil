@@ -1,0 +1,182 @@
+[
+  {
+    "id": "SE-001",
+    "text": "Hey! How is the project going? Let me know if you want to meet for coffee.",
+    "language": "en",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-002",
+    "text": "Good morning team, the weekly sprint retrospective is at 3pm today.",
+    "language": "en",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-003",
+    "text": "Aap se mil kar acha laga bhai, kal batate hain details.",
+    "language": "roman_ur",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-004",
+    "text": "Check out this cool new open source repository I found on GitHub.",
+    "language": "en",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-005",
+    "text": "Please review the attached budget proposal before tomorrow morning.",
+    "language": "en",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-006",
+    "text": "Salam, ghar kab tak aao ge?",
+    "language": "roman_ur",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-007",
+    "text": "Thanks for sending over the meeting minutes, looks good to me.",
+    "language": "en",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-008",
+    "text": "The server deployment finished successfully without downtime.",
+    "language": "en",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-009",
+    "text": "Kia haal hain? Kal office time par pohanch jana.",
+    "language": "roman_ur",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-010",
+    "text": "آپ کی رپورٹ موصول ہو گئی ہے، بہت شکریہ۔",
+    "language": "ur",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-011",
+    "text": "URGENT: Your account will be terminated in 15 minutes unless you respond now!",
+    "language": "en",
+    "labels": { "urgency": 1, "fear_intimidation": 1, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-012",
+    "text": "Foran verify karo warna account hamesha k liye block ho jaye ga!",
+    "language": "roman_ur",
+    "labels": { "urgency": 1, "fear_intimidation": 1, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-013",
+    "text": "Immediate action required! Your credit card has been suspended due to fraudulent activity.",
+    "language": "en",
+    "labels": { "urgency": 1, "fear_intimidation": 1, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-014",
+    "text": "Bhai jaldi karo time bohot kam hai foran process complete karo!",
+    "language": "roman_ur",
+    "labels": { "urgency": 1, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-015",
+    "text": "فوری طور پر تصدیق کریں ورنہ آپ کا اکاؤنٹ بند کر دیا جائے گا",
+    "language": "ur",
+    "labels": { "urgency": 1, "fear_intimidation": 1, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-016",
+    "text": "This is Federal Cyber Police Officer Davis. You are under immediate investigation.",
+    "language": "en",
+    "labels": { "urgency": 0, "fear_intimidation": 1, "authority_impersonation": 1, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-017",
+    "text": "Main FIA Cyber Crime Unit se Inspector Imran bol raha hoon, foran cooperate karein.",
+    "language": "roman_ur",
+    "labels": { "urgency": 1, "fear_intimidation": 1, "authority_impersonation": 1, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-018",
+    "text": "IT Support Administrator speaking. You must comply with security audit policy immediately.",
+    "language": "en",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 1, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-019",
+    "text": "State Bank of Pakistan Verification Helpline: Your CNIC verification is incomplete.",
+    "language": "en",
+    "labels": { "urgency": 1, "fear_intimidation": 0, "authority_impersonation": 1, "secrecy_isolation": 0, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-020",
+    "text": "CEO Direct Order: Process this wire transfer immediately and keep it confidential.",
+    "language": "en",
+    "labels": { "urgency": 1, "fear_intimidation": 0, "authority_impersonation": 1, "secrecy_isolation": 1, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-021",
+    "text": "Do not tell anyone or discuss this with your colleagues. It is strictly confidential.",
+    "language": "en",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 1, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-022",
+    "text": "Kisi ko mat batana, chup chap akele ye step complete karo warna nuksan hoga.",
+    "language": "roman_ur",
+    "labels": { "urgency": 0, "fear_intimidation": 1, "authority_impersonation": 0, "secrecy_isolation": 1, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-023",
+    "text": "Keep this conversation strictly private between us. Do not consult with your supervisor.",
+    "language": "en",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 1, "credential_solicitation": 0 }
+  },
+  {
+    "id": "SE-024",
+    "text": "Send me your password and the 6-digit OTP code sent to your mobile phone right now.",
+    "language": "en",
+    "labels": { "urgency": 1, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 1 }
+  },
+  {
+    "id": "SE-025",
+    "text": "Apna password aur OTP code mujhe send kar do verification ke liye.",
+    "language": "roman_ur",
+    "labels": { "urgency": 1, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 1 }
+  },
+  {
+    "id": "SE-026",
+    "text": "Enter your secret recovery seed phrase to unlock your cryptocurrency wallet.",
+    "language": "en",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 1 }
+  },
+  {
+    "id": "SE-027",
+    "text": "Login with your credentials immediately to avoid account suspension.",
+    "language": "en",
+    "labels": { "urgency": 1, "fear_intimidation": 1, "authority_impersonation": 0, "secrecy_isolation": 0, "credential_solicitation": 1 }
+  },
+  {
+    "id": "SE-028",
+    "text": "Easypaisa helpline: Sir aapke number par 4 digit pin bheja gaya hai foran bata dein.",
+    "language": "roman_ur",
+    "labels": { "urgency": 1, "fear_intimidation": 0, "authority_impersonation": 1, "secrecy_isolation": 0, "credential_solicitation": 1 }
+  },
+  {
+    "id": "SE-029",
+    "text": "JazzCash customer support: Share your transaction MPIN to claim 50,000 lottery bonus.",
+    "language": "en",
+    "labels": { "urgency": 1, "fear_intimidation": 0, "authority_impersonation": 1, "secrecy_isolation": 0, "credential_solicitation": 1 }
+  },
+  {
+    "id": "SE-030",
+    "text": "بینک ہیلپ لائن: برائے مہربانی اپنا خفیہ پن کوڈ اور پاس ورڈ بتائیں",
+    "language": "ur",
+    "labels": { "urgency": 0, "fear_intimidation": 0, "authority_impersonation": 1, "secrecy_isolation": 0, "credential_solicitation": 1 }
+  }
+]

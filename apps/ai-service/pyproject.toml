@@ -1,0 +1,14 @@
+[project]
+name = "securechat-ai-service"
+version = "1.0.0"
+description = "SecureChat AI Security Microservice (Phishing, Social Eng, DLP, Context, Explainability)"
+authors = [{ name = "SecureChat Engineering" }]
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "pydantic>=2.10.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

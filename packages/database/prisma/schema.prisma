@@ -1,0 +1,297 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                    String                 @id @default(uuid())
+  phone                 String?                @unique
+  email                 String?                @unique
+  username              String                 @unique
+  passwordHash          String
+  displayName           String
+  avatarUrl             String?
+  status                String                 @default("ACTIVE") // ACTIVE, SUSPENDED, DEACTIVATED
+  role                  String                 @default("USER")   // USER, SECURITY_USER, ADMIN
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  devices               Device[]
+  sessions              Session[]
+  conversationMembers   ConversationMember[]
+  sentMessages          Message[]              @relation("SentMessages")
+  messageReactions      MessageReaction[]
+  messageReadReceipts   MessageReadReceipt[]
+  contactsOwned         Contact[]              @relation("ContactsOwner")
+  contactOf             Contact[]              @relation("ContactTarget")
+  securityEvents        SecurityEvent[]
+  aiContexts            AIContext[]
+  userPreference        UserPreference?
+  auditEvents           AuditEvent[]
+}
+
+model Device {
+  id                    String                 @id @default(uuid())
+  userId                String
+  deviceId              String                 @unique
+  deviceType            String                 // ANDROID, IOS, WEB, DESKTOP
+  deviceName            String
+  publicKey             String                 // Base64 Identity Key
+  fcmToken              String?
+  isRevoked             Boolean                @default(false)
+  lastSeenAt            DateTime               @default(now())
+  createdAt             DateTime               @default(now())
+
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions              Session[]
+  identityKeys          IdentityKey[]
+  preKeys               PreKey[]
+  sentMessages          Message[]              @relation("DeviceSentMessages")
+  notificationCaptures  NotificationCapture[]
+
+  @@index([userId])
+}
+
+model IdentityKey {
+  id                    String                 @id @default(uuid())
+  deviceId              String
+  publicKey             String                 // Base64
+  signedPreKey          String                 // Base64
+  signedPreKeyId        Int
+  signedPreKeySignature String                 // Base64
+  createdAt             DateTime               @default(now())
+
+  device                Device                 @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+model PreKey {
+  id                    String                 @id @default(uuid())
+  deviceId              String
+  keyId                 Int
+  publicKey             String                 // Base64
+  isConsumed            Boolean                @default(false)
+  createdAt             DateTime               @default(now())
+
+  device                Device                 @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, isConsumed])
+}
+
+model Session {
+  id                    String                 @id @default(uuid())
+  userId                String
+  deviceId              String
+  refreshTokenHash      String
+  expiresAt             DateTime
+  revokedAt             DateTime?
+  createdAt             DateTime               @default(now())
+
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device                Device                 @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([deviceId])
+}
+
+model Conversation {
+  id                    String                 @id @default(uuid())
+  type                  String                 @default("DIRECT") // DIRECT, GROUP
+  title                 String?
+  avatarUrl             String?
+  securityPolicy        String                 @default("STANDARD")
+  isExcludedFromAi      Boolean                @default(false)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  members               ConversationMember[]
+  messages              Message[]
+  securityEvents        SecurityEvent[]
+  aiContexts            AIContext[]
+}
+
+model ConversationMember {
+  id                    String                 @id @default(uuid())
+  conversationId        String
+  userId                String
+  role                  String                 @default("MEMBER") // ADMIN, MEMBER
+  isExcluded            Boolean                @default(false)
+  joinedAt              DateTime               @default(now())
+
+  conversation          Conversation           @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id                    String                 @id @default(uuid())
+  conversationId        String
+  senderId              String
+  senderDeviceId        String
+  encryptedPayload      String                 // JSON serialized EncryptedMessagePayload
+  replyToMessageId      String?
+  status                String                 @default("SENT") // PENDING, SENT, DELIVERED, READ, FAILED
+  isEdited              Boolean                @default(false)
+  isDeleted             Boolean                @default(false)
+  disappearsInSeconds   Int?
+  sentAt                DateTime               @default(now())
+  deliveredAt           DateTime?
+  readAt                DateTime?
+
+  conversation          Conversation           @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender                User                   @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  senderDevice          Device                 @relation("DeviceSentMessages", fields: [senderDeviceId], references: [id], onDelete: Cascade)
+  replyTo               Message?               @relation("MessageReplies", fields: [replyToMessageId], references: [id])
+  replies               Message[]              @relation("MessageReplies")
+  attachments           MessageAttachment[]
+  reactions             MessageReaction[]
+  readReceipts          MessageReadReceipt[]
+  securityEvents        SecurityEvent[]
+
+  @@index([conversationId])
+  @@index([senderId])
+}
+
+model MessageAttachment {
+  id                    String                 @id @default(uuid())
+  messageId             String
+  fileType              String                 // IMAGE, VIDEO, AUDIO, DOCUMENT, LOCATION
+  fileName              String
+  fileSize              Int
+  mimeType              String
+  encryptedUrl          String
+  thumbnailUrl          String?
+  sha256Checksum        String
+  createdAt             DateTime               @default(now())
+
+  message               Message                @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model MessageReaction {
+  id                    String                 @id @default(uuid())
+  messageId             String
+  userId                String
+  emoji                 String
+  createdAt             DateTime               @default(now())
+
+  message               Message                @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+}
+
+model MessageReadReceipt {
+  id                    String                 @id @default(uuid())
+  messageId             String
+  userId                String
+  status                String                 // DELIVERED, READ
+  timestamp             DateTime               @default(now())
+
+  message               Message                @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, status])
+}
+
+model Contact {
+  id                    String                 @id @default(uuid())
+  ownerUserId           String
+  contactUserId         String
+  customName            String?
+  trustState            String                 @default("UNKNOWN") // UNKNOWN, OBSERVED, KNOWN, VERIFIED
+  isBlocked             Boolean                @default(false)
+  notes                 String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  owner                 User                   @relation("ContactsOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  contactUser           User                   @relation("ContactTarget", fields: [contactUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerUserId, contactUserId])
+}
+
+model SecurityEvent {
+  id                    String                 @id @default(uuid())
+  conversationId        String?
+  messageId             String?
+  userId                String
+  type                  String                 // PHISHING, DLP, SOCIAL_ENGINEERING, MALICIOUS_URL, etc.
+  severity              String                 // LOW, MEDIUM, HIGH, CRITICAL
+  riskScore             Int                    // 0 - 100
+  indicatorColor        String                 // GREEN, ORANGE, RED
+  confidence            Float                  // 0.0 - 1.0
+  source                String                 // RULE_ENGINE, ONNX_MODEL, CONTEXT_ENGINE
+  explanation           String
+  recommendation        String
+  isFalsePositive       Boolean                @default(false)
+  createdAt             DateTime               @default(now())
+
+  conversation          Conversation?          @relation(fields: [conversationId], references: [id])
+  message               Message?               @relation(fields: [messageId], references: [id])
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([conversationId])
+}
+
+model AIContext {
+  id                    String                 @id @default(uuid())
+  conversationId        String
+  userId                String
+  contextVersion        Int                    @default(1)
+  summary               String                 @default("New conversation initialized.")
+  currentRiskScore      Int                    @default(0)
+  currentSecurityState  String                 @default("GREEN")
+  observations          String                 @default("[]") // JSON string array
+  updatedAt             DateTime               @updatedAt
+
+  conversation          Conversation           @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+}
+
+model UserPreference {
+  id                    String                 @id @default(uuid())
+  userId                String                 @unique
+  aiMode                String                 @default("BALANCED") // GUARDIAN, BALANCED, PRIVACY, PERFORMANCE, CUSTOM
+  enableDlp             Boolean                @default(true)
+  enablePhishing        Boolean                @default(true)
+  enableSocialEng       Boolean                @default(true)
+  enableNotifications   Boolean                @default(true)
+  temporaryPrivacyUntil DateTime?
+  updatedAt             DateTime               @updatedAt
+
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NotificationCapture {
+  id                    String                 @id @default(uuid())
+  deviceId              String
+  sourceApp             String                 // com.whatsapp, etc.
+  senderTitle           String
+  rawContent            String
+  isDeletedBySender     Boolean                @default(false)
+  riskScore             Int                    @default(0)
+  capturedAt            DateTime               @default(now())
+
+  device                Device                 @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId])
+}
+
+model AuditEvent {
+  id                    String                 @id @default(uuid())
+  actorId               String
+  action                String
+  targetResource        String
+  ipAddress             String?
+  details               String?
+  timestamp             DateTime               @default(now())
+
+  actor                 User                   @relation(fields: [actorId], references: [id], onDelete: Cascade)
+}

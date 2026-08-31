@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: securechat-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: securechat
+      POSTGRES_PASSWORD: securechat_secret_password
+      POSTGRES_DB: securechat_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U securechat -d securechat_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: securechat-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:RELEASE.2024-01-18T22-51-28Z
+    container_name: securechat-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin_secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  ai-service:
+    build:
+      context: ./apps/ai-service
+      dockerfile: Dockerfile
+    container_name: securechat-ai-service
+    restart: unless-stopped
+    environment:
+      PORT: 8000
+      ENV: production
+    ports:
+      - "8000:8000"
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: securechat-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+    environment:
+      PORT: 4000
+      DATABASE_URL: "postgresql://securechat:securechat_secret_password@postgres:5432/securechat_db?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      AI_SERVICE_URL: "http://ai-service:8000"
+      JWT_SECRET: "development_jwt_secret_key_securechat_2026"
+      JWT_REFRESH_SECRET: "development_jwt_refresh_secret_key_securechat_2026"
+    ports:
+      - "4000:4000"
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
