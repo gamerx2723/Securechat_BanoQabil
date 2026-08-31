@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Lock, User, Key, AlertCircle, Sparkles, Crown, ArrowRight, Phone, Camera, Check } from 'lucide-react';
+import { Shield, Lock, User, Key, AlertCircle, Sparkles, Crown, ArrowRight, Phone, Check } from 'lucide-react';
 import { ApiClient } from '../api/client';
 import { UserProfile } from '../types';
 
@@ -7,30 +7,13 @@ interface AuthModalProps {
   onSuccess: (user: UserProfile) => void;
 }
 
-const AVATAR_PRESETS = [
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=200&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1628157582853-a796fa650a6a?w=200&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80',
-];
-
 export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   
-  // Registration fields
+  // Minimal phone registration
   const [phone, setPhone] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_PRESETS[0]);
-  const [customAvatar, setCustomAvatar] = useState('');
-
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -55,29 +38,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     try {
       if (isLogin) {
         if (!identifier.trim() || !password.trim()) {
-          throw new Error('Please enter your phone number / username and password');
+          throw new Error('Please enter your registered phone number or username and password');
         }
         const res = await ApiClient.login(identifier.trim(), password);
         onSuccess(res.user);
       } else {
-        if (!phone.trim()) {
-          throw new Error('Phone number is required for registration');
+        if (!phone.trim() || phone.trim().length < 7) {
+          throw new Error('Please provide a valid phone number');
         }
-        if (!displayName.trim()) {
-          throw new Error('Please enter your full name');
+        if (!password.trim() || password.trim().length < 6) {
+          throw new Error('Please set a password with at least 6 characters');
         }
-        if (!username.trim() || !password.trim()) {
-          throw new Error('Please provide a username handle and password');
-        }
-        const finalAvatar = customAvatar.trim() || selectedAvatar;
 
+        const cleanDigits = phone.replace(/[^0-9]/g, '');
         const res = await ApiClient.register({
           phone: phone.trim(),
-          displayName: displayName.trim(),
-          username: username.trim().toLowerCase().replace(/\s+/g, '_'),
-          email: email.trim() || undefined,
-          avatarUrl: finalAvatar,
-          password,
+          username: 'user_' + (cleanDigits || Math.random().toString(36).substring(2, 8)),
+          displayName: 'User +' + (cleanDigits.slice(-4) || 'Member'),
+          password: password.trim(),
         });
         onSuccess(res.user);
       }
@@ -107,7 +85,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
         className="glass-modal fade-in"
         style={{
           width: '100%',
-          maxWidth: '480px',
+          maxWidth: '460px',
           borderRadius: '24px',
           padding: '32px',
           boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 50px rgba(6, 182, 212, 0.15)',
@@ -187,7 +165,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
               transition: 'all 0.2s ease',
             }}
           >
-            Register (Phone)
+            Register (Phone Only)
           </button>
         </div>
 
@@ -236,7 +214,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                   />
                 </div>
                 <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                  Sign in using your registered mobile number or handle
+                  Sign in using your registered mobile phone number or handle
                 </span>
               </div>
 
@@ -261,71 +239,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             </>
           ) : (
             <>
-              {/* Profile Picture Selector */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Profile Picture (Avatar)
-                </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                  <img
-                    src={customAvatar.trim() || selectedAvatar}
-                    alt="Selected Avatar"
-                    style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '50%',
-                      objectFit: 'cover',
-                      border: '2px solid var(--accent-cyan)',
-                      boxShadow: '0 0 12px rgba(6, 182, 212, 0.4)',
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', flex: 1 }}>
-                    {AVATAR_PRESETS.slice(0, 6).map((preset, idx) => (
-                      <img
-                        key={idx}
-                        src={preset}
-                        alt={`Preset ${idx + 1}`}
-                        onClick={() => {
-                          setSelectedAvatar(preset);
-                          setCustomAvatar('');
-                        }}
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '50%',
-                          objectFit: 'cover',
-                          cursor: 'pointer',
-                          border: (!customAvatar && selectedAvatar === preset) ? '2px solid var(--accent-cyan)' : '1px solid rgba(255,255,255,0.2)',
-                          transform: (!customAvatar && selectedAvatar === preset) ? 'scale(1.15)' : 'scale(1)',
-                          transition: 'all 0.15s ease',
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div style={{ position: 'relative' }}>
-                  <Camera size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input
-                    type="text"
-                    placeholder="Or paste custom image URL..."
-                    value={customAvatar}
-                    onChange={(e) => setCustomAvatar(e.target.value)}
-                    style={{
-                      width: '100%',
-                      background: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '8px',
-                      padding: '6px 10px 6px 30px',
-                      color: 'var(--text-primary)',
-                      fontSize: '11px',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Phone Number Input */}
-              <div style={{ marginBottom: '12px' }}>
+              {/* Phone Number Input ONLY */}
+              <div style={{ marginBottom: '14px' }}>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '6px' }}>
                   Phone Number (Required)
                 </label>
@@ -341,46 +256,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                     style={{ paddingLeft: '40px' }}
                   />
                 </div>
+                <span style={{ fontSize: '10px', color: 'var(--accent-cyan)', marginTop: '4px', display: 'block', fontWeight: 600 }}>
+                  🔒 Permanent account identifier (cannot be changed later)
+                </span>
               </div>
 
-              {/* Full Name */}
-              <div style={{ marginBottom: '12px' }}>
+              {/* Password ONLY */}
+              <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Full Name / Display Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="e.g. Muhammad Ali"
-                  className="secure-input"
-                />
-              </div>
-
-              {/* Username Handle */}
-              <div style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Username (Handle)
-                </label>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <User size={16} style={{ position: 'absolute', left: '14px', color: 'var(--text-muted)' }} />
-                  <input
-                    type="text"
-                    required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="e.g. muhammad_ali"
-                    className="secure-input"
-                    style={{ paddingLeft: '40px' }}
-                  />
-                </div>
-              </div>
-
-              {/* Password */}
-              <div style={{ marginBottom: '18px' }}>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Password (Min 8 Characters)
+                  Set Account Password
                 </label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <Lock size={16} style={{ position: 'absolute', left: '14px', color: 'var(--text-muted)' }} />
@@ -389,7 +273,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Choose secure password"
+                    placeholder="Set a password (min 6 characters)"
                     className="secure-input"
                     style={{ paddingLeft: '40px' }}
                   />
@@ -419,7 +303,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
               </>
             ) : (
               <>
-                <Sparkles size={16} /> Complete Registration & Generate Keys
+                <Sparkles size={16} /> Register with Phone & Generate E2EE Keys
               </>
             )}
           </button>

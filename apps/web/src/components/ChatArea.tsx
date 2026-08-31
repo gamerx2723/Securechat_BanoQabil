@@ -13,6 +13,7 @@ import {
   Shield,
   MoreVertical,
   UserX,
+  UserCheck,
   Trash2,
   Flag,
   Power,
@@ -39,6 +40,7 @@ interface ChatAreaProps {
   onOpenTopicModal: () => void;
   onOpenCopilot: () => void;
   onBlockUser?: (conversationId: string) => void;
+  onUnblockUser?: (conversationId: string) => void;
   onReportChat?: (conversationId: string) => void;
   onDeleteChat?: (conversationId: string) => void;
   onEditMessage?: (messageId: string, newText: string) => void;
@@ -54,6 +56,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   onOpenTopicModal,
   onOpenCopilot,
   onBlockUser,
+  onUnblockUser,
   onReportChat,
   onDeleteChat,
   onEditMessage,
@@ -78,6 +81,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -87,7 +91,12 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   // Click outside to close dropdown menu and emoji picker
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        menuButtonRef.current &&
+        !menuButtonRef.current.contains(event.target as Node)
+      ) {
         setIsMenuOpen(false);
       }
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
@@ -232,13 +241,19 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         if (onBlockUser) {
           onBlockUser(conversation.id);
         }
-        showToast(`🚫 Contact '${conversation.title}' has been blocked. Incoming messages will be rejected.`, 'WARN');
+        showToast(`🚫 Contact '${conversation.title}' has been blocked. Message history preserved intact.`, 'WARN');
+        break;
+      case 'UNBLOCK_USER':
+        if (onUnblockUser) {
+          onUnblockUser(conversation.id);
+        }
+        showToast(`✅ Contact '${conversation.title}' has been unblocked. Full messaging restored.`, 'SUCCESS');
         break;
       case 'DELETE_CHAT':
         if (onDeleteChat) {
           onDeleteChat(conversation.id);
         }
-        showToast('🗑️ Conversation history has been cleared from local device cache.', 'SUCCESS');
+        showToast('🗑️ Conversation history has been cleared from local storage & server.', 'SUCCESS');
         break;
       default:
         break;
@@ -254,103 +269,181 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   }
 
   return (
-    <main style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-primary)', position: 'relative' }}>
-      {/* Chat Header */}
-      <header
-        style={{
-          padding: '14px 24px',
-          borderBottom: '1px solid var(--border-subtle)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'var(--bg-secondary)',
-          position: 'relative',
-          zIndex: 50,
-        }}
-      >
+    <main className="chat-container">
+      {/* Header */}
+      <header className="chat-header" style={{ position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img
             src={conversation.avatar}
             alt={conversation.title}
-            style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover' }}
+            style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
           />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <span style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-primary)' }}>
                 {conversation.title}
-              </h2>
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontFamily: 'var(--font-mono)',
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  color: 'var(--green-safe)',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <Lock size={10} /> Double Ratchet E2EE
               </span>
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>Channel State:</span>
-              {conversation.isExcluded ? (
-                <span style={{ color: 'var(--orange-warn)', fontWeight: 600 }}>🔒 AI Scanning Paused</span>
-              ) : (
-                <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>🟢 Zero-Trust AI Active</span>
+              {conversation.isBlocked && (
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontWeight: 800,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    color: 'var(--red-critical)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Blocked
+                </span>
+              )}
+              {conversation.isExcluded && !conversation.isBlocked && (
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    background: 'rgba(245, 158, 11, 0.2)',
+                    color: 'var(--orange-warn)',
+                    border: '1px solid rgba(245, 158, 11, 0.4)',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Privacy Active
+                </span>
               )}
             </div>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              {conversation.isBlocked ? 'Blocked contact • History intact' : 'Signal Double Ratchet E2EE • AI Guarded'}
+            </span>
           </div>
         </div>
 
-        {/* 3-Bars / 3-Dots Dropdown Menu Button */}
-        <div style={{ position: 'relative' }} ref={menuRef}>
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            title="Chat Options & AI Security Controls"
+        {/* Header Right Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Security Status Indicator */}
+          <div
+            className="security-badge"
             style={{
+              padding: '6px 12px',
+              borderRadius: '20px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              width: '38px',
-              height: '38px',
+              gap: '6px',
+              background: conversation.isBlocked
+                ? 'rgba(239, 68, 68, 0.15)'
+                : conversation.isExcluded
+                ? 'rgba(245, 158, 11, 0.15)'
+                : conversation.securityState === 'RED'
+                ? 'rgba(239, 68, 68, 0.15)'
+                : conversation.securityState === 'ORANGE'
+                ? 'rgba(245, 158, 11, 0.15)'
+                : 'rgba(16, 185, 129, 0.15)',
+              border: `1px solid ${
+                conversation.isBlocked
+                  ? 'rgba(239, 68, 68, 0.4)'
+                  : conversation.isExcluded
+                  ? 'rgba(245, 158, 11, 0.4)'
+                  : conversation.securityState === 'RED'
+                  ? 'rgba(239, 68, 68, 0.4)'
+                  : conversation.securityState === 'ORANGE'
+                  ? 'rgba(245, 158, 11, 0.4)'
+                  : 'rgba(16, 185, 129, 0.4)'
+              }`,
+            }}
+          >
+            {conversation.isBlocked ? (
+              <>
+                <UserX size={14} color="var(--red-critical)" />
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--red-critical)' }}>
+                  BLOCKED
+                </span>
+              </>
+            ) : conversation.isExcluded ? (
+              <>
+                <Lock size={14} color="var(--orange-warn)" />
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--orange-warn)' }}>
+                  PRIVACY MODE
+                </span>
+              </>
+            ) : (
+              <>
+                <Shield
+                  size={14}
+                  color={
+                    conversation.securityState === 'RED'
+                      ? 'var(--red-critical)'
+                      : conversation.securityState === 'ORANGE'
+                      ? 'var(--orange-warn)'
+                      : 'var(--green-safe)'
+                  }
+                />
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color:
+                      conversation.securityState === 'RED'
+                        ? 'var(--red-critical)'
+                        : conversation.securityState === 'ORANGE'
+                        ? 'var(--orange-warn)'
+                        : 'var(--green-safe)',
+                  }}
+                >
+                  {conversation.securityState === 'RED'
+                    ? 'CRITICAL THREAT'
+                    : conversation.securityState === 'ORANGE'
+                    ? 'ELEVATED RISK'
+                    : 'CHANNEL SECURE'}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* 3-Dots Dropdown Menu Button */}
+          <button
+            ref={menuButtonRef}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="btn-ghost"
+            title="Chat Options & Controls"
+            style={{
+              padding: '8px',
               borderRadius: '8px',
-              background: isMenuOpen ? 'rgba(99, 102, 241, 0.2)' : 'var(--bg-tertiary)',
-              border: isMenuOpen ? '1px solid rgba(99, 102, 241, 0.6)' : '1px solid var(--border-subtle)',
-              color: isMenuOpen ? '#a78bfa' : 'var(--text-primary)',
+              background: isMenuOpen ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+              color: isMenuOpen ? 'var(--accent-cyan)' : 'var(--text-secondary)',
               cursor: 'pointer',
-              transition: 'all 0.15s ease',
             }}
           >
             <MoreVertical size={18} />
           </button>
 
-          {/* Cyberpunk Dropdown Menu */}
+          {/* 3-Dots Dropdown Menu Modal */}
           {isMenuOpen && (
             <div
+              ref={menuRef}
               style={{
                 position: 'absolute',
-                top: '46px',
-                right: '0',
-                width: '270px',
+                top: '56px',
+                right: '24px',
+                width: '240px',
                 background: 'var(--bg-secondary)',
-                border: '1px solid rgba(99, 102, 241, 0.4)',
+                border: '1px solid var(--border-subtle)',
                 borderRadius: '12px',
                 padding: '6px',
-                boxShadow: '0 15px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(99, 102, 241, 0.15)',
+                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(6, 182, 212, 0.1)',
+                zIndex: 100,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '2px',
-                zIndex: 100,
+                gap: '4px',
                 animation: 'fadeIn 0.15s ease-out',
               }}
             >
-              {/* Section 1: AI Tools */}
+              {/* Section 1: AI Assistance */}
               <div style={{ padding: '6px 10px 4px 10px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                AI Intelligence & Copilot
+                AI Agent & Intelligence
               </div>
 
               <button
@@ -370,11 +463,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                   textAlign: 'left',
                   transition: 'background 0.15s ease',
                 }}
-                onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(168, 85, 247, 0.15)')}
+                onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)')}
                 onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
               >
-                <Sparkles size={16} style={{ color: '#a78bfa' }} />
-                <span>Explain Chat Topic</span>
+                <Sparkles size={16} color="var(--accent-cyan)" />
+                <span>Explain Topic with AI</span>
               </button>
 
               <button
@@ -394,11 +487,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                   textAlign: 'left',
                   transition: 'background 0.15s ease',
                 }}
-                onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)')}
+                onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)')}
                 onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
               >
-                <Shield size={16} style={{ color: '#34d399' }} />
-                <span>AI Security Copilot</span>
+                <Shield size={16} color="var(--accent-cyan)" />
+                <span>Open Security Copilot</span>
               </button>
 
               <button
@@ -411,7 +504,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                   borderRadius: '8px',
                   border: 'none',
                   background: 'transparent',
-                  color: 'var(--text-primary)',
+                  color: conversation.isExcluded ? 'var(--orange-warn)' : 'var(--green-safe)',
                   fontSize: '13px',
                   fontWeight: 500,
                   cursor: 'pointer',
@@ -422,8 +515,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Power size={16} style={{ color: conversation.isExcluded ? 'var(--orange-warn)' : 'var(--green-safe)' }} />
-                  <span>AI Agent Scanning</span>
+                  <Power size={16} />
+                  <span>AI Agent Protection</span>
                 </div>
                 <span
                   style={{
@@ -432,7 +525,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                     padding: '2px 6px',
                     borderRadius: '4px',
                     background: conversation.isExcluded ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                    color: conversation.isExcluded ? 'var(--orange-warn)' : 'var(--green-safe)',
                   }}
                 >
                   {conversation.isExcluded ? 'OFF' : 'ON'}
@@ -470,29 +562,56 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 <span>Report Chat to Admin</span>
               </button>
 
-              <button
-                onClick={() => handleMenuAction('BLOCK_USER')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '9px 12px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--red-critical)',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'background 0.15s ease',
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)')}
-                onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
-              >
-                <UserX size={16} />
-                <span>Block User</span>
-              </button>
+              {/* Dynamic Block / Unblock Button */}
+              {conversation.isBlocked ? (
+                <button
+                  onClick={() => handleMenuAction('UNBLOCK_USER')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    color: 'var(--green-safe)',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 0.15s ease',
+                  }}
+                  onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(16, 185, 129, 0.25)')}
+                  onMouseOut={(e) => (e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)')}
+                >
+                  <UserCheck size={16} />
+                  <span>Unblock User</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleMenuAction('BLOCK_USER')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--red-critical)',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 0.15s ease',
+                  }}
+                  onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)')}
+                  onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <UserX size={16} />
+                  <span>Block User</span>
+                </button>
+              )}
 
               <button
                 onClick={() => handleMenuAction('DELETE_CHAT')}
@@ -565,13 +684,36 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             onInspectSecurity={onInspectSecurity}
             onEditMessage={onEditMessage}
             onDeleteMessage={onDeleteMessage}
+            isBlocked={conversation.isBlocked}
           />
         ))}
         <div ref={scrollRef} />
       </div>
 
+      {/* Blocked Conversation Notice Banner */}
+      {conversation.isBlocked && (
+        <div
+          style={{
+            margin: '0 24px 10px 24px',
+            padding: '10px 14px',
+            background: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            color: 'var(--red-critical)',
+            fontSize: '12px',
+            fontWeight: 600,
+          }}
+        >
+          <UserX size={16} />
+          <span>🚫 User is blocked. Message history is preserved intact, but sending, editing, and deleting are disabled. Unblock from menu (⋮) to resume messaging.</span>
+        </div>
+      )}
+
       {/* Real-time Pre-Send Threat Advisory Banner */}
-      {threatWarning && (
+      {threatWarning && !conversation.isBlocked && (
         <div
           style={{
             margin: '0 24px 10px 24px',
@@ -675,13 +817,20 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
         <form onSubmit={handleSend} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {/* Attachment Button */}
-          <button type="button" className="btn-ghost" title="Attach Secure Encrypted File" style={{ padding: '10px' }}>
+          <button
+            type="button"
+            disabled={conversation.isBlocked}
+            className="btn-ghost"
+            title="Attach Secure Encrypted File"
+            style={{ padding: '10px', opacity: conversation.isBlocked ? 0.4 : 1, cursor: conversation.isBlocked ? 'not-allowed' : 'pointer' }}
+          >
             <Paperclip size={18} />
           </button>
 
           {/* Emoji Picker Button right beside Attachment Icon */}
           <button
             type="button"
+            disabled={conversation.isBlocked}
             className="btn-ghost"
             onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
             title="Insert Emoji"
@@ -690,6 +839,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               color: isEmojiPickerOpen ? 'var(--accent-cyan)' : 'var(--text-muted)',
               background: isEmojiPickerOpen ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
               borderRadius: '8px',
+              opacity: conversation.isBlocked ? 0.4 : 1,
+              cursor: conversation.isBlocked ? 'not-allowed' : 'pointer',
             }}
           >
             <Smile size={18} />
@@ -698,8 +849,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           <input
             type="text"
             className="secure-input"
+            disabled={conversation.isBlocked}
             placeholder={
-              conversation.isExcluded
+              conversation.isBlocked
+                ? 'User is blocked. Unblock in menu (⋮) to send messages...'
+                : conversation.isExcluded
                 ? 'Type message (AI Security scanning paused for this chat)...'
                 : 'Type message (Protected by Zero-Trust AI & DLP)...'
             }
@@ -709,6 +863,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
           <button
             type="submit"
+            disabled={conversation.isBlocked}
             className="btn-primary"
             title="Send Encrypted Message"
             style={{
@@ -716,6 +871,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
+              opacity: conversation.isBlocked ? 0.4 : 1,
+              cursor: conversation.isBlocked ? 'not-allowed' : 'pointer',
             }}
           >
             <Send size={16} />

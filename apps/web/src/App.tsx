@@ -159,10 +159,27 @@ export const App: React.FC = () => {
     );
   };
 
-  const handleBlockUser = (conversationId: string) => {
-    setConversations((prev) => prev.filter((c) => c.id !== conversationId));
-    if (activeConvId === conversationId) {
-      setActiveConvId('');
+  const handleBlockUser = async (conversationId: string) => {
+    try {
+      await ApiClient.blockConversation(conversationId);
+      // Keep conversation and message history intact, update isBlocked state
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, isBlocked: true } : c))
+      );
+    } catch (e) {
+      console.error('Failed to block user:', e);
+    }
+  };
+
+  const handleUnblockUser = async (conversationId: string) => {
+    try {
+      await ApiClient.unblockConversation(conversationId);
+      // Restore messaging and update isBlocked state while keeping history intact
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, isBlocked: false } : c))
+      );
+    } catch (e) {
+      console.error('Failed to unblock user:', e);
     }
   };
 
@@ -249,6 +266,7 @@ export const App: React.FC = () => {
     lastMessageTime: '',
     securityState: 'GREEN',
     isExcluded: false,
+    isBlocked: false,
   };
   const currentMessages = messagesMap[activeConvId] || [];
 
@@ -285,6 +303,7 @@ export const App: React.FC = () => {
             onOpenTopicModal={() => setIsTopicModalOpen(true)}
             onOpenCopilot={() => setIsCopilotOpen(true)}
             onBlockUser={handleBlockUser}
+            onUnblockUser={handleUnblockUser}
             onReportChat={handleReportChat}
             onDeleteChat={handleDeleteChat}
             onEditMessage={handleEditMessage}

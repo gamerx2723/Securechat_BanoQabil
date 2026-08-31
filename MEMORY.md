@@ -1,7 +1,7 @@
 # SECURECHAT — PROJECT MEMORY
 
-Version: 3.5
-Status: PHONE REGISTRATION, PROFILE MANAGEMENT, RECIPIENT-ONLY CHAT TITLES, 10-MIN EDIT WINDOW & EMOJI PICKER ACTIVE
+Version: 3.6
+Status: PHONE-ONLY AUTH, IMMUTABLE IDENTITY, ACID BLOCK/UNBLOCK WITH HISTORY PRESERVATION & EDITOR LOCKING ACTIVE
 Last Updated: 2026-09-01
 Authoritative State Record: YES
 
@@ -18,20 +18,18 @@ Authoritative State Record: YES
 ## 2. CHECKPOINTS & CURRENT STATE
 
 ### 🚩 CHECKPOINT 1 (Updated: 2026-09-01)
-- **Phone Number Registration & Login (`AuthModal.tsx` & `auth.routes.ts`):**
-  - Registration asks for **Phone Number** (e.g. `+92 300 1234567`), **Display Name**, **Username**, **Profile Picture** (avatar presets + custom image URL/upload), and **Password**.
-  - Login supports login via Phone Number, Username handle, or Email.
-- **User Profile Management Control (`ProfileModal.tsx` & `PATCH /api/v1/auth/profile`):**
-  - Interactive profile management modal accessible directly from user header card in sidebar.
-  - Allows changing display name, registered phone number, avatar URL, and status in real-time.
-- **Recipient Name Exclusivity in Direct Chats (`client.ts` & `ChatArea.tsx`):**
-  - Direct 1-on-1 conversations display only the recipient's name and avatar, eliminating self-name clutter.
-- **10-Minute Message Editing Window (`MessageItem.tsx` & `messages.routes.ts`):**
-  - Messages sent $>10$ minutes ago have their edit button disabled and removed from the UI.
-  - Backend API strictly rejects edit requests on messages $>10$ minutes old with HTTP 403 Forbidden.
-- **Emoji Picker Beside Attachment Icon (`ChatArea.tsx`):**
-  - Sleek Cyberpunk emoji button (`Smile`) located right beside the `Paperclip` attachment icon in the input composer.
-  - Interactive popup with categorized emojis for quick insertion at cursor position.
+- **Phone-Only Registration & Immutable Account Identity (`AuthModal.tsx`, `ProfileModal.tsx`, `auth.routes.ts`):**
+  - Registration takes **ONLY** the user's **Phone Number** and **Password**.
+  - All E2EE Signal prekeys, identity keys, device bindings, and preferences are automatically generated in a single atomic ACID transaction (`prisma.$transaction`).
+  - **Permanent Immutability**: The registered phone number is locked as the primary cryptographic account anchor and cannot be modified at registration or later in profile settings (`PATCH /api/v1/auth/profile`).
+- **Strict ACID Block / Unblock Engine with Intact Message History (`conversations.routes.ts`, `ChatArea.tsx`, `App.tsx`):**
+  - Blocking a user preserves the entire chat and message history completely intact (no data deletion).
+  - The conversation header and 3-dots dropdown menu dynamically toggle between **`Unblock User`** (`UserCheck` icon) and **`Block User`** (`UserX` icon).
+  - Unblocking immediately restores full messaging capabilities.
+- **Client & Editor Side Locked when Blocked (`ChatArea.tsx`, `MessageItem.tsx`, `messages.routes.ts`):**
+  - When blocked, the composer input is disabled with a warning notice (`🚫 User is blocked. Message history is preserved, but sending, editing, and deleting are disabled`).
+  - Message editing (pencil) and message deletion (trash) buttons are removed from the client editor on hover.
+  - Server-side routes (`POST /messages`, `PATCH /messages/:id`, `DELETE /messages/:id`) enforce `403 Forbidden` checks with strict `prisma.$transaction` rollbacks.
 - **Pre-Send Sender Credential & Personal Data (DLP) Interception (`DlpPreSendWarningModal.tsx` & `ChatArea.tsx`):**
   - Scans for Passwords, PINs, Passcodes, CNIC (Pakistani National ID), Bank Accounts / IBAN, Credit/Debit Cards, CVV, OTPs, and Cloud API Keys.
   - Real-time typing warning banner (`Data Loss Prevention Alert`).

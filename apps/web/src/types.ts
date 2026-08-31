@@ -43,6 +43,7 @@ export interface ConversationItem {
   lastMessageTime: string;
   securityState: SecurityIndicatorColor;
   isExcluded: boolean;
+  isBlocked?: boolean;
 }
 
 export interface UserProfile {

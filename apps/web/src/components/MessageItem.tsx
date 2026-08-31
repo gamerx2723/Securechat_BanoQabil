@@ -7,6 +7,7 @@ interface MessageItemProps {
   onInspectSecurity: (message: ChatMessage) => void;
   onEditMessage?: (messageId: string, newText: string) => void;
   onDeleteMessage?: (messageId: string) => void;
+  isBlocked?: boolean;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -14,6 +15,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onInspectSecurity,
   onEditMessage,
   onDeleteMessage,
+  isBlocked,
 }) => {
   const isSelf = message.isSelf;
   const analysis = message.securityAnalysis;
@@ -224,8 +226,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
         {/* Footer info: Action controls (Edit/Delete), Delivery status & Interactive Security Badge */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-          {/* Quick Edit & Delete Actions on hover for own messages */}
-          {isSelf && !isEditing && isHovered && (
+          {/* Quick Edit & Delete Actions on hover for own messages (disabled when blocked) */}
+          {isSelf && !isEditing && isHovered && !isBlocked && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginRight: 'auto' }}>
               {canEdit && (
                 <button

@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
 export const registerSchema = z.object({
-  phone: z.string().optional(),
+  phone: z.string().min(7, 'Valid phone number is required'),
   email: z.string().email().optional(),
-  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, 'Username must be alphanumeric with underscores only'),
-  password: z.string().min(8, 'Password must be at least 8 characters long'),
-  displayName: z.string().min(1).max(50),
+  username: z.string().min(3).max(30).optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters long'),
+  displayName: z.string().min(1).max(50).optional(),
   avatarUrl: z.string().optional(),
   deviceId: z.string().min(10),
   deviceType: z.enum(['ANDROID', 'IOS', 'WEB', 'DESKTOP']),
@@ -19,8 +19,6 @@ export const registerSchema = z.object({
       publicKey: z.string().min(20),
     })
   ).min(5, 'Must provide at least 5 one-time prekeys'),
-}).refine(data => data.phone || data.email, {
-  message: 'Either email or phone number is required',
 });
 
 export const loginSchema = z.object({

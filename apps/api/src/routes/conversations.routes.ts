@@ -43,8 +43,15 @@ conversationsRouter.get('/', async (req: AuthenticatedRequest, res: Response): P
       orderBy: { updatedAt: 'desc' },
     });
 
+    const contacts = await prisma.contact.findMany({
+      where: { ownerUserId: userId },
+    });
+    const blockedUserIds = new Set(contacts.filter(c => c.isBlocked).map(c => c.contactUserId));
+
     const result = conversations.map(c => {
       const selfMember = c.members.find(m => m.userId === userId);
+      const otherMember = c.members.find(m => m.userId !== userId);
+      const isBlocked = otherMember ? blockedUserIds.has(otherMember.userId) : false;
       const aiContext = c.aiContexts[0];
 
       return {
@@ -55,6 +62,7 @@ conversationsRouter.get('/', async (req: AuthenticatedRequest, res: Response): P
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
         isExcludedFromAi: c.isExcludedFromAi || selfMember?.isExcluded || false,
+        isBlocked,
         lastMessage: c.messages[0] || null,
         securitySummary: aiContext ? {
           riskScore: aiContext.currentRiskScore,
@@ -201,5 +209,131 @@ conversationsRouter.delete('/:id', async (req: AuthenticatedRequest, res: Respon
   } catch (error) {
     console.error('Delete conversation error:', error);
     res.status(500).json({ error: 'Failed to delete conversation' });
+  }
+});
+
+// ACID Block User (Keeps message history intact)
+conversationsRouter.post('/:id/block', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const id = String(req.params.id);
+    const userId = req.user!.userId;
+
+    const conv = await prisma.conversation.findUnique({
+      where: { id },
+      include: { members: true },
+    });
+
+    if (!conv) {
+      res.status(404).json({ error: 'Conversation not found' });
+      return;
+    }
+
+    const otherMember = conv.members.find(m => m.userId !== userId);
+    if (!otherMember) {
+      res.status(400).json({ error: 'Cannot block in channel without participants' });
+      return;
+    }
+
+    // ACID transaction: block contact, update member status, preserve all message history
+    await prisma.$transaction(async (tx) => {
+      await tx.contact.upsert({
+        where: {
+          ownerUserId_contactUserId: {
+            ownerUserId: userId,
+            contactUserId: otherMember.userId,
+          },
+        },
+        create: {
+          ownerUserId: userId,
+          contactUserId: otherMember.userId,
+          isBlocked: true,
+          trustState: 'BLOCKED',
+        },
+        update: {
+          isBlocked: true,
+          trustState: 'BLOCKED',
+        },
+      });
+
+      await tx.conversationMember.update({
+        where: {
+          conversationId_userId: {
+            conversationId: id,
+            userId: otherMember.userId,
+          },
+        },
+        data: {
+          isExcluded: true,
+        },
+      });
+    });
+
+    res.json({ success: true, isBlocked: true, message: 'User blocked. Message history preserved intact.' });
+  } catch (error) {
+    console.error('Block user error:', error);
+    res.status(500).json({ error: 'Failed to block user' });
+  }
+});
+
+// ACID Unblock User (Restores messaging while preserving history)
+conversationsRouter.post('/:id/unblock', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const id = String(req.params.id);
+    const userId = req.user!.userId;
+
+    const conv = await prisma.conversation.findUnique({
+      where: { id },
+      include: { members: true },
+    });
+
+    if (!conv) {
+      res.status(404).json({ error: 'Conversation not found' });
+      return;
+    }
+
+    const otherMember = conv.members.find(m => m.userId !== userId);
+    if (!otherMember) {
+      res.status(400).json({ error: 'Cannot unblock in channel without participants' });
+      return;
+    }
+
+    // ACID transaction: unblock contact, restore status, preserve all message history
+    await prisma.$transaction(async (tx) => {
+      await tx.contact.upsert({
+        where: {
+          ownerUserId_contactUserId: {
+            ownerUserId: userId,
+            contactUserId: otherMember.userId,
+          },
+        },
+        create: {
+          ownerUserId: userId,
+          contactUserId: otherMember.userId,
+          isBlocked: false,
+          trustState: 'KNOWN',
+        },
+        update: {
+          isBlocked: false,
+          trustState: 'KNOWN',
+        },
+      });
+
+      await tx.conversationMember.update({
+        where: {
+          conversationId_userId: {
+            conversationId: id,
+            userId: otherMember.userId,
+          },
+        },
+        data: {
+          isExcluded: false,
+        },
+      });
+    });
+
+    res.json({ success: true, isBlocked: false, message: 'User unblocked. Full messaging restored.' });
+  } catch (error) {
+    console.error('Unblock user error:', error);
+    res.status(500).json({ error: 'Failed to unblock user' });
   }
 });

@@ -33,11 +33,15 @@ authRouter.post('/register', async (req, res): Promise<void> => {
       oneTimePreKeys,
     } = parseResult.data;
 
+    const cleanDigits = (phone || '').replace(/[^0-9]/g, '');
+    const finalUsername = (username || `user_${cleanDigits || Math.random().toString(36).substring(2, 8)}`).trim().toLowerCase();
+    const finalDisplayName = (displayName || `User +${cleanDigits.slice(-4) || 'Member'}`).trim();
+
     // Check duplicate
     const existing = await prisma.user.findFirst({
       where: {
         OR: [
-          { username },
+          { username: finalUsername },
           ...(email ? [{ email }] : []),
           ...(phone ? [{ phone }] : []),
         ],
@@ -49,72 +53,76 @@ authRouter.post('/register', async (req, res): Promise<void> => {
       return;
     }
 
-    // Create user and initial device
-    const user = await prisma.user.create({
-      data: {
-        username,
-        email,
-        phone,
-        passwordHash: hashPassword(password),
-        displayName,
-        avatarUrl: (parseResult.data as any).avatarUrl || req.body.avatarUrl || null,
-        role: 'USER',
-        status: 'ACTIVE',
-        userPreference: {
-          create: {
-            aiMode: 'BALANCED',
-            enableDlp: true,
-            enablePhishing: true,
-            enableSocialEng: true,
+    // ACID Transaction for User, Devices, Cryptographic Keys, Preferences & Session
+    const { user, createdDevice, accessToken, refreshToken } = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          username: finalUsername,
+          email,
+          phone,
+          passwordHash: hashPassword(password),
+          displayName: finalDisplayName,
+          avatarUrl: (parseResult.data as any).avatarUrl || req.body.avatarUrl || null,
+          role: 'USER',
+          status: 'ACTIVE',
+          userPreference: {
+            create: {
+              aiMode: 'BALANCED',
+              enableDlp: true,
+              enablePhishing: true,
+              enableSocialEng: true,
+            },
           },
-        },
-        devices: {
-          create: {
-            deviceId,
-            deviceType,
-            deviceName,
-            publicKey: identityKeyPublic,
-            identityKeys: {
-              create: {
-                publicKey: identityKeyPublic,
-                signedPreKey: signedPreKeyPublic,
-                signedPreKeyId: 1,
-                signedPreKeySignature,
+          devices: {
+            create: {
+              deviceId,
+              deviceType,
+              deviceName,
+              publicKey: identityKeyPublic,
+              identityKeys: {
+                create: {
+                  publicKey: identityKeyPublic,
+                  signedPreKey: signedPreKeyPublic,
+                  signedPreKeyId: 1,
+                  signedPreKeySignature,
+                },
+              },
+              preKeys: {
+                create: oneTimePreKeys.map(k => ({
+                  keyId: k.keyId,
+                  publicKey: k.publicKey,
+                })),
               },
             },
-            preKeys: {
-              create: oneTimePreKeys.map(k => ({
-                keyId: k.keyId,
-                publicKey: k.publicKey,
-              })),
-            },
           },
         },
-      },
-      include: {
-        devices: true,
-      },
-    });
+        include: {
+          devices: true,
+        },
+      });
 
-    const createdDevice = user.devices[0];
-    const accessToken = JwtService.signAccessToken({
-      userId: user.id,
-      deviceId: createdDevice.deviceId,
-      role: user.role as any,
-      username: user.username,
-    });
-    const refreshToken = JwtService.signRefreshToken({
-      userId: user.id,
-      deviceId: createdDevice.deviceId,
-    });
+      const firstDevice = newUser.devices[0];
+      const accToken = JwtService.signAccessToken({
+        userId: newUser.id,
+        deviceId: firstDevice.deviceId,
+        role: newUser.role as any,
+        username: newUser.username,
+      });
+      const refToken = JwtService.signRefreshToken({
+        userId: newUser.id,
+        deviceId: firstDevice.deviceId,
+      });
 
-    await prisma.session.create({
-      data: {
-        userId: user.id,
-        deviceId: createdDevice.id,
-        refreshTokenHash: JwtService.hashToken(refreshToken),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
+      await tx.session.create({
+        data: {
+          userId: newUser.id,
+          deviceId: firstDevice.id,
+          refreshTokenHash: JwtService.hashToken(refToken),
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+
+      return { user: newUser, createdDevice: firstDevice, accessToken: accToken, refreshToken: refToken };
     });
 
     res.status(201).json({
@@ -385,26 +393,28 @@ authRouter.get('/me', authMiddleware, async (req: AuthenticatedRequest, res: Res
 authRouter.patch('/profile', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.userId;
-    const { displayName, avatarUrl, phone, status } = req.body;
+    const { displayName, avatarUrl, status } = req.body;
 
-    const updated = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...(displayName ? { displayName } : {}),
-        ...(avatarUrl !== undefined ? { avatarUrl } : {}),
-        ...(phone !== undefined ? { phone } : {}),
-        ...(status ? { status } : {}),
-      },
-      select: {
-        id: true,
-        username: true,
-        displayName: true,
-        phone: true,
-        email: true,
-        avatarUrl: true,
-        role: true,
-        status: true,
-      },
+    // Strict Security Rule: Phone number is a permanent cryptographic account anchor and cannot be modified
+    const updated = await prisma.$transaction(async (tx) => {
+      return await tx.user.update({
+        where: { id: userId },
+        data: {
+          ...(displayName ? { displayName: displayName.trim() } : {}),
+          ...(avatarUrl !== undefined ? { avatarUrl: avatarUrl.trim() } : {}),
+          ...(status ? { status } : {}),
+        },
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          phone: true,
+          email: true,
+          avatarUrl: true,
+          role: true,
+          status: true,
+        },
+      });
     });
 
     res.json(updated);

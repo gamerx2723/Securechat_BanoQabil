@@ -217,6 +217,7 @@ export class ApiClient {
               avatar,
               unreadCount: 0,
               isExcluded: c.isExcludedFromAi || false,
+              isBlocked: c.isBlocked || false,
               lastMessageText: text || 'No messages yet',
               lastMessageTime: c.lastMessage ? new Date(c.lastMessage.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
               securityState: secState,
@@ -227,6 +228,30 @@ export class ApiClient {
       console.error('Failed to fetch conversations:', error);
     }
     return [];
+  }
+
+  public static async blockConversation(conversationId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/conversations/${conversationId}/block`, {
+      method: 'POST',
+      headers: this.authHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to block user' }));
+      throw new Error(err.error || 'Failed to block user');
+    }
+    return await res.json();
+  }
+
+  public static async unblockConversation(conversationId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/conversations/${conversationId}/unblock`, {
+      method: 'POST',
+      headers: this.authHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to unblock user' }));
+      throw new Error(err.error || 'Failed to unblock user');
+    }
+    return await res.json();
   }
 
   public static async createConversation(params: {

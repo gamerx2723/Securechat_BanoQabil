@@ -260,30 +260,39 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose, onUpd
             </div>
           </div>
 
-          {/* Phone Number */}
+          {/* Permanent Immutable Phone Number */}
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-              Registered Phone Number
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Registered Phone Number
+              </label>
+              <span style={{ fontSize: '10px', color: 'var(--accent-cyan)', fontWeight: 600 }}>
+                🔒 Immutable Identity Anchor
+              </span>
+            </div>
             <div style={{ position: 'relative' }}>
               <input
                 type="tel"
-                placeholder="+92 300 1234567"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                value={user.phone || 'Phone not set'}
+                readOnly
+                disabled
                 style={{
                   width: '100%',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
                   borderRadius: '10px',
                   padding: '10px 14px 10px 36px',
-                  color: 'var(--text-primary)',
+                  color: 'var(--text-muted)',
                   fontSize: '13px',
                   outline: 'none',
+                  cursor: 'not-allowed',
                 }}
               />
               <Phone size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             </div>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+              Phone number was permanently bound during registration and cannot be modified.
+            </span>
           </div>
 
           {/* Account Readonly Specs */}

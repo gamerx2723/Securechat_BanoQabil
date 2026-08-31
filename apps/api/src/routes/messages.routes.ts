@@ -109,24 +109,44 @@ messagesRouter.post('/', async (req: AuthenticatedRequest, res: Response): Promi
       });
     }
 
-    // Ensure sender is a member of the conversation
-    let member = await prisma.conversationMember.findUnique({
-      where: {
-        conversationId_userId: { conversationId, userId: senderId },
-      },
+    // Check if conversation or user is blocked
+    const conv = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: { members: true },
     });
 
-    if (!member) {
-      const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
-      if (conv) {
-        await prisma.conversationMember.create({
-          data: {
-            conversationId,
-            userId: senderId,
-            role: 'MEMBER',
-          },
-        });
+    if (!conv) {
+      res.status(404).json({ error: 'Conversation not found' });
+      return;
+    }
+
+    const otherMember = conv.members.find(m => m.userId !== senderId);
+    if (otherMember) {
+      const blockedContact = await prisma.contact.findFirst({
+        where: {
+          OR: [
+            { ownerUserId: senderId, contactUserId: otherMember.userId, isBlocked: true },
+            { ownerUserId: otherMember.userId, contactUserId: senderId, isBlocked: true },
+          ],
+        },
+      });
+
+      if (blockedContact) {
+        res.status(403).json({ error: 'Cannot send message: User is blocked. Unblock to resume messaging.' });
+        return;
       }
+    }
+
+    // Ensure sender is a member of the conversation
+    let member = conv.members.find(m => m.userId === senderId);
+    if (!member) {
+      await prisma.conversationMember.create({
+        data: {
+          conversationId,
+          userId: senderId,
+          role: 'MEMBER',
+        },
+      });
     }
 
     // Extract plaintext to perform Zero-Trust AI Security Analysis
@@ -138,44 +158,54 @@ messagesRouter.post('/', async (req: AuthenticatedRequest, res: Response): Promi
 
     const analysis = await ThreatEvaluationService.evaluate(plaintext, conversationId, senderId);
 
-    const message = await prisma.message.create({
-      data: {
-        conversationId,
-        senderId,
-        senderDeviceId: senderDevice.id,
-        encryptedPayload,
-        replyToMessageId,
-        disappearsInSeconds,
-        status: 'SENT',
-        securityEvents: {
-          create: {
-            userId: senderId,
-            conversationId,
-            type: analysis.primaryThreat,
-            severity: analysis.indicatorColor === 'RED' ? 'CRITICAL' : analysis.indicatorColor === 'ORANGE' ? 'MEDIUM' : 'LOW',
-            riskScore: analysis.riskScore,
-            indicatorColor: analysis.indicatorColor,
-            confidence: analysis.confidence / 100,
-            source: 'ZERO_TRUST_ANALYZER',
-            explanation: analysis.explanation,
-            recommendation: analysis.recommendation,
+    // ACID Transaction for Message Creation, Security Events & Conversation Timestamp Update
+    const message = await prisma.$transaction(async (tx) => {
+      const created = await tx.message.create({
+        data: {
+          conversationId,
+          senderId,
+          senderDeviceId: senderDevice.id,
+          encryptedPayload,
+          replyToMessageId,
+          disappearsInSeconds,
+          status: 'SENT',
+          securityEvents: {
+            create: {
+              userId: senderId,
+              conversationId,
+              type: analysis.primaryThreat,
+              severity: analysis.indicatorColor === 'RED' ? 'CRITICAL' : analysis.indicatorColor === 'ORANGE' ? 'MEDIUM' : 'LOW',
+              riskScore: analysis.riskScore,
+              indicatorColor: analysis.indicatorColor,
+              confidence: analysis.confidence / 100,
+              source: 'ZERO_TRUST_ANALYZER',
+              explanation: analysis.explanation,
+              recommendation: analysis.recommendation,
+            },
           },
         },
-      },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
+        include: {
+          sender: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+            },
           },
+          reactions: true,
+          attachments: true,
+          readReceipts: true,
+          securityEvents: true,
         },
-        reactions: true,
-        attachments: true,
-        readReceipts: true,
-        securityEvents: true,
-      },
+      });
+
+      await tx.conversation.update({
+        where: { id: conversationId },
+        data: { updatedAt: new Date() },
+      });
+
+      return created;
     });
 
     // Update conversation timestamp & security state
@@ -245,6 +275,29 @@ messagesRouter.patch('/:messageId', async (req: AuthenticatedRequest, res: Respo
       return;
     }
 
+    // Check if conversation is blocked
+    const conv = await prisma.conversation.findUnique({
+      where: { id: message.conversationId },
+      include: { members: true },
+    });
+    if (conv) {
+      const otherMember = conv.members.find(m => m.userId !== userId);
+      if (otherMember) {
+        const isBlocked = await prisma.contact.findFirst({
+          where: {
+            OR: [
+              { ownerUserId: userId, contactUserId: otherMember.userId, isBlocked: true },
+              { ownerUserId: otherMember.userId, contactUserId: userId, isBlocked: true },
+            ],
+          },
+        });
+        if (isBlocked) {
+          res.status(403).json({ error: 'Cannot edit messages: Conversation is blocked.' });
+          return;
+        }
+      }
+    }
+
     // Enforce 10-minute edit window limit
     const messageAgeMinutes = (Date.now() - new Date(message.sentAt).getTime()) / (1000 * 60);
     if (messageAgeMinutes > 10) {
@@ -255,20 +308,23 @@ messagesRouter.patch('/:messageId', async (req: AuthenticatedRequest, res: Respo
     const analysis = await ThreatEvaluationService.evaluate(plaintext, message.conversationId, userId);
     const updatedPayload = JSON.stringify({ plaintext, isEdited: true });
 
-    const updated = await prisma.message.update({
-      where: { id: messageId },
-      data: {
-        encryptedPayload: updatedPayload,
-      },
-      include: {
-        sender: {
-          select: { id: true, username: true, displayName: true, avatarUrl: true },
+    // ACID transaction for message update & security event sync
+    const updated = await prisma.$transaction(async (tx) => {
+      return await tx.message.update({
+        where: { id: messageId },
+        data: {
+          encryptedPayload: updatedPayload,
         },
-        reactions: true,
-        attachments: true,
-        readReceipts: true,
-        securityEvents: true,
-      },
+        include: {
+          sender: {
+            select: { id: true, username: true, displayName: true, avatarUrl: true },
+          },
+          reactions: true,
+          attachments: true,
+          readReceipts: true,
+          securityEvents: true,
+        },
+      });
     });
 
     // Broadcast update via WebSocket
@@ -281,7 +337,7 @@ messagesRouter.patch('/:messageId', async (req: AuthenticatedRequest, res: Respo
   }
 });
 
-// Delete an individual message
+// Delete an individual message with ACID transaction
 messagesRouter.delete('/:messageId', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const messageId = String(req.params.messageId);
@@ -301,9 +357,35 @@ messagesRouter.delete('/:messageId', async (req: AuthenticatedRequest, res: Resp
       return;
     }
 
-    await prisma.messageReaction.deleteMany({ where: { messageId } });
-    await prisma.securityEvent.deleteMany({ where: { messageId } });
-    await prisma.message.delete({ where: { id: messageId } });
+    // Check if conversation is blocked
+    const conv = await prisma.conversation.findUnique({
+      where: { id: message.conversationId },
+      include: { members: true },
+    });
+    if (conv) {
+      const otherMember = conv.members.find(m => m.userId !== userId);
+      if (otherMember) {
+        const isBlocked = await prisma.contact.findFirst({
+          where: {
+            OR: [
+              { ownerUserId: userId, contactUserId: otherMember.userId, isBlocked: true },
+              { ownerUserId: otherMember.userId, contactUserId: userId, isBlocked: true },
+            ],
+          },
+        });
+        if (isBlocked) {
+          res.status(403).json({ error: 'Cannot delete messages: Conversation is blocked.' });
+          return;
+        }
+      }
+    }
+
+    // ACID Transaction for Message Deletion, Reactions & Security Events
+    await prisma.$transaction(async (tx) => {
+      await tx.messageReaction.deleteMany({ where: { messageId } });
+      await tx.securityEvent.deleteMany({ where: { messageId } });
+      await tx.message.delete({ where: { id: messageId } });
+    });
 
     res.json({ success: true, messageId, conversationId: message.conversationId });
   } catch (error) {
