@@ -593,7 +593,7 @@ export class ApiClient {
     }
 
     // B. Cognitive Intent Triangle (Action + Pressure + Bypass)
-    const hasAction = /\b(?:authenticate|sign\s*in|log\s*in|verify\s*identity|confirm\s*(?:credentials|details|account)|transfer|send\s*(?:money|funds|cash|amount|rs|pkr|\$)|download|install|run\s*this|open\s*attachment|apk|bhejo|paisay\s*de\s*do|transfer\s*karo)\b/i.test(text);
+    const hasAction = /\b(?:authenticate|sign\s*in|log\s*in|verify\s*identity|confirm\s*(?:credentials|details|account)|(?:transfer|wire|send|deposit)\s+(?:money|funds|cash|amount|rs\.?|pkr|\$|rupees|payment)|download|install|run\s*this|open\s*attachment|apk|paisay\s*(?:de\s*do|send|bhejo|transfer))\b/i.test(text);
     const hasPressure = /\b(?:within\s*(?:\d+\s*(?:mins?|hours?|seconds?)|today)|before\s*it\s*expires|deadline|right\s*now|at\s*once|otherwise|or\s*else|will\s*be\s*(?:lost|cancelled|suspended|blocked|deleted|terminated)|stuck|lost\s*my\s*phone|emergency|hospital|accident|earn\s*\$?\d+\s*daily|won\s*(?:lottery|prize|car|gold)|foran|jaldi|abhi\s*k\s*abhi|band\s*ho\s*jaye\s*ga|ammi\s*bimar)\b/i.test(text);
     const hasBypass = /\b(?:ignore\s*(?:warning|security\s*alert|prompt)|bypass|do\s*not\s*(?:call|verify\s*with|report|ask)|share\s*(?:code|otp|pin|password|card|cvv|cnic)|tell\s*me\s*the\s*number|kisi\s*ko\s*mat\s*batana|code\s*batao|otp\s*send\s*karo)\b/i.test(text);
 

@@ -16,7 +16,7 @@ class AdaptiveLearningEngine:
     """
     Continuous Active Learning & Dynamic Memory Engine.
     Enables the AI to:
-    1. Instantly learn newly reported zero-day attacks and false positives in real time.
+    1. Instantly learn newly reported zero-day attacks and false alarms in real time.
     2. Maintain a dynamic Semantic Vector Exemplar Memory with sub-millisecond Cosine Similarity.
     3. Incrementally update online SGD model weights on-the-fly without server restarts.
     4. Provide self-healing memory: if an attack or false alarm is confirmed, it is permanently remembered.
@@ -48,7 +48,7 @@ class AdaptiveLearningEngine:
         else:
             cls._exemplars = []
 
-        # Load or initialize online SGD model and vectorizer
+        # Load trained online SGD model and vectorizer
         if os.path.exists(ADAPTIVE_MODEL_PATH):
             try:
                 saved = joblib.load(ADAPTIVE_MODEL_PATH)
@@ -58,19 +58,19 @@ class AdaptiveLearningEngine:
                 print(f"Warning: Failed to load adaptive model: {e}")
 
         if cls._vectorizer is None or cls._online_sgd_model is None:
-            cls._vectorizer = TfidfVectorizer(ngram_range=(1, 3), max_features=10000, analyzer='char_wb')
-            # Initialize with seed samples
+            # Fallback initialization if joblib was not present
+            cls._vectorizer = TfidfVectorizer(ngram_range=(1, 2), max_features=20000, analyzer='word', sublinear_tf=True)
             seed_texts = [
-                "hi hello how are you doing today",
+                "hi hello how are you doing today please send the report",
                 "urgent verify your bank account right now at http://fake-bank-login.xyz",
-                "kal sham ko cricket khelnay chalain ge bhai",
+                "can you send me the photo when you get home",
                 "aapka easypaisa block hone wala hai foran otp bataein",
-                "here is the quarterly financial revenue presentation file",
-                "fia arrest warrant issued pay fine immediately to avoid jail"
+                "i will send the presentation tomorrow morning",
+                "fia arrest warrant issued send fine immediately to avoid jail"
             ]
             seed_labels = [0, 1, 0, 1, 0, 1]
             X_init = cls._vectorizer.fit_transform(seed_texts)
-            cls._online_sgd_model = SGDClassifier(loss='log_loss', penalty='l2', alpha=1e-4, random_state=42)
+            cls._online_sgd_model = SGDClassifier(loss='log_loss', penalty='l2', alpha=1e-5, random_state=42)
             cls._online_sgd_model.fit(X_init, seed_labels)
 
         cls._rebuild_exemplar_matrix()
@@ -151,10 +151,11 @@ class AdaptiveLearningEngine:
         if not clean_text:
             return {
                 "has_memory_match": False,
-                "memory_score": 0.0,
-                "confidence": 0.0,
+                "top_similarity": 0.0,
                 "matched_exemplar": None,
-                "online_model_score": 0.0
+                "online_model_score": 0.0,
+                "adaptive_risk_score": 0.0,
+                "total_exemplars_in_memory": len(cls._exemplars)
             }
 
         # 1. Online Model Live Prediction
@@ -191,9 +192,10 @@ class AdaptiveLearningEngine:
                 final_risk = max(online_score, 85.0 + (top_similarity * 15.0))
             else:
                 # Confirmed Benign / False Alarm Exemplar Override
-                final_risk = min(online_score * 0.1, 5.0)
+                final_risk = 0.0
         else:
-            if online_score >= 65.0:
+            # Gated activation: only fire if calibrated online SGD model gives high probability (>= 70%)
+            if online_score >= 70.0:
                 final_risk = online_score
 
         return {

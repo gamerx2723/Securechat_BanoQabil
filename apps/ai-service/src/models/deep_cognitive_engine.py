@@ -59,7 +59,7 @@ class DeepCognitiveEngine:
             signals.append("Explicit / Implicit Authentication Credential Solicitation")
 
         # B. Financial Value Transfer
-        if re.search(r'\b(?:transfer|send\s*(?:money|funds|cash|amount|rs|pkr|\$)|wire|deposit|pay\s*(?:now|fee|advance|charges)|bhejo|paisay\s*send|easypaisa\s*karo|jazzcash)\b', normalized, re.IGNORECASE) or \
+        if re.search(r'\b(?:(?:transfer|wire|send|deposit)\s+(?:money|funds|cash|amount|rs\.?|pkr|\$|rupees|payment)|pay\s+(?:now|fee|advance|charges)|paisay\s*(?:send|bhejo|transfer)|easypaisa\s*karo|jazzcash\s*karo)\b', normalized, re.IGNORECASE) or \
            re.search(r'(?:رقم\s*بھیجیں|پیسے\s*ٹرانسفر|ایزی\s*پیسہ\s*کریں)', raw_text):
             vector_scores['VALUE_TRANSFER'] = 0.90
             signals.append("Irreversible Financial Value / Asset Transfer Request")
