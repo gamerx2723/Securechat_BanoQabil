@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ConversationItem, SecurityIndicatorColor } from '../types';
-import { Shield, ShieldAlert, ShieldCheck, MessageSquare, Activity, ShieldQuestion, Plus, Lock, Search, LogOut, Crown } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, MessageSquare, Activity, ShieldQuestion, Plus, Lock, Search, LogOut, Crown, CheckSquare, Square, Trash2, X, Check } from 'lucide-react';
 
 interface SidebarProps {
   conversations: ConversationItem[];
@@ -12,6 +12,7 @@ interface SidebarProps {
   onNewChat: () => void;
   onLogout: () => void;
   onOpenProfile?: () => void;
+  onBulkDelete?: (ids: string[]) => void;
   currentUsername: string;
   userAvatarUrl?: string;
   userRole?: string;
@@ -28,12 +29,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNewChat,
   onLogout,
   onOpenProfile,
+  onBulkDelete,
   currentUsername,
   userAvatarUrl,
   userRole = 'USER',
   className = '',
 }) => {
-  const [search, setSearch] = React.useState('');
+  const [search, setSearch] = useState('');
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const filtered = conversations.filter(c => 
     c.title.toLowerCase().includes(search.toLowerCase())
@@ -52,6 +56,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const isAdmin = userRole === 'ADMIN';
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.length === filtered.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filtered.map(c => c.id));
+    }
+  };
+
+  const handleExecuteBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    if (confirm(`Are you sure you want to permanently delete ${selectedIds.length} selected conversation${selectedIds.length > 1 ? 's' : ''}?`)) {
+      if (onBulkDelete) {
+        onBulkDelete(selectedIds);
+      }
+      setSelectedIds([]);
+      setIsSelecting(false);
+    }
+  };
 
   return (
     <aside className={`sidebar-container ${className}`}>
@@ -103,7 +132,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isAdmin ? '#fbbf24' : 'var(--green-safe)', display: 'inline-block' }}></span>
-              {isAdmin ? 'Master SuperAdmin Mode' : 'Edit Profile & Keys'}
+              {isAdmin ? 'Master SuperAdmin Mode' : 'Online & E2EE Protected'}
             </div>
           </div>
         </div>
@@ -194,7 +223,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         )}
 
-        {/* Dynamic SuperAdmin Tab */}
         {isAdmin && (
           <button
             onClick={() => onTabChange('ADMIN')}
@@ -263,12 +291,55 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </div>
 
-      {/* Conversation List */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px' }}>
-        <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 10px', fontWeight: 700, letterSpacing: '0.05em' }}>
-          Active Conversations
+      {/* Conversation Header & Bulk Delete Controls */}
+      <div style={{ padding: '4px 14px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)' }}>
+        <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em' }}>
+          {isSelecting ? `${selectedIds.length} Selected` : 'Active Conversations'}
         </div>
 
+        {conversations.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {isSelecting ? (
+              <>
+                <button
+                  onClick={handleSelectAll}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  {selectedIds.length === filtered.length ? 'Deselect' : 'Select All'}
+                </button>
+                {selectedIds.length > 0 && (
+                  <button
+                    onClick={handleExecuteBulkDelete}
+                    style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.35)', color: '#f43f5e', fontSize: '11px', fontWeight: 700, borderRadius: '6px', padding: '2px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <Trash2 size={11} /> Delete ({selectedIds.length})
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setIsSelecting(false);
+                    setSelectedIds([]);
+                  }}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                >
+                  <X size={13} />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setIsSelecting(true)}
+                title="Select chats to bulk delete"
+                style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '2px 8px', color: 'var(--text-secondary)', fontSize: '11px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                <CheckSquare size={11} /> Select
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Conversation List */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
         {filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--text-muted)', fontSize: '12px' }}>
             No conversations found. Click <strong>+ New</strong> to start a chat!
@@ -276,26 +347,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ) : (
           filtered.map(c => {
             const isActive = c.id === activeId && activeTab === 'CHATS';
+            const isChecked = selectedIds.includes(c.id);
             return (
               <div
                 key={c.id}
                 onClick={() => {
-                  onSelect(c.id);
-                  onTabChange('CHATS');
+                  if (isSelecting) {
+                    toggleSelect(c.id);
+                  } else {
+                    onSelect(c.id);
+                    onTabChange('CHATS');
+                  }
                 }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '12px',
+                  gap: '10px',
                   padding: '10px',
                   borderRadius: '10px',
                   cursor: 'pointer',
                   marginBottom: '4px',
-                  background: isActive ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
-                  border: isActive ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid transparent',
+                  background: isChecked ? 'rgba(6, 182, 212, 0.12)' : isActive ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
+                  border: isChecked ? '1px solid rgba(6, 182, 212, 0.4)' : isActive ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid transparent',
                   transition: 'all 0.15s ease',
                 }}
               >
+                {/* Bulk Selection Checkbox */}
+                {isSelecting && (
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSelect(c.id);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: isChecked ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                    }}
+                  >
+                    {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
+                  </div>
+                )}
+
                 <div style={{ position: 'relative' }}>
                   <img
                     src={c.avatar}

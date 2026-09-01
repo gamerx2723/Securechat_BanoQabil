@@ -7,9 +7,10 @@ interface EvidenceModalProps {
   message: ChatMessage | null;
   onClose: () => void;
   onAskCopilot: (query: string) => void;
+  userRole?: string;
 }
 
-export const EvidenceModal: React.FC<EvidenceModalProps> = ({ message, onClose, onAskCopilot }) => {
+export const EvidenceModal: React.FC<EvidenceModalProps> = ({ message, onClose, onAskCopilot, userRole = 'USER' }) => {
   const [learningFeedback, setLearningFeedback] = useState<string | null>(null);
   const [isTeaching, setIsTeaching] = useState(false);
 
@@ -151,71 +152,73 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ message, onClose, 
           </div>
         )}
 
-        {/* Continuous Active Learning Controls */}
-        <div
-          style={{
-            background: 'rgba(16, 185, 129, 0.06)',
-            border: '1px solid rgba(16, 185, 129, 0.2)',
-            borderRadius: '10px',
-            padding: '12px 14px',
-            marginBottom: '18px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Sparkles size={14} style={{ color: '#10b981' }} /> Teach AI Model (Continuous Online Learning)
-            </span>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button
-                onClick={() => handleTeachAI('MALICIOUS')}
-                disabled={isTeaching}
-                title="Teach AI this message is malicious"
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.35)',
-                  color: '#ef4444',
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <ThumbsDown size={12} /> Confirm Threat
-              </button>
+        {/* Continuous Active Learning Controls (Admin Only) */}
+        {userRole === 'ADMIN' && (
+          <div
+            style={{
+              background: 'rgba(16, 185, 129, 0.06)',
+              border: '1px solid rgba(16, 185, 129, 0.2)',
+              borderRadius: '10px',
+              padding: '12px 14px',
+              marginBottom: '18px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Sparkles size={14} style={{ color: '#10b981' }} /> SuperAdmin AI Model Calibration
+              </span>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  onClick={() => handleTeachAI('MALICIOUS')}
+                  disabled={isTeaching}
+                  title="Teach AI this message is malicious"
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    color: '#ef4444',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <ThumbsDown size={12} /> Confirm Threat
+                </button>
 
-              <button
-                onClick={() => handleTeachAI('BENIGN')}
-                disabled={isTeaching}
-                title="Teach AI this message is clean and safe"
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  border: '1px solid rgba(16, 185, 129, 0.35)',
-                  color: '#10b981',
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <ThumbsUp size={12} /> Confirm Safe
-              </button>
+                <button
+                  onClick={() => handleTeachAI('BENIGN')}
+                  disabled={isTeaching}
+                  title="Teach AI this message is clean and safe"
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid rgba(16, 185, 129, 0.35)',
+                    color: '#10b981',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <ThumbsUp size={12} /> Confirm Safe
+                </button>
+              </div>
             </div>
+
+            {learningFeedback && (
+              <div style={{ marginTop: '8px', fontSize: '11px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }} className="fade-in">
+                <Check size={13} /> {learningFeedback}
+              </div>
+            )}
           </div>
-
-          {learningFeedback && (
-            <div style={{ marginTop: '8px', fontSize: '11px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }} className="fade-in">
-              <Check size={13} /> {learningFeedback}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>

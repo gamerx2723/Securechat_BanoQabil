@@ -285,6 +285,31 @@ export const App: React.FC = () => {
     }
   };
 
+  // Bulk Delete Functionality
+  const handleBulkDeleteChats = async (conversationIds: string[]) => {
+    for (const id of conversationIds) {
+      try {
+        await ApiClient.deleteConversation(id);
+      } catch (e) {
+        console.error(`Failed to delete conversation ${id}:`, e);
+      }
+    }
+    setMessagesMap((prev) => {
+      const copy = { ...prev };
+      for (const id of conversationIds) {
+        delete copy[id];
+      }
+      return copy;
+    });
+    setConversations((prev) => {
+      const remaining = prev.filter((c) => !conversationIds.includes(c.id));
+      if (conversationIds.includes(activeConvId)) {
+        setActiveConvId(remaining.length > 0 ? remaining[0].id : '');
+      }
+      return remaining;
+    });
+  };
+
   const handleEditMessage = async (messageId: string, newText: string) => {
     try {
       const updated = await ApiClient.editMessage(messageId, newText);
@@ -359,9 +384,9 @@ export const App: React.FC = () => {
 
   return (
     <div className="app-layout">
-      {/* Left Sidebar */}
+      {/* Left Sidebar (Hidden on mobile if a chat or non-chat tab is active) */}
       <Sidebar
-        className={activeConvId && activeTab === 'CHATS' ? 'sidebar-hidden-mobile' : ''}
+        className={Boolean(activeConvId) || activeTab !== 'CHATS' ? 'sidebar-hidden-mobile' : ''}
         conversations={conversations}
         activeId={activeConvId}
         onSelect={(id) => {
@@ -374,12 +399,13 @@ export const App: React.FC = () => {
         onNewChat={() => setIsNewChatOpen(true)}
         onLogout={handleLogout}
         onOpenProfile={() => setIsProfileModalOpen(true)}
+        onBulkDelete={handleBulkDeleteChats}
         currentUsername={currentUser.displayName || currentUser.username}
         userAvatarUrl={currentUser.avatarUrl}
         userRole={currentUser.role}
       />
 
-      {/* Main Viewport Content */}
+      {/* Main Viewport Content (Hidden on mobile if viewing conversation list on CHATS tab) */}
       <div className={`main-viewport ${!activeConvId && activeTab === 'CHATS' ? 'main-hidden-mobile' : ''}`}>
         {/* Mobile Header Bar for non-chat tabs */}
         {activeTab !== 'CHATS' && (
@@ -486,6 +512,7 @@ export const App: React.FC = () => {
             message={inspectedMessage}
             onClose={() => setInspectedMessage(null)}
             onAskCopilot={handleOpenCopilotWithQuery}
+            userRole={currentUser.role}
           />
         )}
 
