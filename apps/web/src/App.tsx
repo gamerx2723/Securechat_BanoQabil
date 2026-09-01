@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ConversationItem, ChatMessage, SecurityAnalysis, UserProfile } from './types';
 import { Sidebar } from './components/Sidebar';
 import { ChatArea } from './components/ChatArea';
@@ -12,6 +12,7 @@ import { NewChatModal } from './components/NewChatModal';
 import { AdminConsole } from './components/AdminConsole';
 import { ProfileModal } from './components/ProfileModal';
 import { ApiClient } from './api/client';
+import { ArrowLeft, Shield, MessageSquare, Activity, Crown } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(ApiClient.getCurrentUser());
@@ -25,63 +26,87 @@ export const App: React.FC = () => {
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [copilotInitialQuery, setCopilotInitialQuery] = useState('');
-  const wsRef = useRef<WebSocket | null>(null);
 
-  // Load conversations from SQLite
-  const loadConversations = async () => {
+  const wsRef = useRef<WebSocket | null>(null);
+  const activeConvIdRef = useRef<string>(activeConvId);
+  activeConvIdRef.current = activeConvId;
+  const isSyncingRef = useRef<boolean>(false);
+
+  // Load conversations
+  const loadConversations = useCallback(async () => {
     if (!currentUser) return;
-    const convs = await ApiClient.getConversations();
-    setConversations(convs);
-    if (convs.length > 0 && !activeConvId) {
-      setActiveConvId(convs[0].id);
+    try {
+      const convs = await ApiClient.getConversations();
+      setConversations(convs);
+      if (convs.length > 0 && !activeConvIdRef.current) {
+        setActiveConvId(convs[0].id);
+      }
+    } catch (e) {
+      console.error('Failed to load conversations:', e);
     }
-  };
+  }, [currentUser]);
 
   // Load messages for active conversation
-  const loadActiveMessages = async (convId: string) => {
+  const loadActiveMessages = useCallback(async (convId: string) => {
     if (!currentUser || !convId) return;
-    const msgs = await ApiClient.getMessages(convId);
-    setMessagesMap((prev) => ({
-      ...prev,
-      [convId]: msgs,
-    }));
-  };
+    try {
+      const msgs = await ApiClient.getMessages(convId);
+      setMessagesMap((prev) => ({
+        ...prev,
+        [convId]: msgs,
+      }));
+    } catch (e) {
+      console.error('Failed to load messages:', e);
+    }
+  }, [currentUser]);
 
+  // Initial load on authentication
   useEffect(() => {
     if (currentUser) {
       loadConversations();
     }
-  }, [currentUser]);
+  }, [currentUser, loadConversations]);
 
+  // Load messages when conversation switches
   useEffect(() => {
     if (currentUser && activeConvId) {
       loadActiveMessages(activeConvId);
     }
-  }, [currentUser, activeConvId]);
+  }, [currentUser, activeConvId, loadActiveMessages]);
 
-  // Real-Time Background Auto-Sync (Every 1.5 seconds so messages arrive automatically without refresh)
+  // Optimized Background Auto-Sync (Prevents backloops & overlapping requests)
   useEffect(() => {
     if (!currentUser) return;
 
-    const interval = setInterval(() => {
-      if (activeConvId) {
-        ApiClient.getMessages(activeConvId).then((latestMsgs) => {
+    const interval = setInterval(async () => {
+      if (isSyncingRef.current) return;
+      isSyncingRef.current = true;
+
+      try {
+        const currentActiveId = activeConvIdRef.current;
+        if (currentActiveId) {
+          const latestMsgs = await ApiClient.getMessages(currentActiveId);
           setMessagesMap((prev) => {
-            const currentMsgs = prev[activeConvId] || [];
+            const currentMsgs = prev[currentActiveId] || [];
             if (latestMsgs.length !== currentMsgs.length || JSON.stringify(latestMsgs) !== JSON.stringify(currentMsgs)) {
-              return { ...prev, [activeConvId]: latestMsgs };
+              return { ...prev, [currentActiveId]: latestMsgs };
             }
             return prev;
           });
-        });
+        }
+        const latestConvs = await ApiClient.getConversations();
+        setConversations(latestConvs);
+      } catch {
+        // Quiet fail for network resilience
+      } finally {
+        isSyncingRef.current = false;
       }
-      ApiClient.getConversations().then(setConversations);
-    }, 1500);
+    }, 2000);
 
     return () => clearInterval(interval);
-  }, [currentUser, activeConvId]);
+  }, [currentUser]);
 
-  // Real-time WebSocket connection
+  // Real-time Single WebSocket Connection (No reconnect loops)
   useEffect(() => {
     if (!currentUser) return;
 
@@ -99,8 +124,8 @@ export const App: React.FC = () => {
           const payload = JSON.parse(event.data);
           if (payload.event === 'message:receive') {
             const raw = payload.data;
-            if (raw.conversationId === activeConvId) {
-              loadActiveMessages(activeConvId);
+            if (raw.conversationId === activeConvIdRef.current) {
+              loadActiveMessages(activeConvIdRef.current);
             }
             loadConversations();
           }
@@ -111,7 +136,7 @@ export const App: React.FC = () => {
         ws.close();
       };
     } catch {}
-  }, [currentUser, activeConvId]);
+  }, [currentUser, loadActiveMessages, loadConversations]);
 
   const handleSendMessage = async (text: string, _analysis: SecurityAnalysis) => {
     if (!activeConvId) return;
@@ -163,7 +188,6 @@ export const App: React.FC = () => {
   const handleBlockUser = async (conversationId: string) => {
     try {
       await ApiClient.blockConversation(conversationId);
-      // Keep conversation and message history intact, update isBlocked state
       setConversations((prev) =>
         prev.map((c) => (c.id === conversationId ? { ...c, isBlocked: true } : c))
       );
@@ -175,7 +199,6 @@ export const App: React.FC = () => {
   const handleUnblockUser = async (conversationId: string) => {
     try {
       await ApiClient.unblockConversation(conversationId);
-      // Restore messaging and update isBlocked state while keeping history intact
       setConversations((prev) =>
         prev.map((c) => (c.id === conversationId ? { ...c, isBlocked: false } : c))
       );
@@ -193,18 +216,16 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteChat = async (conversationId: string) => {
-    // 1. Purge from persistent browser storage and backend
     await ApiClient.deleteConversation(conversationId);
-
-    // 2. Clear from React memory state
     setMessagesMap((prev) => {
-      const updated = { ...prev };
-      delete updated[conversationId];
-      return updated;
+      const copy = { ...prev };
+      delete copy[conversationId];
+      return copy;
     });
     setConversations((prev) => prev.filter((c) => c.id !== conversationId));
     if (activeConvId === conversationId) {
-      setActiveConvId('');
+      const remaining = conversations.filter((c) => c.id !== conversationId);
+      setActiveConvId(remaining.length > 0 ? remaining[0].id : '');
     }
   };
 
@@ -219,7 +240,7 @@ export const App: React.FC = () => {
             m.id === messageId
               ? {
                   ...m,
-                  plaintext: newText,
+                  plaintext: updated.plaintext,
                   isEdited: true,
                   securityAnalysis: updated.securityAnalysis,
                 }
@@ -295,6 +316,46 @@ export const App: React.FC = () => {
 
       {/* Main Viewport Content */}
       <div className={`main-viewport ${!activeConvId && activeTab === 'CHATS' ? 'main-hidden-mobile' : ''}`}>
+        {/* Mobile Header Bar for non-chat tabs */}
+        {activeTab !== 'CHATS' && (
+          <div
+            className="mobile-tab-header"
+            style={{
+              padding: '10px 16px',
+              background: 'var(--bg-secondary)',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <button
+              onClick={() => setActiveTab('CHATS')}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '8px',
+                padding: '6px 12px',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '13px',
+                fontWeight: 600,
+              }}
+            >
+              <ArrowLeft size={16} />
+              <span>Back to Chats</span>
+            </button>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {activeTab === 'GUARDIAN' && <><Shield size={15} /> AI Guardian</>}
+              {activeTab === 'SECOPS' && <><Activity size={15} /> Security Operations</>}
+              {activeTab === 'ADMIN' && <><Crown size={15} /> Admin Console</>}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'CHATS' && (
           <ChatArea
             conversation={currentConv}

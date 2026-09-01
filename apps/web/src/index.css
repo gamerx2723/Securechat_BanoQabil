@@ -45,14 +45,17 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
-body {
+html, body {
+  height: 100%;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
   font-family: var(--font-main);
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  min-height: 100vh;
-  overflow: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -87,6 +90,9 @@ body {
   -webkit-backdrop-filter: blur(28px);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 40px rgba(6, 182, 212, 0.2);
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow-y: auto;
 }
 
 /* Security Badge Glow Effects */
@@ -237,7 +243,7 @@ body {
   animation: shake 0.4s ease-in-out;
 }
 
-/* Master Layout & Scroll Constrain Architecture */
+/* Master Layout & Viewport Constraint Architecture */
 .app-layout {
   display: flex;
   height: 100vh;
@@ -245,6 +251,7 @@ body {
   width: 100vw;
   overflow: hidden;
   background: var(--bg-primary);
+  position: relative;
 }
 
 .sidebar-container {
@@ -259,7 +266,7 @@ body {
   background: var(--bg-secondary);
   flex-shrink: 0;
   overflow: hidden;
-  transition: all 0.2s ease-in-out;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .main-viewport {
@@ -313,6 +320,7 @@ body {
   flex-direction: column;
   gap: 12px;
   scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 .chat-footer {
@@ -322,14 +330,15 @@ body {
   flex-shrink: 0;
   position: relative;
   z-index: 30;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
 }
 
 /* Mobile & Tablet Responsive Media Queries */
 @media (max-width: 768px) {
   .sidebar-container {
-    width: 100%;
-    min-width: 100%;
-    max-width: 100%;
+    width: 100vw;
+    min-width: 100vw;
+    max-width: 100vw;
     border-right: none;
   }
 
@@ -352,5 +361,21 @@ body {
 
   .chat-footer {
     padding: 10px 12px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .glass-modal {
+    padding: 20px !important;
+    border-radius: 16px !important;
+    max-width: 95vw !important;
+  }
+}
+
+/* Desktop Wide Enhancements */
+@media (min-width: 1200px) {
+  .sidebar-container {
+    width: 360px;
+    min-width: 360px;
+    max-width: 360px;
   }
 }
