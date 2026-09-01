@@ -1,11 +1,14 @@
 import { Router, Response } from 'express';
 import { prisma } from '@securechat/database';
-import { AuthenticatedRequest } from '../auth/jwt.service.js';
+import { AuthenticatedRequest, authMiddleware } from '../auth/jwt.service.js';
 import { z } from 'zod';
 import { ThreatEvaluationService } from '../services/threat_evaluation.service.js';
 import { wsGateway } from '../websocket/ws_gateway.js';
 
 export const messagesRouter = Router();
+
+// Mandatory authentication middleware
+messagesRouter.use(authMiddleware);
 
 const sendMessageSchema = z.object({
   conversationId: z.string(),

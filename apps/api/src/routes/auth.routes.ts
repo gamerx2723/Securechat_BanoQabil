@@ -19,7 +19,7 @@ authRouter.post('/register', async (req, res): Promise<void> => {
     }
 
     const {
-      username = `user_${Date.now()}`,
+      username,
       email,
       phone,
       password,
@@ -33,25 +33,31 @@ authRouter.post('/register', async (req, res): Promise<void> => {
       oneTimePreKeys = [],
     } = parseResult.data;
 
+    const rawPhone = phone?.trim() || '';
+    const cleanDigits = rawPhone.replace(/[^0-9]/g, '');
+    const finalUsername = String(username || (cleanDigits ? `user_${cleanDigits}` : `user_${Date.now()}`));
+    const finalDisplayName = String(displayName || (cleanDigits ? `User +${cleanDigits.slice(-4)}` : finalUsername));
+    const finalPassword = String(password);
+
     // Check unique constraints
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
-          { username },
-          ...(email ? [{ email }] : []),
-          ...(phone ? [{ phone }] : []),
+          { username: { equals: finalUsername, mode: 'insensitive' as const } },
+          ...(email ? [{ email: { equals: email.trim(), mode: 'insensitive' as const } }] : []),
+          ...(rawPhone ? [{ phone: rawPhone }] : []),
+          ...(cleanDigits.length >= 7 ? [{ phone: { contains: cleanDigits } }] : []),
         ],
       },
     });
 
     if (existingUser) {
-      res.status(409).json({ error: 'Username, email, or phone number already in use' });
+      res.status(409).json({ error: 'Username, email, or phone number already in use. Please sign in.' });
       return;
     }
 
-    const finalUsername = String(username || `user_${Date.now()}`);
-    const finalDisplayName = String(displayName || finalUsername);
-    const finalPassword = String(password);
+    // Ensure deviceId is guaranteed unique in database
+    const uniqueDeviceId = `DEV_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
     // ACID transaction to create user, device, identity keys, prekeys, and initial session
     const { user, createdDevice, accessToken, refreshToken } = await prisma.$transaction(async (tx: any) => {
@@ -59,7 +65,7 @@ authRouter.post('/register', async (req, res): Promise<void> => {
         data: {
           username: finalUsername,
           email: email || undefined,
-          phone: phone || undefined,
+          phone: rawPhone || undefined,
           displayName: finalDisplayName,
           passwordHash: hashPassword(finalPassword),
           role: finalUsername.toLowerCase().includes('admin') ? 'ADMIN' : 'USER',
@@ -71,20 +77,20 @@ authRouter.post('/register', async (req, res): Promise<void> => {
           },
           devices: {
             create: {
-              deviceId,
+              deviceId: uniqueDeviceId,
               deviceType,
               deviceName,
-              publicKey: identityKeyPublic,
+              publicKey: identityKeyPublic || `pub-${uniqueDeviceId}`,
               identityKeys: {
                 create: {
-                  publicKey: identityKeyPublic,
-                  signedPreKey: signedPreKeyPublic,
+                  publicKey: identityKeyPublic || `pub-${uniqueDeviceId}`,
+                  signedPreKey: signedPreKeyPublic || `spk-${uniqueDeviceId}`,
                   signedPreKeyId: 1,
-                  signedPreKeySignature,
+                  signedPreKeySignature: signedPreKeySignature || `sig-${uniqueDeviceId}`,
                 },
               },
               preKeys: {
-                create: oneTimePreKeys.map((k: any) => ({
+                create: (oneTimePreKeys.length > 0 ? oneTimePreKeys : [{ keyId: 1, publicKey: `opk-${uniqueDeviceId}` }]).map((k: any) => ({
                   keyId: k.keyId,
                   publicKey: k.publicKey,
                 })),
@@ -162,13 +168,18 @@ authRouter.post('/login', async (req, res): Promise<void> => {
     const trimmedId = identifier.trim();
     const cleanDigits = trimmedId.replace(/[^0-9]/g, '');
 
+    // Search user by username, email, phone, or phone-based username (e.g. user_03037701455)
     const user = await prisma.user.findFirst({
       where: {
         OR: [
-          { username: { equals: trimmedId, mode: 'insensitive' } },
-          { email: { equals: trimmedId, mode: 'insensitive' } },
+          { username: { equals: trimmedId, mode: 'insensitive' as const } },
+          { email: { equals: trimmedId, mode: 'insensitive' as const } },
           { phone: trimmedId },
-          ...(cleanDigits.length >= 7 ? [{ phone: { contains: cleanDigits } }] : []),
+          ...(cleanDigits.length >= 6 ? [
+            { phone: { contains: cleanDigits } },
+            { username: { contains: cleanDigits } },
+            { username: `user_${cleanDigits}` }
+          ] : []),
         ],
       },
       include: {
@@ -205,39 +216,16 @@ authRouter.post('/login', async (req, res): Promise<void> => {
     // Find or register device
     let device = user.devices.find((d: any) => d.deviceId === deviceId);
     if (!device) {
-      const existingDevice = await prisma.device.findUnique({ where: { deviceId } });
-      if (existingDevice) {
-        if (existingDevice.userId === user.id) {
-          device = existingDevice;
-          await prisma.device.update({
-            where: { id: device.id },
-            data: { lastSeenAt: new Date() },
-          });
-        } else {
-          const userDeviceId = `${deviceId}_${user.id.substring(0, 6)}`;
-          device = await prisma.device.upsert({
-            where: { deviceId: userDeviceId },
-            update: { lastSeenAt: new Date() },
-            create: {
-              userId: user.id,
-              deviceId: userDeviceId,
-              deviceType,
-              deviceName,
-              publicKey: 'DEFAULT_PUBKEY_' + userDeviceId,
-            },
-          });
-        }
-      } else {
-        device = await prisma.device.create({
-          data: {
-            userId: user.id,
-            deviceId,
-            deviceType,
-            deviceName,
-            publicKey: 'DEFAULT_PUBKEY_' + deviceId,
-          },
-        });
-      }
+      const uniqueDeviceId = `DEV_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      device = await prisma.device.create({
+        data: {
+          userId: user.id,
+          deviceId: uniqueDeviceId,
+          deviceType: deviceType || 'WEB',
+          deviceName: deviceName || 'SecureChat Web Client',
+          publicKey: 'PUBKEY_' + uniqueDeviceId,
+        },
+      });
     } else {
       await prisma.device.update({
         where: { id: device.id },

@@ -1,9 +1,12 @@
 import { Router, Response } from 'express';
 import { prisma } from '@securechat/database';
-import { AuthenticatedRequest } from '../auth/jwt.service.js';
+import { AuthenticatedRequest, authMiddleware } from '../auth/jwt.service.js';
 import { z } from 'zod';
 
 export const conversationsRouter = Router();
+
+// Mandatory authentication middleware
+conversationsRouter.use(authMiddleware);
 
 const createConversationSchema = z.object({
   type: z.enum(['DIRECT', 'GROUP']),
