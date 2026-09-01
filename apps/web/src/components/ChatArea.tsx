@@ -83,13 +83,34 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   });
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior, block: 'end' });
+    }
+  };
+
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+    scrollToBottom('smooth');
   }, [messages]);
+
+  // When mobile virtual keyboard resizes viewport, keep messages pinned to bottom
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+    const handleViewportChange = () => {
+      scrollToBottom('auto');
+    };
+    window.visualViewport.addEventListener('resize', handleViewportChange);
+    window.visualViewport.addEventListener('scroll', handleViewportChange);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleViewportChange);
+      window.visualViewport?.removeEventListener('scroll', handleViewportChange);
+    };
+  }, []);
 
   // Click outside to close dropdown menu and emoji picker
   useEffect(() => {
@@ -117,6 +138,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   const handleInsertEmoji = (emoji: string) => {
     setInputText((prev) => prev + emoji);
     setIsEmojiPickerOpen(false);
+    inputRef.current?.focus();
   };
 
   // Real-time pre-send DLP evaluation while typing (OpSec: only alert sender on self-harm / secret leaks)
@@ -151,11 +173,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     return () => clearTimeout(timer);
   }, [inputText]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
+  const handleSend = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const text = inputText.trim();
+    if (!text) return;
 
-    const analysis = await ApiClient.analyzePreSend(inputText);
+    // Immediately clear input and restore focus to keep mobile keyboard open continuously!
+    setInputText('');
+    setThreatWarning(null);
+    inputRef.current?.focus();
+    setTimeout(() => scrollToBottom('smooth'), 50);
+
+    const analysis = await ApiClient.analyzePreSend(text);
 
     // If sensitive credentials, passwords, or personal data (DLP) detected, intercept and warn the sender!
     const isSensitiveDlp =
@@ -165,15 +194,14 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     if (isSensitiveDlp && analysis.riskScore >= 25) {
       setDlpModalState({
         isOpen: true,
-        draftText: inputText,
+        draftText: text,
         analysis,
       });
       return;
     }
 
-    onSendMessage(inputText, analysis);
-    setInputText('');
-    setThreatWarning(null);
+    onSendMessage(text, analysis);
+    setTimeout(() => scrollToBottom('smooth'), 100);
   };
 
   const handleCancelDlp = () => {
@@ -862,6 +890,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </button>
 
           <input
+            ref={inputRef}
             type="text"
             className="secure-input"
             disabled={conversation.isBlocked}
@@ -874,20 +903,28 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
+            onFocus={() => {
+              setTimeout(() => scrollToBottom('smooth'), 150);
+            }}
           />
 
           <button
             type="submit"
-            disabled={conversation.isBlocked}
+            disabled={conversation.isBlocked || !inputText.trim()}
             className="btn-primary"
             title="Send Encrypted Message"
+            onMouseDown={(e) => e.preventDefault()}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              handleSend();
+            }}
             style={{
               padding: '10px 18px',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              opacity: conversation.isBlocked ? 0.4 : 1,
-              cursor: conversation.isBlocked ? 'not-allowed' : 'pointer',
+              opacity: conversation.isBlocked || !inputText.trim() ? 0.4 : 1,
+              cursor: conversation.isBlocked || !inputText.trim() ? 'not-allowed' : 'pointer',
             }}
           >
             <Send size={16} />
