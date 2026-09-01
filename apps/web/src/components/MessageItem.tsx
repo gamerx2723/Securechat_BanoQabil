@@ -29,28 +29,31 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const isGreen = analysis.indicatorColor === 'GREEN';
   const isDlp = analysis.primaryThreat === 'DLP_SECRET_EXPOSURE';
 
-  // Real-time Visual Threat Defense: Show warning banners on any detected threat
-  const showWarningBanner = isRed || isOrange || isDlp;
+  // OpSec Principle:
+  // - Sender ONLY sees warnings for their OWN sensitive data leaks (DLP) to prevent self-harm.
+  // - Sender is NOT given threat scores on phishing/social engineering attacks to prevent evasion crafting.
+  // - Receiver gets FULL prominent protection warnings & threat scores for incoming attacks.
+  const showWarningBanner = isSelf ? isDlp : (isRed || isOrange);
 
   const bubbleBorder = isSelf
     ? isDlp
       ? '1px solid rgba(245, 158, 11, 0.7)'
       : '1px solid rgba(16, 185, 129, 0.2)'
     : isRed
-    ? '1px solid rgba(239, 68, 68, 0.6)'
-    : isOrange
-    ? '1px solid rgba(245, 158, 11, 0.5)'
-    : '1px solid var(--border-subtle)';
+      ? '1px solid rgba(239, 68, 68, 0.6)'
+      : isOrange
+        ? '1px solid rgba(245, 158, 11, 0.5)'
+        : '1px solid var(--border-subtle)';
 
   const bubbleShadow = isSelf
     ? isDlp
       ? '0 4px 16px rgba(245, 158, 11, 0.2)'
       : '0 4px 12px rgba(0, 0, 0, 0.15)'
     : isRed
-    ? '0 4px 20px rgba(239, 68, 68, 0.2)'
-    : isOrange
-    ? '0 4px 16px rgba(245, 158, 11, 0.15)'
-    : '0 4px 12px rgba(0, 0, 0, 0.15)';
+      ? '0 4px 20px rgba(239, 68, 68, 0.2)'
+      : isOrange
+        ? '0 4px 16px rgba(245, 158, 11, 0.15)'
+        : '0 4px 12px rgba(0, 0, 0, 0.15)';
 
   const getThreatTitle = () => {
     if (isDlp) return 'SENSITIVE SECRET / DATA LEAK DETECTED';

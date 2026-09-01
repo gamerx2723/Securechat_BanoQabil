@@ -71,7 +71,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [feedbackToast, setFeedbackToast] = useState<{ message: string; type: 'SUCCESS' | 'WARN' } | null>(null);
-  
+
   const [dlpModalState, setDlpModalState] = useState<{
     isOpen: boolean;
     draftText: string;
@@ -131,10 +131,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       const analysis = await ApiClient.analyzePreSend(inputText);
       setIsEvaluating(false);
 
-      if (analysis.riskScore >= 25) {
-        const topEv = analysis.evidenceList[0];
+      // OpSec principle: Only warn the sender if they are leaking THEIR OWN secrets / credentials / PII (DLP)
+      const isSensitiveDlp = analysis.primaryThreat === 'DLP_SECRET_EXPOSURE' ||
+        analysis.evidenceList.some(e =>
+          e.category === 'DLP_SECRET_EXPOSURE' ||
+          /password|cnic|bank|card|secret|passcode|token|key|credential|iban|pii/i.test(e.description)
+        );
+
+      if (isSensitiveDlp && analysis.riskScore >= 25) {
+        const topEv = analysis.evidenceList.find(e => /password|cnic|bank|card|secret|passcode|token|key|credential|iban|pii/i.test(e.description)) || analysis.evidenceList[0];
         setThreatWarning({
-          title: analysis.indicatorColor === 'RED' ? '🚨 Threat Detected: ' : '⚠️ Security Notice: ',
+          title: 'Data Loss Prevention Alert: ',
           desc: topEv?.description || analysis.explanation,
           color: analysis.indicatorColor === 'RED' ? 'RED' : 'ORANGE',
         });
@@ -152,8 +159,14 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
     const analysis = await ApiClient.analyzePreSend(inputText);
 
-    // If critical threat or data leak detected, trigger Pre-Send Interception modal
-    if (analysis.riskScore >= 40) {
+    // If sensitive credentials, passwords, or personal data (DLP) detected, intercept and warn the sender!
+    const isSensitiveDlp = analysis.primaryThreat === 'DLP_SECRET_EXPOSURE' ||
+      analysis.evidenceList.some(e =>
+        e.category === 'DLP_SECRET_EXPOSURE' ||
+        /password|cnic|bank|card|secret|passcode|token|key|credential|iban|pii/i.test(e.description)
+      );
+
+    if (isSensitiveDlp && analysis.riskScore >= 25) {
       setDlpModalState({
         isOpen: true,
         draftText: inputText,
@@ -343,23 +356,22 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               background: conversation.isBlocked
                 ? 'rgba(239, 68, 68, 0.15)'
                 : conversation.isExcluded
-                ? 'rgba(245, 158, 11, 0.15)'
-                : conversation.securityState === 'RED'
-                ? 'rgba(239, 68, 68, 0.15)'
-                : conversation.securityState === 'ORANGE'
-                ? 'rgba(245, 158, 11, 0.15)'
-                : 'rgba(16, 185, 129, 0.15)',
-              border: `1px solid ${
-                conversation.isBlocked
+                  ? 'rgba(245, 158, 11, 0.15)'
+                  : conversation.securityState === 'RED'
+                    ? 'rgba(239, 68, 68, 0.15)'
+                    : conversation.securityState === 'ORANGE'
+                      ? 'rgba(245, 158, 11, 0.15)'
+                      : 'rgba(16, 185, 129, 0.15)',
+              border: `1px solid ${conversation.isBlocked
                   ? 'rgba(239, 68, 68, 0.4)'
                   : conversation.isExcluded
-                  ? 'rgba(245, 158, 11, 0.4)'
-                  : conversation.securityState === 'RED'
-                  ? 'rgba(239, 68, 68, 0.4)'
-                  : conversation.securityState === 'ORANGE'
-                  ? 'rgba(245, 158, 11, 0.4)'
-                  : 'rgba(16, 185, 129, 0.4)'
-              }`,
+                    ? 'rgba(245, 158, 11, 0.4)'
+                    : conversation.securityState === 'RED'
+                      ? 'rgba(239, 68, 68, 0.4)'
+                      : conversation.securityState === 'ORANGE'
+                        ? 'rgba(245, 158, 11, 0.4)'
+                        : 'rgba(16, 185, 129, 0.4)'
+                }`,
             }}
           >
             {conversation.isBlocked ? (
@@ -384,8 +396,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                     conversation.securityState === 'RED'
                       ? 'var(--red-critical)'
                       : conversation.securityState === 'ORANGE'
-                      ? 'var(--orange-warn)'
-                      : 'var(--green-safe)'
+                        ? 'var(--orange-warn)'
+                        : 'var(--green-safe)'
                   }
                 />
                 <span
@@ -396,15 +408,15 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                       conversation.securityState === 'RED'
                         ? 'var(--red-critical)'
                         : conversation.securityState === 'ORANGE'
-                        ? 'var(--orange-warn)'
-                        : 'var(--green-safe)',
+                          ? 'var(--orange-warn)'
+                          : 'var(--green-safe)',
                   }}
                 >
                   {conversation.securityState === 'RED'
                     ? 'CRITICAL THREAT'
                     : conversation.securityState === 'ORANGE'
-                    ? 'ELEVATED RISK'
-                    : 'CHANNEL SECURE'}
+                      ? 'ELEVATED RISK'
+                      : 'CHANNEL SECURE'}
                 </span>
               </>
             )}
@@ -861,8 +873,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               conversation.isBlocked
                 ? 'User is blocked. Unblock in menu (⋮) to send messages...'
                 : conversation.isExcluded
-                ? 'Type message (AI Security scanning paused for this chat)...'
-                : 'Type message (Protected by Zero-Trust AI & DLP)...'
+                  ? 'Type message (AI Security scanning paused for this chat)...'
+                  : 'Type message (Protected by Zero-Trust AI & DLP)...'
             }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}

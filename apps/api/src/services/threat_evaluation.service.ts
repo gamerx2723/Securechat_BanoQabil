@@ -20,7 +20,8 @@ export class ThreatEvaluationService {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 2000);
 
-      const response = await fetch(`${config.aiServiceUrl}/api/v1/analyze`, {
+      const aiBase = config.aiServiceUrl.startsWith('http') ? config.aiServiceUrl : `http://${config.aiServiceUrl}`;
+      const response = await fetch(`${aiBase.replace(/\/+$/, '')}/api/v1/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

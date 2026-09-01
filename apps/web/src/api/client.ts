@@ -842,13 +842,61 @@ export class ApiClient {
       });
     }
 
-    // 4. Multilingual Social Engineering (Urgency / Fear / Impersonation / Roman Urdu Scams)
-    if (/(?:urgent|immediately|foran|jaldi|block honay wala hai|account suspended|verify now|police|fia notice|emergency|suspended within|lottery|inaam|jeeto|bisp|ehsaas|atm block|send pin|otp code)/i.test(text)) {
-      score += 45;
+    // 4. Executive Impersonation & Gift Card Scams (CEO Fraud)
+    if (/(?:gift card|gift cards|apple gift card|itunes|google play card|steam card|scratch off|take photo|take photos|emergency meeting|board meeting|in a meeting|don't call me|dont call me|just message|buy \d+x?)/i.test(text)) {
+      score += 75;
+      evidence.push({
+        category: 'SOCIAL_ENGINEERING',
+        signal: 'GIFT_CARD_CEO_FRAUD',
+        confidence: 0.96,
+        detectionBasis: 'DETERMINISTIC_RULE',
+        description: 'Executive impersonation or gift card advance-fee fraud solicitation.',
+      });
+    }
+
+    // 5. Payroll, Direct Deposit & Wire Transfer Hijacking
+    if (/(?:direct deposit|routing #|routing number|bank account #|wire transfer|payroll payout|payout to|update my bank|banking details for direct deposit)/i.test(text)) {
+      score += 70;
+      evidence.push({
+        category: 'FINANCIAL_FRAUD',
+        signal: 'PAYROLL_WIRE_HIJACKING',
+        confidence: 0.95,
+        detectionBasis: 'DETERMINISTIC_RULE',
+        description: 'Direct deposit or payroll wire transfer redirection fraud.',
+      });
+    }
+
+    // 6. Extortion, Blackmail & Ransom Threats
+    if (/(?:webcam footage|recorded your webcam|compromised your device|leaked to your contacts|transfer \$?\d+ in bitcoin|bitcoin to wallet|pay the ransom|private files will be leaked|compromised your system)/i.test(text)) {
+      score += 85;
+      evidence.push({
+        category: 'SOCIAL_ENGINEERING',
+        signal: 'BLACKMAIL_EXTORTION_RANSOM',
+        confidence: 0.98,
+        detectionBasis: 'DETERMINISTIC_RULE',
+        description: 'Coercive extortion, sextortion, or cryptocurrency ransom blackmail threat.',
+      });
+    }
+
+    // 7. Code Injection & Exploit Payloads
+    if (/(?:<script[\s>]|javascript:|onerror\s*=|onload\s*=|powershell(?:\.exe)?|invoke-webrequest|\$env:temp|attacker-c2|evil-corp|malware\.exe)/i.test(text)) {
+      score += 85;
+      evidence.push({
+        category: 'MALICIOUS_URL',
+        signal: 'CODE_INJECTION_EXPLOIT',
+        confidence: 0.99,
+        detectionBasis: 'DETERMINISTIC_RULE',
+        description: 'Malicious payload injection, XSS exploit, or shell execution script detected.',
+      });
+    }
+
+    // 8. Multilingual Social Engineering (Urgency / Fear / Impersonation / Roman Urdu Scams)
+    if (/(?:urgent|immediately|foran|jaldi|block honay wala hai|account suspended|temporarily suspended|verify now|police|fia notice|emergency|suspended within|lottery|inaam|jeeto|bisp|ehsaas|atm block|send pin|otp code|cancel the transaction|restore your account)/i.test(text)) {
+      score += 55;
       evidence.push({
         category: 'URGENCY_MANIPULATION',
         signal: 'LINGUISTIC_COERCION',
-        confidence: 0.94,
+        confidence: 0.95,
         detectionBasis: 'DETERMINISTIC_RULE',
         description: "Psychological urgency pressure coercing action ('foran', 'account suspended', 'verify now').",
       });
