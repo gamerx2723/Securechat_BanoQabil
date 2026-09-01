@@ -2,6 +2,7 @@
   "name": "securechat-monorepo",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "npm@10.8.2",
   "description": "SecureChat — AI-Powered Zero-Trust Secure Messaging Platform & SecureBridge Companion",
   "workspaces": [
     "apps/*",
