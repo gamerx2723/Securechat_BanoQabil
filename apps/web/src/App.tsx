@@ -538,74 +538,74 @@ export const App: React.FC = () => {
         {activeTab === 'ADMIN' && currentUser.role === 'ADMIN' && (
           <AdminConsole />
         )}
-
-        {/* Post-Registration Profile Customization Onboarding Modal */}
-        {isOnboardingOpen && currentUser && (
-          <ProfileOnboardingModal
-            user={currentUser}
-            onClose={() => setIsOnboardingOpen(false)}
-            onComplete={(updated) => {
-              setCurrentUser(updated);
-              loadConversations();
-              setIsOnboardingOpen(false);
-            }}
-          />
-        )}
-
-        {/* User Profile Controls & Avatar Management Modal */}
-        {isProfileModalOpen && currentUser && (
-          <ProfileModal
-            user={currentUser}
-            onClose={() => setIsProfileModalOpen(false)}
-            onUpdate={(updated) => {
-              setCurrentUser(updated);
-              loadConversations();
-            }}
-          />
-        )}
-
-        {/* Inspectable Evidence Modal */}
-        {inspectedMessage && (
-          <EvidenceModal
-            message={inspectedMessage}
-            onClose={() => setInspectedMessage(null)}
-            onAskCopilot={handleOpenCopilotWithQuery}
-            userRole={currentUser.role}
-          />
-        )}
-
-        {/* Conversation Topic & Risk Analysis Modal */}
-        <ConversationTopicModal
-          isOpen={isTopicModalOpen}
-          onClose={() => setIsTopicModalOpen(false)}
-          conversationId={activeConvId}
-          conversationName={currentConv.title}
-          onOpenCopilotWithQuery={handleOpenCopilotWithQuery}
-        />
-
-        {/* Security Copilot Assistant Drawer */}
-        <CopilotDrawer
-          isOpen={isCopilotOpen}
-          onClose={() => {
-            setIsCopilotOpen(false);
-            setCopilotInitialQuery('');
-          }}
-          initialQuery={copilotInitialQuery}
-          conversationId={activeConvId}
-        />
-
-        {/* New Chat Modal */}
-        {isNewChatOpen && (
-          <NewChatModal
-            onClose={() => setIsNewChatOpen(false)}
-            onCreated={(newConv) => {
-              loadConversations();
-              setActiveConvId(newConv.id);
-              loadActiveMessages(newConv.id);
-            }}
-          />
-        )}
       </div>
+
+      {/* Global Modals & Drawers rendered at root level (Ensures instant opening on all mobile/desktop states) */}
+      {isOnboardingOpen && currentUser && (
+        <ProfileOnboardingModal
+          user={currentUser}
+          onClose={() => setIsOnboardingOpen(false)}
+          onComplete={(updated) => {
+            setCurrentUser(updated);
+            loadConversations();
+            setIsOnboardingOpen(false);
+          }}
+        />
+      )}
+
+      {/* User Profile Controls & Avatar Management Modal */}
+      {isProfileModalOpen && currentUser && (
+        <ProfileModal
+          user={currentUser}
+          onClose={() => setIsProfileModalOpen(false)}
+          onUpdate={(updated) => {
+            setCurrentUser(updated);
+            loadConversations();
+          }}
+        />
+      )}
+
+      {/* Inspectable Evidence Modal */}
+      {inspectedMessage && (
+        <EvidenceModal
+          message={inspectedMessage}
+          onClose={() => setInspectedMessage(null)}
+          onAskCopilot={handleOpenCopilotWithQuery}
+          userRole={currentUser.role}
+        />
+      )}
+
+      {/* Conversation Topic & Risk Analysis Modal */}
+      <ConversationTopicModal
+        isOpen={isTopicModalOpen}
+        onClose={() => setIsTopicModalOpen(false)}
+        conversationId={activeConvId}
+        conversationName={currentConv.title}
+        onOpenCopilotWithQuery={handleOpenCopilotWithQuery}
+      />
+
+      {/* Security Copilot Assistant Drawer */}
+      <CopilotDrawer
+        isOpen={isCopilotOpen}
+        onClose={() => {
+          setIsCopilotOpen(false);
+          setCopilotInitialQuery('');
+        }}
+        initialQuery={copilotInitialQuery}
+        conversationId={activeConvId}
+      />
+
+      {/* New Chat Modal */}
+      {isNewChatOpen && (
+        <NewChatModal
+          onClose={() => setIsNewChatOpen(false)}
+          onCreated={(newConv) => {
+            loadConversations();
+            setActiveConvId(newConv.id);
+            loadActiveMessages(newConv.id);
+          }}
+        />
+      )}
     </div>
   );
 };

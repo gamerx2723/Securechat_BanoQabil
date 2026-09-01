@@ -121,7 +121,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* User Profile Header */}
       <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
         <div
-          onClick={onOpenProfile}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onOpenProfile) onOpenProfile();
+          }}
           title="Click to view & edit your profile"
           style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '4px', borderRadius: '10px', transition: 'background 0.2s ease', flex: 1, minWidth: 0 }}
         >
@@ -176,7 +179,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Action buttons & Options Dropdown Trigger */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           <button 
-            onClick={onOpenCopilot} 
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenCopilot();
+            }} 
             title="Open Security Copilot AI"
             style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: 'var(--green-safe)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
@@ -185,7 +191,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <button
             ref={menuButtonRef}
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(!isMenuOpen);
+            }}
             title="Profile & App Options"
             style={{
               background: isMenuOpen ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.06)',
@@ -232,7 +241,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setIsMenuOpen(false);
                 if (onOpenProfile) onOpenProfile();
               }}
@@ -257,7 +267,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
 
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setIsMenuOpen(false);
                 onNewChat();
               }}
@@ -282,7 +293,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
 
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setIsMenuOpen(false);
                 onOpenCopilot();
               }}
@@ -307,7 +319,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
 
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setIsMenuOpen(false);
                 onTabChange('GUARDIAN');
               }}
@@ -333,7 +346,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {isAdmin && (
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setIsMenuOpen(false);
                   onTabChange('ADMIN');
                 }}
@@ -361,7 +375,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '4px 0' }} />
 
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setIsMenuOpen(false);
                 onLogout();
               }}
@@ -496,7 +511,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           />
         </div>
         <button
-          onClick={onNewChat}
+          onClick={(e) => {
+            e.stopPropagation();
+            onNewChat();
+          }}
           title="Start New Secure Chat"
           style={{
             background: 'var(--green-safe)',
