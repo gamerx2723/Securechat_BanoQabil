@@ -5,14 +5,14 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package manifests
+# Copy package manifests and configurations
 COPY package*.json turbo.json tsconfig.base.json ./
 COPY packages/ ./packages/
 COPY apps/api/ ./apps/api/
 
-# Install dependencies and build packages
+# Install dependencies and build all workspaces
 RUN npm install
-RUN npm --prefix packages/database run generate || true
+RUN npx prisma generate --schema=packages/database/prisma/schema.prisma
 RUN npm --prefix packages/validation run build
 RUN npm --prefix packages/crypto run build
 RUN npm --prefix apps/api run build
@@ -26,13 +26,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4000
 
-COPY package*.json ./
-COPY packages/ ./packages/
-COPY apps/api/package*.json ./apps/api/
-COPY apps/api/dist ./apps/api/dist
-
-# Install production dependencies only
-RUN npm install --omit=dev
+# Copy built workspace and node_modules directly from builder
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/apps/api ./apps/api
 
 EXPOSE 4000
 
