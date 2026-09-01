@@ -5,16 +5,22 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package manifests and configurations
+# Copy package manifests and workspace configuration
 COPY package*.json turbo.json tsconfig.base.json ./
 COPY packages/ ./packages/
 COPY apps/api/ ./apps/api/
 
-# Install dependencies and build all workspaces
+# Install root & workspace dependencies
 RUN npm install
+
+# Generate Prisma Client for PostgreSQL
 RUN npx prisma generate --schema=packages/database/prisma/schema.prisma
+
+# Build all interdependent TypeScript packages in topological order
+RUN npm --prefix packages/types run build
 RUN npm --prefix packages/validation run build
 RUN npm --prefix packages/crypto run build
+RUN npm --prefix packages/security run build
 RUN npm --prefix apps/api run build
 
 # ===================================================
