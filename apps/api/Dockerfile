@@ -16,10 +16,11 @@ RUN npm install
 # Generate Prisma Client for PostgreSQL
 RUN npx prisma generate --schema=packages/database/prisma/schema.prisma
 
-# Build all interdependent TypeScript packages in topological order
+# Build all interdependent packages in strict dependency order
 RUN npm --prefix packages/types run build
-RUN npm --prefix packages/validation run build
 RUN npm --prefix packages/crypto run build
+RUN npm --prefix packages/validation run build
+RUN npm --prefix packages/database run build
 RUN npm --prefix packages/security run build
 RUN npm --prefix apps/api run build
 
