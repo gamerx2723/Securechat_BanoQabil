@@ -124,14 +124,13 @@ export class WebSocketGateway {
     });
   }
 
-  public pushSecurityAlert(userId: string, conversationId: string, analysis: SecurityAnalysisResult): void {
-    this.sendToUser(userId, {
-      event: 'security:alert',
-      data: {
-        conversationId,
-        analysis,
-      },
-    });
+  public isUserConnected(userId: string): boolean {
+    const sockets = this.userSockets.get(userId);
+    if (!sockets || sockets.size === 0) return false;
+    for (const ws of sockets) {
+      if (ws.readyState === WebSocket.OPEN) return true;
+    }
+    return false;
   }
 }
 

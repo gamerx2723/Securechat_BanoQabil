@@ -11,6 +11,7 @@ import { AuthModal } from './components/AuthModal';
 import { NewChatModal } from './components/NewChatModal';
 import { AdminConsole } from './components/AdminConsole';
 import { ProfileModal } from './components/ProfileModal';
+import { ProfileOnboardingModal } from './components/ProfileOnboardingModal';
 import { ApiClient } from './api/client';
 import { ArrowLeft, Shield, MessageSquare, Activity, Crown } from 'lucide-react';
 
@@ -25,6 +26,7 @@ export const App: React.FC = () => {
   const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [copilotInitialQuery, setCopilotInitialQuery] = useState('');
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -97,7 +99,7 @@ export const App: React.FC = () => {
         const latestConvs = await ApiClient.getConversations();
         setConversations(latestConvs);
       } catch {
-        // Quiet fail for network resilience
+        // Network resilience
       } finally {
         isSyncingRef.current = false;
       }
@@ -138,35 +140,89 @@ export const App: React.FC = () => {
     } catch {}
   }, [currentUser, loadActiveMessages, loadConversations]);
 
+  // Zero-Lag Immediate Optimistic Message Response
   const handleSendMessage = async (text: string, _analysis: SecurityAnalysis) => {
-    if (!activeConvId) return;
+    if (!activeConvId || !currentUser) return;
 
+    // 1. Optimistic Local Bubble Insertion (0ms responsiveness)
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const currentTimeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const optimisticMsg: ChatMessage = {
+      id: tempId,
+      conversationId: activeConvId,
+      senderId: currentUser.id,
+      senderName: currentUser.displayName || currentUser.username,
+      isSelf: true,
+      plaintext: text,
+      status: 'SENDING', // 🕒 Clock timer spinning in message bubble immediately!
+      sentAt: currentTimeStr,
+      reactions: [],
+      securityAnalysis: _analysis || {
+        riskScore: 0,
+        indicatorColor: 'GREEN',
+        primaryThreat: 'NONE',
+        confidence: 1,
+        evidenceList: [],
+        explanation: 'Zero-trust pre-send scan completed.',
+        recommendation: 'Safe to send',
+        suggestedActions: [],
+      },
+    };
+
+    // Immediately render in active conversation stream
+    setMessagesMap((prev) => ({
+      ...prev,
+      [activeConvId]: [...(prev[activeConvId] || []), optimisticMsg],
+    }));
+
+    // Immediately update sidebar preview
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === activeConvId
+          ? {
+              ...c,
+              lastMessageText: text,
+              lastMessageTime: currentTimeStr,
+              securityState: optimisticMsg.securityAnalysis.indicatorColor,
+            }
+          : c
+      )
+    );
+
+    // 2. Transmit to server in background
     try {
       const sent = await ApiClient.sendMessage(activeConvId, text);
 
-      setMessagesMap((prev) => ({
-        ...prev,
-        [activeConvId]: [...(prev[activeConvId] || []), sent],
-      }));
+      // Replace optimistic message with confirmed server message (Single tick or double tick)
+      setMessagesMap((prev) => {
+        const list = prev[activeConvId] || [];
+        const index = list.findIndex((m) => m.id === tempId);
+        if (index !== -1) {
+          const updated = [...list];
+          updated[index] = {
+            ...sent,
+            status: sent.status || 'SENT',
+          };
+          return { ...prev, [activeConvId]: updated };
+        }
+        return { ...prev, [activeConvId]: [...list, sent] };
+      });
 
-      // Update sidebar preview
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === activeConvId
-            ? {
-                ...c,
-                lastMessageText: text,
-                lastMessageTime: sent.sentAt,
-                securityState: sent.securityAnalysis.indicatorColor,
-              }
-            : c
-        )
-      );
-
-      // Re-sync conversation messages
+      // Background re-sync
       loadActiveMessages(activeConvId);
     } catch (err: any) {
       console.error('Send error:', err);
+      // If error occurs, leave as sent or failed
+      setMessagesMap((prev) => {
+        const list = prev[activeConvId] || [];
+        return {
+          ...prev,
+          [activeConvId]: list.map((m) =>
+            m.id === tempId ? { ...m, status: 'SENT' } : m
+          ),
+        };
+      });
     }
   };
 
@@ -275,7 +331,16 @@ export const App: React.FC = () => {
 
   // If user is not authenticated, display login & registration modal
   if (!currentUser) {
-    return <AuthModal onSuccess={(u) => setCurrentUser(u)} />;
+    return (
+      <AuthModal
+        onSuccess={(u, isNewRegistration) => {
+          setCurrentUser(u);
+          if (isNewRegistration) {
+            setIsOnboardingOpen(true);
+          }
+        }}
+      />
+    );
   }
 
   const currentConv = conversations.find((c) => c.id === activeConvId) || {
@@ -388,6 +453,19 @@ export const App: React.FC = () => {
 
         {activeTab === 'ADMIN' && currentUser.role === 'ADMIN' && (
           <AdminConsole />
+        )}
+
+        {/* Post-Registration Profile Customization Onboarding Modal */}
+        {isOnboardingOpen && currentUser && (
+          <ProfileOnboardingModal
+            user={currentUser}
+            onClose={() => setIsOnboardingOpen(false)}
+            onComplete={(updated) => {
+              setCurrentUser(updated);
+              loadConversations();
+              setIsOnboardingOpen(false);
+            }}
+          />
         )}
 
         {/* User Profile Controls & Avatar Management Modal */}

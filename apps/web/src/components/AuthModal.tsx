@@ -4,7 +4,7 @@ import { ApiClient } from '../api/client';
 import { UserProfile } from '../types';
 
 interface AuthModalProps {
-  onSuccess: (user: UserProfile) => void;
+  onSuccess: (user: UserProfile, isNewRegistration?: boolean) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
@@ -57,7 +57,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
           displayName: 'User +' + (cleanDigits.slice(-4) || 'Member'),
           password: password.trim(),
         });
-        onSuccess(res.user);
+        onSuccess(res.user, true);
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed');

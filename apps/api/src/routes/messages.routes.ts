@@ -37,6 +37,18 @@ messagesRouter.get('/:conversationId', async (req: AuthenticatedRequest, res: Re
       }
     }
 
+    // Mark unread messages sent by others in this conversation as READ
+    await prisma.message.updateMany({
+      where: {
+        conversationId,
+        senderId: { not: userId },
+        status: { not: 'READ' },
+      },
+      data: {
+        status: 'READ',
+      },
+    });
+
     const messages = await prisma.message.findMany({
       where: { conversationId },
       include: {
@@ -157,6 +169,8 @@ messagesRouter.post('/', async (req: AuthenticatedRequest, res: Response): Promi
     } catch {}
 
     const analysis = await ThreatEvaluationService.evaluate(plaintext, conversationId, senderId);
+    const isRecipientOnline = otherMember ? wsGateway.isUserConnected(otherMember.userId) : false;
+    const initialStatus = isRecipientOnline ? 'DELIVERED' : 'SENT';
 
     // ACID Transaction for Message Creation, Security Events & Conversation Timestamp Update
     const message = await prisma.$transaction(async (tx) => {
@@ -168,7 +182,7 @@ messagesRouter.post('/', async (req: AuthenticatedRequest, res: Response): Promi
           encryptedPayload,
           replyToMessageId,
           disappearsInSeconds,
-          status: 'SENT',
+          status: initialStatus,
           securityEvents: {
             create: {
               userId: senderId,

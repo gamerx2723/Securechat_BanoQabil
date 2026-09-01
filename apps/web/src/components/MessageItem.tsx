@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChatMessage } from '../types';
-import { ShieldCheck, ShieldAlert, Check, CheckCheck, AlertTriangle, Lock, Pencil, Trash2, X, Check as CheckIcon } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Check, CheckCheck, Clock, AlertTriangle, Lock, Pencil, Trash2, X, Check as CheckIcon } from 'lucide-react';
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -265,8 +265,40 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           )}
 
           {isSelf && (
-            <span style={{ color: 'var(--green-safe)', display: 'flex', alignItems: 'center' }}>
-              {message.status === 'READ' ? <CheckCheck size={14} /> : <Check size={14} />}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
+              {message.status === 'SENDING' && (
+                <span title="Sending...">
+                  <Clock
+                    size={12}
+                    style={{
+                      color: 'var(--text-muted)',
+                      animation: 'pulse 1.5s infinite ease-in-out',
+                      opacity: 0.85,
+                    }}
+                  />
+                </span>
+              )}
+              {message.status === 'SENT' && (
+                <span title="Sent (Recipient offline)">
+                  <Check size={14} style={{ color: '#94a3b8' }} />
+                </span>
+              )}
+              {message.status === 'DELIVERED' && (
+                <span title="Delivered (Recipient online)">
+                  <CheckCheck size={14} style={{ color: '#94a3b8' }} />
+                </span>
+              )}
+              {(message.status === 'READ' || !message.status) && (
+                <span title="Read by recipient">
+                  <CheckCheck
+                    size={14}
+                    style={{
+                      color: '#38bdf8',
+                      filter: 'drop-shadow(0 0 4px rgba(56, 189, 248, 0.7))',
+                    }}
+                  />
+                </span>
+              )}
             </span>
           )}
 
