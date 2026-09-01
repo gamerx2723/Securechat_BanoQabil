@@ -13,7 +13,7 @@ import { AdminConsole } from './components/AdminConsole';
 import { ProfileModal } from './components/ProfileModal';
 import { ProfileOnboardingModal } from './components/ProfileOnboardingModal';
 import { ApiClient } from './api/client';
-import { ArrowLeft, Shield, MessageSquare, Activity, Crown } from 'lucide-react';
+import { ArrowLeft, Shield, MessageSquare, Activity, Crown, Lock, Plus, Sparkles, ShieldCheck } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(ApiClient.getCurrentUser());
@@ -34,15 +34,12 @@ export const App: React.FC = () => {
   activeConvIdRef.current = activeConvId;
   const isSyncingRef = useRef<boolean>(false);
 
-  // Load conversations
+  // Load conversations (DO NOT auto-select the first chat on login)
   const loadConversations = useCallback(async () => {
     if (!currentUser) return;
     try {
       const convs = await ApiClient.getConversations();
       setConversations(convs);
-      if (convs.length > 0 && !activeConvIdRef.current) {
-        setActiveConvId(convs[0].id);
-      }
     } catch (e) {
       console.error('Failed to load conversations:', e);
     }
@@ -371,30 +368,36 @@ export const App: React.FC = () => {
   const currentConv = conversations.find((c) => c.id === activeConvId) || {
     id: activeConvId || 'default',
     title: 'Select or Start a Conversation',
-    type: 'DIRECT',
+    type: 'DIRECT' as const,
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     unreadCount: 0,
     lastMessageText: '',
     lastMessageTime: '',
-    securityState: 'GREEN',
+    securityState: 'GREEN' as const,
     isExcluded: false,
     isBlocked: false,
   };
-  const currentMessages = messagesMap[activeConvId] || [];
+  const currentMessages = activeConvId ? (messagesMap[activeConvId] || []) : [];
 
   return (
     <div className="app-layout">
-      {/* Left Sidebar (Hidden on mobile if a chat or non-chat tab is active) */}
+      {/* Left Sidebar (Hidden on mobile if inside a conversation or viewing AI/SecOps/Admin tabs) */}
       <Sidebar
         className={Boolean(activeConvId) || activeTab !== 'CHATS' ? 'sidebar-hidden-mobile' : ''}
         conversations={conversations}
         activeId={activeConvId}
         onSelect={(id) => {
           setActiveConvId(id);
+          setActiveTab('CHATS');
           loadActiveMessages(id);
         }}
         activeTab={activeTab}
-        onTabChange={(tab) => setActiveTab(tab)}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          if (tab !== 'CHATS') {
+            setActiveConvId('');
+          }
+        }}
         onOpenCopilot={() => setIsCopilotOpen(true)}
         onNewChat={() => setIsNewChatOpen(true)}
         onLogout={handleLogout}
@@ -412,60 +415,98 @@ export const App: React.FC = () => {
           <div
             className="mobile-tab-header"
             style={{
-              padding: '10px 16px',
+              padding: '12px 16px',
               background: 'var(--bg-secondary)',
               borderBottom: '1px solid var(--border-subtle)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              zIndex: 50,
             }}
           >
             <button
-              onClick={() => setActiveTab('CHATS')}
+              onClick={() => {
+                setActiveTab('CHATS');
+                setActiveConvId('');
+              }}
               style={{
                 background: 'rgba(255, 255, 255, 0.08)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: '8px',
-                padding: '6px 12px',
+                padding: '7px 14px',
                 color: 'var(--text-primary)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
                 fontSize: '13px',
-                fontWeight: 600,
+                fontWeight: 700,
               }}
             >
               <ArrowLeft size={16} />
               <span>Back to Chats</span>
             </button>
             <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {activeTab === 'GUARDIAN' && <><Shield size={15} /> AI Guardian</>}
-              {activeTab === 'SECOPS' && <><Activity size={15} /> Security Operations</>}
-              {activeTab === 'ADMIN' && <><Crown size={15} /> Admin Console</>}
+              {activeTab === 'GUARDIAN' && <><Shield size={16} /> AI Guardian</>}
+              {activeTab === 'SECOPS' && <><Activity size={16} /> Security Operations</>}
+              {activeTab === 'ADMIN' && <><Crown size={16} /> Admin Console</>}
             </div>
           </div>
         )}
 
+        {/* 1. CHATS TAB */}
         {activeTab === 'CHATS' && (
-          <ChatArea
-            conversation={currentConv}
-            messages={currentMessages}
-            onSendMessage={handleSendMessage}
-            onInspectSecurity={(msg) => setInspectedMessage(msg)}
-            onTogglePrivacy={handleTogglePrivacy}
-            onOpenTopicModal={() => setIsTopicModalOpen(true)}
-            onOpenCopilot={() => setIsCopilotOpen(true)}
-            onBlockUser={handleBlockUser}
-            onUnblockUser={handleUnblockUser}
-            onReportChat={handleReportChat}
-            onDeleteChat={handleDeleteChat}
-            onEditMessage={handleEditMessage}
-            onDeleteMessage={handleDeleteMessage}
-            onBack={() => setActiveConvId('')}
-          />
+          activeConvId ? (
+            <ChatArea
+              conversation={currentConv}
+              messages={currentMessages}
+              onSendMessage={handleSendMessage}
+              onInspectSecurity={(msg) => setInspectedMessage(msg)}
+              onTogglePrivacy={handleTogglePrivacy}
+              onOpenTopicModal={() => setIsTopicModalOpen(true)}
+              onOpenCopilot={() => setIsCopilotOpen(true)}
+              onBlockUser={handleBlockUser}
+              onUnblockUser={handleUnblockUser}
+              onReportChat={handleReportChat}
+              onDeleteChat={handleDeleteChat}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onBack={() => setActiveConvId('')}
+            />
+          ) : (
+            // Desktop Welcome Hub when no conversation is selected
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px', textAlign: 'center', background: 'var(--bg-primary)' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(16, 185, 129, 0.2))', border: '1px solid rgba(6, 182, 212, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-cyan)', marginBottom: '18px', boxShadow: '0 0 30px rgba(6, 182, 212, 0.25)' }}>
+                <ShieldCheck size={36} />
+              </div>
+              <h2 style={{ fontSize: '24px', fontWeight: 800, margin: '0 0 8px', letterSpacing: '-0.02em' }}>
+                SecureChat Zero-Trust Network
+              </h2>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', maxWidth: '420px', lineHeight: 1.6, margin: '0 0 24px' }}>
+                Select an existing conversation on the left, or start a new encrypted zero-trust chat with real-time AI security.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                <button
+                  onClick={() => setIsNewChatOpen(true)}
+                  className="btn-primary"
+                  style={{ padding: '10px 20px', fontSize: '13px' }}
+                >
+                  <Plus size={16} /> Start New Chat
+                </button>
+                <button
+                  onClick={() => setActiveTab('GUARDIAN')}
+                  className="btn-ghost"
+                  style={{ padding: '10px 18px', fontSize: '13px' }}
+                >
+                  <Shield size={16} style={{ color: 'var(--green-safe)', marginRight: '6px' }} />
+                  Explore AI Guardian
+                </button>
+              </div>
+            </div>
+          )
         )}
 
+        {/* 2. AI GUARDIAN TAB */}
         {activeTab === 'GUARDIAN' && (
           <GuardianPanel
             conversation={currentConv}
@@ -473,10 +514,12 @@ export const App: React.FC = () => {
           />
         )}
 
+        {/* 3. SECOPS TAB (ADMIN ONLY) */}
         {activeTab === 'SECOPS' && currentUser.role === 'ADMIN' && (
           <SecurityCenter />
         )}
 
+        {/* 4. ADMIN CONSOLE TAB (ADMIN ONLY) */}
         {activeTab === 'ADMIN' && currentUser.role === 'ADMIN' && (
           <AdminConsole />
         )}

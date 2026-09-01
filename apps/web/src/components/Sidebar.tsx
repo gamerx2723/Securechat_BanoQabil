@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ConversationItem, SecurityIndicatorColor } from '../types';
-import { Shield, ShieldAlert, ShieldCheck, MessageSquare, Activity, ShieldQuestion, Plus, Lock, Search, LogOut, Crown, CheckSquare, Square, Trash2, X, Check } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, MessageSquare, Activity, ShieldQuestion, Plus, Lock, Search, LogOut, Crown, CheckSquare, Square, Trash2, X, MoreVertical, User, Settings, Sparkles, Key, Check } from 'lucide-react';
 
 interface SidebarProps {
   conversations: ConversationItem[];
@@ -38,6 +38,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [search, setSearch] = useState('');
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   const filtered = conversations.filter(c => 
     c.title.toLowerCase().includes(search.toLowerCase())
@@ -56,6 +59,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const isAdmin = userRole === 'ADMIN';
+
+  // Click outside to close dropdown menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        menuButtonRef.current &&
+        !menuButtonRef.current.contains(event.target as Node)
+      ) {
+        setIsMenuOpen(false);
+      }
+    };
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev =>
@@ -84,12 +107,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className={`sidebar-container ${className}`}>
-      {/* User Header */}
-      <div style={{ padding: '16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* User Profile Header */}
+      <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
         <div
           onClick={onOpenProfile}
           title="Click to view & edit your profile"
-          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '4px', borderRadius: '10px', transition: 'background 0.2s ease' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '4px', borderRadius: '10px', transition: 'background 0.2s ease', flex: 1, minWidth: 0 }}
         >
           {userAvatarUrl ? (
             <img
@@ -102,6 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 objectFit: 'cover',
                 border: '2px solid var(--accent-cyan)',
                 boxShadow: '0 0 12px rgba(6, 182, 212, 0.4)',
+                flexShrink: 0,
               }}
             />
           ) : (
@@ -116,43 +140,268 @@ export const Sidebar: React.FC<SidebarProps> = ({
               fontWeight: 'bold',
               fontSize: '16px',
               color: '#fff',
-              boxShadow: isAdmin ? '0 0 15px rgba(245, 158, 11, 0.4)' : '0 0 15px var(--green-glow)'
+              boxShadow: isAdmin ? '0 0 15px rgba(245, 158, 11, 0.4)' : '0 0 15px var(--green-glow)',
+              flexShrink: 0,
             }}>
               {isAdmin ? <Crown size={18} /> : currentUsername.slice(0, 2).toUpperCase()}
             </div>
           )}
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {currentUsername}
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentUsername}</span>
               {isAdmin ? (
-                <span style={{ fontSize: '9px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.4)' }}>ADMIN</span>
+                <span style={{ fontSize: '9px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.4)', flexShrink: 0 }}>ADMIN</span>
               ) : (
-                <Lock size={12} style={{ color: 'var(--green-safe)' }} />
+                <Lock size={12} style={{ color: 'var(--green-safe)', flexShrink: 0 }} />
               )}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isAdmin ? '#fbbf24' : 'var(--green-safe)', display: 'inline-block' }}></span>
-              {isAdmin ? 'Master SuperAdmin Mode' : 'Online & E2EE Protected'}
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isAdmin ? '#fbbf24' : 'var(--green-safe)', display: 'inline-block', flexShrink: 0 }}></span>
+              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{isAdmin ? 'Master SuperAdmin' : 'E2EE Shield Active'}</span>
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        {/* Action buttons & Options Dropdown Trigger */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           <button 
             onClick={onOpenCopilot} 
-            title="Open Security Copilot"
+            title="Open Security Copilot AI"
             style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: 'var(--green-safe)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <ShieldQuestion size={16} />
           </button>
-          <button 
-            onClick={onLogout} 
-            title="Sign Out"
-            style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#f87171', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+
+          <button
+            ref={menuButtonRef}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            title="Profile & App Options"
+            style={{
+              background: isMenuOpen ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '8px',
+              padding: '6px',
+              cursor: 'pointer',
+              color: 'var(--text-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.15s ease',
+            }}
           >
-            <LogOut size={16} />
+            <MoreVertical size={16} />
           </button>
         </div>
+
+        {/* Global Sidebar Dropdown Menu */}
+        {isMenuOpen && (
+          <div
+            ref={menuRef}
+            className="glass-modal fade-in"
+            style={{
+              position: 'absolute',
+              top: '64px',
+              right: '12px',
+              width: '240px',
+              zIndex: 100,
+              padding: '6px',
+              borderRadius: '14px',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              background: 'rgba(11, 17, 32, 0.96)',
+              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(6, 182, 212, 0.2)',
+            }}
+          >
+            <div style={{ padding: '8px 10px 6px', borderBottom: '1px solid var(--border-subtle)', marginBottom: '4px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                Signed in as
+              </div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {currentUsername}
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setIsMenuOpen(false);
+                if (onOpenProfile) onOpenProfile();
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8px 10px',
+                border: 'none',
+                borderRadius: '8px',
+                background: 'transparent',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <User size={15} style={{ color: 'var(--accent-cyan)' }} />
+              <span>My Profile & Avatar</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setIsMenuOpen(false);
+                onNewChat();
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8px 10px',
+                border: 'none',
+                borderRadius: '8px',
+                background: 'transparent',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <Plus size={15} style={{ color: 'var(--green-safe)' }} />
+              <span>New Secure Chat</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setIsMenuOpen(false);
+                onOpenCopilot();
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8px 10px',
+                border: 'none',
+                borderRadius: '8px',
+                background: 'transparent',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <Sparkles size={15} style={{ color: '#a855f7' }} />
+              <span>Security Copilot AI</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setIsMenuOpen(false);
+                onTabChange('GUARDIAN');
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8px 10px',
+                border: 'none',
+                borderRadius: '8px',
+                background: 'transparent',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <Shield size={15} style={{ color: 'var(--green-safe)' }} />
+              <span>AI Guardian Center</span>
+            </button>
+
+            {isAdmin && (
+              <>
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onTabChange('SECOPS');
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 10px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: 'transparent',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <Activity size={15} style={{ color: '#60a5fa' }} />
+                  <span>SecOps Operations</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onTabChange('ADMIN');
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 10px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: 'transparent',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <Crown size={15} style={{ color: '#fbbf24' }} />
+                  <span>SuperAdmin Console</span>
+                </button>
+              </>
+            )}
+
+            <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '4px 0' }} />
+
+            <button
+              onClick={() => {
+                setIsMenuOpen(false);
+                onLogout();
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8px 10px',
+                border: 'none',
+                borderRadius: '8px',
+                background: 'rgba(239, 68, 68, 0.08)',
+                color: '#f87171',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <LogOut size={15} />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Navigation Tabs */}

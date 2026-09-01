@@ -18,35 +18,36 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({ conversation, mess
   const [isAnalyzingSandbox, setIsAnalyzingSandbox] = useState(false);
 
   // Compute Conversation Threat Statistics
-  const totalMessages = messages.length;
-  const threatMessages = messages.filter(m => m.securityAnalysis.indicatorColor === 'RED');
-  const warnMessages = messages.filter(m => m.securityAnalysis.indicatorColor === 'ORANGE');
-  const safeMessages = messages.filter(m => m.securityAnalysis.indicatorColor === 'GREEN');
-  const peakRiskScore = messages.reduce((max, m) => Math.max(max, m.securityAnalysis.riskScore), 0);
+  const safeList = messages || [];
+  const totalMessages = safeList.length;
+  const threatMessages = safeList.filter(m => m?.securityAnalysis?.indicatorColor === 'RED');
+  const warnMessages = safeList.filter(m => m?.securityAnalysis?.indicatorColor === 'ORANGE');
+  const safeMessages = safeList.filter(m => m?.securityAnalysis?.indicatorColor === 'GREEN');
+  const peakRiskScore = safeList.reduce((max, m) => Math.max(max, m?.securityAnalysis?.riskScore || 0), 0);
 
-  const phishingCount = messages.filter(m => m.securityAnalysis.primaryThreat === 'PHISHING' || m.securityAnalysis.evidenceList.some(e => e.category === 'PHISHING')).length;
-  const socialEngCount = messages.filter(m => m.securityAnalysis.primaryThreat === 'SOCIAL_ENGINEERING' || m.securityAnalysis.evidenceList.some(e => e.category === 'SOCIAL_ENGINEERING' || e.category === 'URGENCY_MANIPULATION')).length;
-  const dlpCount = messages.filter(m => m.securityAnalysis.primaryThreat === 'DLP_SECRET_EXPOSURE' || m.securityAnalysis.evidenceList.some(e => e.category === 'DLP_SECRET_EXPOSURE')).length;
+  const phishingCount = safeList.filter(m => m?.securityAnalysis?.primaryThreat === 'PHISHING' || m?.securityAnalysis?.evidenceList?.some(e => e.category === 'PHISHING')).length;
+  const socialEngCount = safeList.filter(m => m?.securityAnalysis?.primaryThreat === 'SOCIAL_ENGINEERING' || m?.securityAnalysis?.evidenceList?.some(e => e.category === 'SOCIAL_ENGINEERING' || e.category === 'URGENCY_MANIPULATION')).length;
+  const dlpCount = safeList.filter(m => m?.securityAnalysis?.primaryThreat === 'DLP_SECRET_EXPOSURE' || m?.securityAnalysis?.evidenceList?.some(e => e.category === 'DLP_SECRET_EXPOSURE')).length;
 
   // Compute Risk Timeline from conversation messages
-  const timeline = messages.map((m) => ({
-    id: m.id,
-    time: m.sentAt,
-    sender: m.senderName,
-    snippet: m.plaintext.slice(0, 45) + (m.plaintext.length > 45 ? '...' : ''),
-    riskScore: m.securityAnalysis.riskScore,
-    color: m.securityAnalysis.indicatorColor,
-    threat: m.securityAnalysis.primaryThreat,
-    explanation: m.securityAnalysis.explanation,
+  const timeline = safeList.map((m) => ({
+    id: m?.id || Math.random().toString(),
+    time: m?.sentAt || '',
+    sender: m?.senderName || 'Unknown',
+    snippet: m?.plaintext ? (m.plaintext.slice(0, 45) + (m.plaintext.length > 45 ? '...' : '')) : '',
+    riskScore: m?.securityAnalysis?.riskScore || 0,
+    color: m?.securityAnalysis?.indicatorColor || 'GREEN',
+    threat: m?.securityAnalysis?.primaryThreat || 'NONE',
+    explanation: m?.securityAnalysis?.explanation || 'Safe',
   }));
 
   // Identify exposed secrets
-  const exposedSecrets = messages
-    .filter(m => m.securityAnalysis.evidenceList.some(e => e.category === 'DLP_SECRET_EXPOSURE'))
+  const exposedSecrets = safeList
+    .filter(m => m?.securityAnalysis?.evidenceList?.some(e => e.category === 'DLP_SECRET_EXPOSURE'))
     .map(m => ({
-      sender: m.senderName,
-      time: m.sentAt,
-      signal: m.securityAnalysis.evidenceList.find(e => e.category === 'DLP_SECRET_EXPOSURE')?.description || 'Secret Detected',
+      sender: m?.senderName || 'Sender',
+      time: m?.sentAt || '',
+      signal: m?.securityAnalysis?.evidenceList?.find(e => e.category === 'DLP_SECRET_EXPOSURE')?.description || 'Secret Detected',
     }));
 
   const handleTestSandbox = async () => {
