@@ -160,7 +160,18 @@ export const AdminConsole: React.FC = () => {
   };
 
   return (
-    <div style={{ flex: 1, padding: '14px 16px', overflowY: 'auto', overflowX: 'hidden', background: 'var(--bg-primary)', color: 'var(--text-primary)', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+    <div style={{
+      flex: '1 1 0%',
+      minWidth: 0,
+      maxWidth: '100%',
+      width: '100%',
+      boxSizing: 'border-box',
+      padding: '16px 18px',
+      overflowY: 'auto',
+      overflowX: 'hidden',
+      background: 'var(--bg-primary)',
+      color: 'var(--text-primary)',
+    }}>
       {/* Header Bar */}
       <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
@@ -190,8 +201,8 @@ export const AdminConsole: React.FC = () => {
         </div>
       )}
 
-      {/* Sub-tabs Navigation (Horizontally scrollable with smooth touch) */}
-      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '16px', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+      {/* Sub-tabs Navigation (Horizontally scrollable with zero flex overflow) */}
+      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '16px', WebkitOverflowScrolling: 'touch', minWidth: 0, maxWidth: '100%' }}>
         {[
           { id: 'USERS', label: 'Users & Access', icon: Users },
           { id: 'SECOPS', label: 'SecOps Telemetry', icon: Activity },
@@ -228,12 +239,12 @@ export const AdminConsole: React.FC = () => {
         })}
       </div>
 
-      {/* 1. USERS & ACCESS SUB-TAB */}
+      {/* 1. USERS & ACCESS SUB-TAB (Card-based Mobile Layout) */}
       {activeSubTab === 'USERS' && (
-        <div style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+        <div style={{ minWidth: 0, maxWidth: '100%' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Accounts: <strong style={{ color: 'var(--text-primary)' }}>{users.length}</strong>
+              Registered Network Accounts: <strong style={{ color: 'var(--text-primary)' }}>{users.length}</strong>
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
@@ -244,87 +255,84 @@ export const AdminConsole: React.FC = () => {
             </button>
           </div>
 
-          <div className="glass-panel" style={{ borderRadius: '12px', overflow: 'hidden', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left', minWidth: '450px' }}>
-                <thead>
-                  <tr style={{ background: 'rgba(255, 255, 255, 0.04)', borderBottom: '1px solid var(--border-subtle)' }}>
-                    <th style={{ padding: '10px 12px' }}>User</th>
-                    <th style={{ padding: '10px 12px' }}>Role</th>
-                    <th style={{ padding: '10px 12px' }}>Devices</th>
-                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr key={u.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                      <td style={{ padding: '10px 12px' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                          {u.displayName || u.username}
-                        </div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>@{u.username}</div>
-                      </td>
-                      <td style={{ padding: '10px 12px' }}>
-                        <span style={{
-                          fontSize: '9px',
-                          fontWeight: 800,
-                          padding: '2px 5px',
-                          borderRadius: '4px',
-                          background: u.role === 'ADMIN' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                          color: u.role === 'ADMIN' ? '#fbbf24' : 'var(--green-safe)',
-                        }}>
-                          {u.role}
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', fontSize: '11px' }}>
-                        {u.devices?.length || 1}
-                      </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '4px' }}>
-                          <button
-                            onClick={() => handleChangeRole(u.id, u.role)}
-                            title="Toggle Admin / User role"
-                            style={{
-                              background: 'rgba(255, 255, 255, 0.06)',
-                              border: '1px solid var(--border-subtle)',
-                              borderRadius: '6px',
-                              padding: '4px 6px',
-                              fontSize: '10px',
-                              color: 'var(--text-secondary)',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Role
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUser(u.id, u.username)}
-                            title="Delete User"
-                            style={{
-                              background: 'rgba(239, 68, 68, 0.15)',
-                              border: '1px solid rgba(239, 68, 68, 0.3)',
-                              borderRadius: '6px',
-                              padding: '4px 6px',
-                              fontSize: '10px',
-                              color: '#f87171',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <Trash2 size={11} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {users.map((u) => (
+              <div
+                key={u.id}
+                className="glass-panel"
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ minWidth: '150px', flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)' }}>
+                      {u.displayName || u.username}
+                    </span>
+                    <span style={{
+                      fontSize: '9px',
+                      fontWeight: 800,
+                      padding: '2px 5px',
+                      borderRadius: '4px',
+                      background: u.role === 'ADMIN' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                      color: u.role === 'ADMIN' ? '#fbbf24' : 'var(--green-safe)',
+                    }}>
+                      {u.role}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    @{u.username} • {u.devices?.length || 1} Enclaves • {new Date(u.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  <button
+                    onClick={() => handleChangeRole(u.id, u.role)}
+                    title="Toggle Role"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '6px',
+                      padding: '5px 10px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Role
+                  </button>
+                  <button
+                    onClick={() => handleDeleteUser(u.id, u.username)}
+                    title="Delete User"
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: '6px',
+                      padding: '5px 8px',
+                      fontSize: '11px',
+                      color: '#f87171',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       {/* 2. SECOPS TELEMETRY SUB-TAB */}
       {activeSubTab === 'SECOPS' && (
-        <div style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+        <div style={{ minWidth: 0, maxWidth: '100%' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginBottom: '16px' }}>
             <div className="glass-panel" style={{ padding: '14px', borderRadius: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
@@ -339,13 +347,13 @@ export const AdminConsole: React.FC = () => {
 
             <div className="glass-panel" style={{ padding: '14px', borderRadius: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Threats Intercepted</span>
+                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Threats Blocked</span>
                 <ShieldAlert size={15} style={{ color: 'var(--red-critical)' }} />
               </div>
               <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--red-critical)', fontFamily: 'var(--font-mono)' }}>
                 {telemetry?.redThreats || 0}
               </div>
-              <div style={{ fontSize: '10px', color: 'var(--red-critical)' }}>Zero-Trust Evaluated</div>
+              <div style={{ fontSize: '10px', color: 'var(--red-critical)' }}>Zero-Trust Intercepted</div>
             </div>
 
             <div className="glass-panel" style={{ padding: '14px', borderRadius: '12px' }}>
@@ -356,12 +364,12 @@ export const AdminConsole: React.FC = () => {
               <div style={{ fontSize: '20px', fontWeight: 800, color: '#60a5fa', fontFamily: 'var(--font-mono)' }}>
                 {telemetry?.activeDevices || telemetry?.totalDevices || 0}
               </div>
-              <div style={{ fontSize: '10px', color: '#60a5fa' }}>Curve25519 Keys</div>
+              <div style={{ fontSize: '10px', color: '#60a5fa' }}>Curve25519 Enclaves</div>
             </div>
 
             <div className="glass-panel" style={{ padding: '14px', borderRadius: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Vector Exemplars</span>
+                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Vector Memory</span>
                 <Brain size={15} style={{ color: '#a78bfa' }} />
               </div>
               <div style={{ fontSize: '20px', fontWeight: 800, color: '#a78bfa', fontFamily: 'var(--font-mono)' }}>
@@ -375,14 +383,14 @@ export const AdminConsole: React.FC = () => {
 
       {/* 3. THREAT REVIEW QUEUE SUB-TAB */}
       {activeSubTab === 'THREATS' && (
-        <div style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+        <div style={{ minWidth: 0, maxWidth: '100%' }}>
           <AdminThreatReviewQueue />
         </div>
       )}
 
       {/* 4. AI MODEL CALIBRATION SUB-TAB */}
       {activeSubTab === 'AI_CALIBRATION' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: 0, maxWidth: '100%' }}>
           <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px', border: '1px solid rgba(139, 92, 246, 0.3)', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
               <Sparkles size={18} style={{ color: '#a78bfa', flexShrink: 0 }} />
@@ -445,51 +453,46 @@ export const AdminConsole: React.FC = () => {
         </div>
       )}
 
-      {/* 5. CONVERSATIONS AUDIT SUB-TAB */}
+      {/* 5. CONVERSATIONS AUDIT SUB-TAB (Card-based Mobile Layout) */}
       {activeSubTab === 'CONVERSATIONS' && (
-        <div className="glass-panel" style={{ borderRadius: '12px', overflow: 'hidden', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left', minWidth: '450px' }}>
-              <thead>
-                <tr style={{ background: 'rgba(255, 255, 255, 0.04)', borderBottom: '1px solid var(--border-subtle)' }}>
-                  <th style={{ padding: '10px 12px' }}>Channel / ID</th>
-                  <th style={{ padding: '10px 12px' }}>Type</th>
-                  <th style={{ padding: '10px 12px' }}>Members</th>
-                  <th style={{ padding: '10px 12px' }}>Security</th>
-                </tr>
-              </thead>
-              <tbody>
-                {conversations.map((c) => (
-                  <tr key={c.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <td style={{ padding: '10px 12px' }}>
-                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.title || c.id}</div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{c.id.slice(0, 8)}...</div>
-                    </td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span style={{ fontSize: '9px', padding: '2px 5px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.08)' }}>
-                        {c.type}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', fontSize: '11px' }}>
-                      {c.members?.length || 2} Users
-                    </td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span style={{
-                        fontSize: '9px',
-                        fontWeight: 800,
-                        padding: '2px 5px',
-                        borderRadius: '4px',
-                        background: c.securityState === 'RED' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                        color: c.securityState === 'RED' ? '#ef4444' : 'var(--green-safe)',
-                      }}>
-                        {c.securityState || 'GREEN'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0, maxWidth: '100%' }}>
+          {conversations.map((c) => (
+            <div
+              key={c.id}
+              className="glass-panel"
+              style={{
+                padding: '12px 14px',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ minWidth: '150px', flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)' }}>
+                  {c.title || 'Direct Conversation'}
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  ID: {c.id.slice(0, 12)}... • {c.type} • {c.members?.length || 2} Members
+                </div>
+              </div>
+
+              <div>
+                <span style={{
+                  fontSize: '9px',
+                  fontWeight: 800,
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  background: c.securityState === 'RED' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                  color: c.securityState === 'RED' ? '#ef4444' : 'var(--green-safe)',
+                }}>
+                  {c.securityState || 'GREEN'}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
