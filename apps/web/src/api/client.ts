@@ -181,56 +181,49 @@ export class ApiClient {
           currentUserId = JSON.parse(localStorage.getItem('securechat_user') || '{}')?.id || '';
         } catch {}
 
-        let deletedConvs: string[] = [];
-        try {
-          deletedConvs = JSON.parse(localStorage.getItem(`securechat_deleted_convs_${currentUserId}`) || '[]');
-        } catch {}
-
-        return rawList
-          .filter((c: any) => !deletedConvs.includes(c.id))
-          .map((c: any) => {
-            let text = '';
-            if (c.lastMessage?.encryptedPayload) {
-              try {
-                const parsed = JSON.parse(c.lastMessage.encryptedPayload);
-                text = parsed.plaintext || c.lastMessage.encryptedPayload;
-              } catch {
-                text = c.lastMessage.encryptedPayload;
-              }
+        return rawList.map((c: any) => {
+          let text = '';
+          if (c.lastMessage?.encryptedPayload) {
+            try {
+              const parsed = JSON.parse(c.lastMessage.encryptedPayload);
+              text = parsed.plaintext || c.lastMessage.encryptedPayload;
+            } catch {
+              text = c.lastMessage.encryptedPayload;
             }
+          }
 
-            const secState = c.securitySummary?.securityState || (c.lastMessage?.securityEvents?.[0]?.indicatorColor) || 'GREEN';
+          const secState = c.securitySummary?.securityState || (c.lastMessage?.securityEvents?.[0]?.indicatorColor) || 'GREEN';
 
-            // OpSec Display: Show ONLY recipient name for direct conversations
-            let title = c.title;
-            let avatar = c.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+          // OpSec Display: Show ONLY recipient name for direct conversations
+          let title = c.title;
+          let avatar = c.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
 
-            if (c.members && c.members.length > 0) {
-              const otherMembers = c.members.filter((m: any) => (m.userId || m.id) !== currentUserId);
-              if (c.type === 'DIRECT' || !title) {
-                if (otherMembers.length > 0) {
-                  title = otherMembers[0].displayName || otherMembers[0].username || otherMembers[0].user?.displayName || otherMembers[0].user?.username || 'Recipient';
-                  if (otherMembers[0].avatarUrl || otherMembers[0].user?.avatarUrl) {
-                    avatar = otherMembers[0].avatarUrl || otherMembers[0].user?.avatarUrl;
-                  }
+          if (c.members && c.members.length > 0) {
+            const otherMembers = c.members.filter((m: any) => (m.userId || m.id) !== currentUserId);
+            if (c.type === 'DIRECT' || !title) {
+              if (otherMembers.length > 0) {
+                title = otherMembers[0].displayName || otherMembers[0].username || otherMembers[0].user?.displayName || otherMembers[0].user?.username || 'Recipient';
+                if (otherMembers[0].avatarUrl || otherMembers[0].user?.avatarUrl) {
+                  avatar = otherMembers[0].avatarUrl || otherMembers[0].user?.avatarUrl;
                 }
               }
             }
+          }
 
-            return {
-              id: c.id,
-              title: title || 'Secure Contact',
-              type: c.type,
-              avatar,
-              unreadCount: c.unreadCount || 0,
-              isExcluded: c.isExcludedFromAi || false,
-              isBlocked: c.isBlocked || false,
-              lastMessageText: text || 'No messages yet',
-              lastMessageTime: c.lastMessage ? new Date(c.lastMessage.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-              lastMessageTimestamp: c.lastMessage?.sentAt || c.updatedAt || c.createdAt || '',
-              securityState: secState,
-            };
-          });
+          return {
+            id: c.id,
+            title: title || 'Secure Contact',
+            type: c.type,
+            avatar,
+            unreadCount: c.unreadCount || 0,
+            isExcluded: c.isExcludedFromAi || false,
+            isBlocked: c.isBlocked || false,
+            lastMessageText: text || 'No messages yet',
+            lastMessageTime: c.lastMessage ? new Date(c.lastMessage.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+            lastMessageTimestamp: c.lastMessage?.sentAt || c.updatedAt || c.createdAt || '',
+            securityState: secState,
+          };
+        });
       }
     } catch (error) {
       console.error('Failed to fetch conversations:', error);
@@ -273,21 +266,10 @@ export class ApiClient {
       body: JSON.stringify(params),
     });
     if (!res.ok) {
-      throw new Error('Failed to create conversation');
+      const err = await res.json().catch(() => ({ error: 'Failed to create conversation' }));
+      throw new Error(err.error || 'Failed to create conversation');
     }
-    const created = await res.json();
-    const currentUser = this.getCurrentUser();
-    if (currentUser && created?.id) {
-      try {
-        const key = `securechat_deleted_convs_${currentUser.id}`;
-        const deletedConvs = JSON.parse(localStorage.getItem(key) || '[]');
-        if (deletedConvs.includes(created.id)) {
-          const filtered = deletedConvs.filter((id: string) => id !== created.id);
-          localStorage.setItem(key, JSON.stringify(filtered));
-        }
-      } catch {}
-    }
-    return created;
+    return await res.json();
   }
 
   public static async getMessages(conversationId: string): Promise<ChatMessage[]> {
@@ -298,54 +280,47 @@ export class ApiClient {
       if (res.ok) {
         const rawList = await res.json();
         const currentUser = this.getCurrentUser();
-        const currentUserId = currentUser ? currentUser.id : 'anon';
-        let deletedMsgs: string[] = [];
-        try {
-          deletedMsgs = JSON.parse(localStorage.getItem(`securechat_deleted_msgs_${currentUserId}`) || '[]');
-        } catch {}
 
-        return rawList
-          .filter((m: any) => !deletedMsgs.includes(m.id))
-          .map((m: any) => {
-            let text = '';
-            let isEdited = false;
-            try {
-              const parsed = JSON.parse(m.encryptedPayload);
-              text = parsed.plaintext || parsed.ciphertext || m.encryptedPayload;
-              isEdited = !!parsed.isEdited;
-            } catch {
-              text = m.encryptedPayload;
-            }
+        return rawList.map((m: any) => {
+          let text = '';
+          let isEdited = false;
+          try {
+            const parsed = JSON.parse(m.encryptedPayload);
+            text = parsed.plaintext || parsed.ciphertext || m.encryptedPayload;
+            isEdited = !!parsed.isEdited;
+          } catch {
+            text = m.encryptedPayload;
+          }
 
-            // Evaluate with local AI rule analyzer to get full threat signals and evidence
-            const evaluated = this.clientSideEvaluate(text);
-            const secEvent = m.securityEvents?.[0];
+          // Evaluate with local AI rule analyzer to get full threat signals and evidence
+          const evaluated = this.clientSideEvaluate(text);
+          const secEvent = m.securityEvents?.[0];
 
-            const analysis: SecurityAnalysis = {
-              riskScore: secEvent?.riskScore !== undefined ? secEvent.riskScore : evaluated.riskScore,
-              indicatorColor: secEvent?.indicatorColor || evaluated.indicatorColor,
-              primaryThreat: secEvent?.type || evaluated.primaryThreat,
-              confidence: secEvent?.confidence ? Math.round(secEvent.confidence * 100) : evaluated.confidence,
-              evidenceList: evaluated.evidenceList,
-              explanation: secEvent?.explanation || evaluated.explanation,
-              recommendation: secEvent?.recommendation || evaluated.recommendation,
-              suggestedActions: evaluated.suggestedActions,
-            };
+          const analysis: SecurityAnalysis = {
+            riskScore: secEvent?.riskScore !== undefined ? secEvent.riskScore : evaluated.riskScore,
+            indicatorColor: secEvent?.indicatorColor || evaluated.indicatorColor,
+            primaryThreat: secEvent?.type || evaluated.primaryThreat,
+            confidence: secEvent?.confidence ? Math.round(secEvent.confidence * 100) : evaluated.confidence,
+            evidenceList: evaluated.evidenceList,
+            explanation: secEvent?.explanation || evaluated.explanation,
+            recommendation: secEvent?.recommendation || evaluated.recommendation,
+            suggestedActions: evaluated.suggestedActions,
+          };
 
-            return {
-              id: m.id,
-              conversationId: m.conversationId,
-              senderId: m.senderId,
-              senderName: m.sender?.displayName || m.sender?.username || (m.senderId === currentUser?.id ? 'You' : 'Contact'),
-              plaintext: text,
-              isEdited,
-              sentAt: new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              status: m.status || 'SENT',
-              isSelf: m.senderId === currentUser?.id,
-              reactions: m.reactions || [],
-              securityAnalysis: analysis,
-            };
-          });
+          return {
+            id: m.id,
+            conversationId: m.conversationId,
+            senderId: m.senderId,
+            senderName: m.sender?.displayName || m.sender?.username || (m.senderId === currentUser?.id ? 'You' : 'Contact'),
+            plaintext: text,
+            isEdited,
+            sentAt: new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            status: m.status || 'SENT',
+            isSelf: m.senderId === currentUser?.id,
+            reactions: m.reactions || [],
+            securityAnalysis: analysis,
+          };
+        });
       }
     } catch (error) {
       console.error('Failed to fetch messages:', error);

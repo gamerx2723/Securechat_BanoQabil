@@ -111,7 +111,7 @@ conversationsRouter.get('/', async (req: AuthenticatedRequest, res: Response): P
       const selfMember = c.members.find((m: any) => m.userId === userId);
       const otherMember = c.members.find((m: any) => m.userId !== userId);
       const isBlocked = otherMember ? blockedUserIds.has(otherMember.userId) : false;
-      const aiContext = c.aiContexts[0];
+      const aiContext = c.aiContexts?.[0];
 
       return {
         id: c.id,
@@ -132,15 +132,16 @@ conversationsRouter.get('/', async (req: AuthenticatedRequest, res: Response): P
         members: c.members.map((m: any) => ({
           userId: m.userId,
           role: m.role,
-          username: m.user.username,
-          displayName: m.user.displayName,
-          avatarUrl: m.user.avatarUrl,
+          username: m.user?.username || 'user',
+          displayName: m.user?.displayName || m.user?.username || 'User',
+          avatarUrl: m.user?.avatarUrl,
         })),
       };
     });
 
     res.json(result);
   } catch (error) {
+    console.error('Fetch conversations error:', error);
     res.status(500).json({ error: 'Failed to fetch conversations' });
   }
 });
@@ -159,7 +160,7 @@ conversationsRouter.post('/', async (req: AuthenticatedRequest, res: Response): 
     // Combine current user with requested participants
     const allUserIds = Array.from(new Set([currentUserId, ...participantUserIds]));
 
-    // If Direct chat, check if conversation between these 2 users already exists
+    // If Direct chat, check if an existing conversation between these 2 users already exists
     if (type === 'DIRECT' && allUserIds.length === 2) {
       const otherUserId = allUserIds.find(id => id !== currentUserId) || allUserIds[0];
       
@@ -186,39 +187,6 @@ conversationsRouter.post('/', async (req: AuthenticatedRequest, res: Response): 
         res.json(existing);
         return;
       }
-
-      // Check if conversation exists where other user is still a member (e.g. current user deleted it previously)
-      const partialExisting = await prisma.conversation.findFirst({
-        where: {
-          type: 'DIRECT',
-          members: { some: { userId: otherUserId } },
-        },
-        include: {
-          members: {
-            include: {
-              user: {
-                select: { id: true, username: true, displayName: true, avatarUrl: true },
-              },
-            },
-          },
-        },
-      });
-
-      if (partialExisting) {
-        // Re-add current user back to the conversation
-        const isMember = partialExisting.members.some((m: any) => m.userId === currentUserId);
-        if (!isMember) {
-          await prisma.conversationMember.create({
-            data: {
-              conversationId: partialExisting.id,
-              userId: currentUserId,
-              role: 'MEMBER',
-            },
-          });
-        }
-        res.json(partialExisting);
-        return;
-      }
     }
 
     const conversation = await prisma.conversation.create({
@@ -229,15 +197,6 @@ conversationsRouter.post('/', async (req: AuthenticatedRequest, res: Response): 
           create: allUserIds.map(uid => ({
             userId: uid,
             role: uid === currentUserId ? 'ADMIN' : 'MEMBER',
-          })),
-        },
-        aiContexts: {
-          create: allUserIds.map(uid => ({
-            userId: uid,
-            summary: 'Initial secure conversation channel created.',
-            currentRiskScore: 0,
-            currentSecurityState: 'GREEN',
-            observations: JSON.stringify(['Channel initialized with zero trust baseline']),
           })),
         },
       },
@@ -258,8 +217,9 @@ conversationsRouter.post('/', async (req: AuthenticatedRequest, res: Response): 
     });
 
     res.status(201).json(conversation);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to create conversation' });
+  } catch (error: any) {
+    console.error('Create conversation error:', error);
+    res.status(500).json({ error: error.message || 'Failed to create conversation' });
   }
 });
 
