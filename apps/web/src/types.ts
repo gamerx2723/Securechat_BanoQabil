@@ -41,6 +41,7 @@ export interface ConversationItem {
   unreadCount: number;
   lastMessageText: string;
   lastMessageTime: string;
+  lastMessageTimestamp?: string;
   securityState: SecurityIndicatorColor;
   isExcluded: boolean;
   isBlocked?: boolean;

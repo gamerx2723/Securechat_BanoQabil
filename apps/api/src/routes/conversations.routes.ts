@@ -48,6 +48,36 @@ conversationsRouter.get('/', async (req: AuthenticatedRequest, res: Response): P
     });
     const blockedUserIds = new Set(contacts.filter(c => c.isBlocked).map(c => c.contactUserId));
 
+    // Mark unread messages sent by others as DELIVERED if still SENT
+    await prisma.message.updateMany({
+      where: {
+        conversation: {
+          members: { some: { userId } },
+        },
+        senderId: { not: userId },
+        status: 'SENT',
+      },
+      data: {
+        status: 'DELIVERED',
+      },
+    });
+
+    // Query unread message counts for each conversation
+    const unreadGroup = await prisma.message.groupBy({
+      by: ['conversationId'],
+      where: {
+        conversation: {
+          members: { some: { userId } },
+        },
+        senderId: { not: userId },
+        status: { not: 'READ' },
+      },
+      _count: {
+        id: true,
+      },
+    });
+    const unreadMap = new Map<string, number>(unreadGroup.map((u: any) => [u.conversationId, u._count.id]));
+
     const result = conversations.map(c => {
       const selfMember = c.members.find(m => m.userId === userId);
       const otherMember = c.members.find(m => m.userId !== userId);
@@ -61,6 +91,7 @@ conversationsRouter.get('/', async (req: AuthenticatedRequest, res: Response): P
         avatarUrl: c.avatarUrl,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
+        unreadCount: unreadMap.get(c.id) || 0,
         isExcludedFromAi: c.isExcludedFromAi || selfMember?.isExcluded || false,
         isBlocked,
         lastMessage: c.messages[0] || null,

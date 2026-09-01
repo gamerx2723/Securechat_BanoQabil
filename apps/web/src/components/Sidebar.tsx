@@ -42,9 +42,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
+  // 1. Search Filter
   const filtered = conversations.filter(c => 
     c.title.toLowerCase().includes(search.toLowerCase())
   );
+
+  // 2. Sort newest conversations to the very top based on last message timestamp
+  const sorted = [...filtered].sort((a, b) => {
+    const timeA = a.lastMessageTimestamp ? new Date(a.lastMessageTimestamp).getTime() : 0;
+    const timeB = b.lastMessageTimestamp ? new Date(b.lastMessageTimestamp).getTime() : 0;
+    return timeB - timeA;
+  });
+
+  // Calculate total unread messages across all conversations
+  const totalUnreadCount = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
 
   const getSecurityIcon = (state: SecurityIndicatorColor) => {
     switch (state) {
@@ -87,10 +98,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleSelectAll = () => {
-    if (selectedIds.length === filtered.length) {
+    if (selectedIds.length === sorted.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(filtered.map(c => c.id));
+      setSelectedIds(sorted.map(c => c.id));
     }
   };
 
@@ -424,7 +435,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
             gap: '4px'
           }}
         >
-          <MessageSquare size={13} /> Chats
+          <MessageSquare size={13} />
+          <span>Chats</span>
+          {totalUnreadCount > 0 && (
+            <span style={{
+              background: 'linear-gradient(135deg, #10b981, #06b6d4)',
+              color: '#000',
+              fontSize: '9px',
+              fontWeight: 800,
+              padding: '1px 5px',
+              borderRadius: '8px',
+              boxShadow: '0 0 8px rgba(16, 185, 129, 0.5)',
+            }}>
+              {totalUnreadCount}
+            </span>
+          )}
         </button>
 
         <button
@@ -554,7 +579,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onClick={handleSelectAll}
                   style={{ background: 'transparent', border: 'none', color: 'var(--accent-cyan)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
                 >
-                  {selectedIds.length === filtered.length ? 'Deselect' : 'Select All'}
+                  {selectedIds.length === sorted.length ? 'Deselect' : 'Select All'}
                 </button>
                 {selectedIds.length > 0 && (
                   <button
@@ -569,7 +594,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     setIsSelecting(false);
                     setSelectedIds([]);
                   }}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '11px', cursor: 'display', display: 'flex', alignItems: 'center' }}
                 >
                   <X size={13} />
                 </button>
@@ -587,16 +612,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Conversation List */}
+      {/* Conversation List (Always sorted with newest chat on top) */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
-        {filtered.length === 0 ? (
+        {sorted.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--text-muted)', fontSize: '12px' }}>
             No conversations found. Click <strong>+ New</strong> to start a chat!
           </div>
         ) : (
-          filtered.map(c => {
+          sorted.map(c => {
             const isActive = c.id === activeId && activeTab === 'CHATS';
             const isChecked = selectedIds.includes(c.id);
+            const hasUnread = (c.unreadCount || 0) > 0;
+
             return (
               <div
                 key={c.id}
@@ -616,8 +643,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   borderRadius: '10px',
                   cursor: 'pointer',
                   marginBottom: '4px',
-                  background: isChecked ? 'rgba(6, 182, 212, 0.12)' : isActive ? 'rgba(16, 185, 129, 0.12)' : 'transparent',
-                  border: isChecked ? '1px solid rgba(6, 182, 212, 0.4)' : isActive ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid transparent',
+                  background: isChecked
+                    ? 'rgba(6, 182, 212, 0.12)'
+                    : isActive
+                    ? 'rgba(16, 185, 129, 0.12)'
+                    : hasUnread
+                    ? 'rgba(6, 182, 212, 0.06)'
+                    : 'transparent',
+                  border: isChecked
+                    ? '1px solid rgba(6, 182, 212, 0.4)'
+                    : isActive
+                    ? '1px solid rgba(16, 185, 129, 0.3)'
+                    : hasUnread
+                    ? '1px solid rgba(6, 182, 212, 0.2)'
+                    : '1px solid transparent',
                   transition: 'all 0.15s ease',
                 }}
               >
@@ -643,7 +682,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <img
                     src={c.avatar}
                     alt={c.title}
-                    style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: hasUnread ? '2px solid var(--accent-cyan)' : 'none',
+                    }}
                   />
                   <div style={{ position: 'absolute', bottom: '-2px', right: '-2px', background: 'var(--bg-secondary)', borderRadius: '50%', padding: '2px' }}>
                     {getSecurityIcon(c.securityState)}
@@ -652,21 +697,52 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                    <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{
+                      fontWeight: hasUnread ? 800 : 600,
+                      fontSize: '13px',
+                      color: hasUnread ? 'var(--accent-cyan)' : 'var(--text-primary)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}>
                       {c.title}
                     </span>
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: '10px', color: hasUnread ? 'var(--accent-cyan)' : 'var(--text-muted)', fontWeight: hasUnread ? 700 : 400 }}>
                       {c.lastMessageTime}
                     </span>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <p style={{ fontSize: '11px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+                    <p style={{
+                      fontSize: '11px',
+                      color: hasUnread ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      fontWeight: hasUnread ? 600 : 400,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      margin: 0,
+                    }}>
                       {c.lastMessageText}
                     </p>
-                    {c.unreadCount > 0 && (
-                      <span style={{ background: 'var(--green-safe)', color: '#000', fontSize: '9px', fontWeight: 800, padding: '2px 5px', borderRadius: '8px' }}>
-                        {c.unreadCount}
+                    {/* Glowing Notification Bubble with New Message Count */}
+                    {hasUnread && (
+                      <span style={{
+                        background: 'linear-gradient(135deg, #10b981, #06b6d4)',
+                        color: '#000',
+                        fontSize: '10px',
+                        fontWeight: 900,
+                        padding: '2px 7px',
+                        borderRadius: '12px',
+                        boxShadow: '0 0 10px rgba(6, 182, 212, 0.6)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minWidth: '18px',
+                        height: '18px',
+                        flexShrink: 0,
+                        marginLeft: '6px',
+                      }}>
+                        {c.unreadCount > 99 ? '99+' : c.unreadCount}
                       </span>
                     )}
                   </div>

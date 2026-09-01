@@ -13,6 +13,7 @@ import { AdminConsole } from './components/AdminConsole';
 import { ProfileModal } from './components/ProfileModal';
 import { ProfileOnboardingModal } from './components/ProfileOnboardingModal';
 import { ApiClient } from './api/client';
+import { playNotificationChime, requestNotificationPermission, triggerSystemNotification } from './utils/notifications';
 import { ArrowLeft, Shield, MessageSquare, Activity, Crown, Lock, Plus, Sparkles, ShieldCheck } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -33,6 +34,7 @@ export const App: React.FC = () => {
   const activeConvIdRef = useRef<string>(activeConvId);
   activeConvIdRef.current = activeConvId;
   const isSyncingRef = useRef<boolean>(false);
+  const prevTotalUnreadRef = useRef<number>(0);
 
   // Load conversations (DO NOT auto-select the first chat on login)
   const loadConversations = useCallback(async () => {
@@ -40,6 +42,8 @@ export const App: React.FC = () => {
     try {
       const convs = await ApiClient.getConversations();
       setConversations(convs);
+      const totalUnread = convs.reduce((s, c) => s + (c.unreadCount || 0), 0);
+      prevTotalUnreadRef.current = totalUnread;
     } catch (e) {
       console.error('Failed to load conversations:', e);
     }
@@ -59,10 +63,11 @@ export const App: React.FC = () => {
     }
   }, [currentUser]);
 
-  // Initial load on authentication
+  // Initial load on authentication & request notification permissions
   useEffect(() => {
     if (currentUser) {
       loadConversations();
+      requestNotificationPermission();
     }
   }, [currentUser, loadConversations]);
 
@@ -93,7 +98,15 @@ export const App: React.FC = () => {
             return prev;
           });
         }
+
         const latestConvs = await ApiClient.getConversations();
+        const newTotalUnread = latestConvs.reduce((s, c) => s + (c.unreadCount || 0), 0);
+
+        // Chime if new unread messages arrived in background
+        if (newTotalUnread > prevTotalUnreadRef.current && prevTotalUnreadRef.current >= 0) {
+          playNotificationChime();
+        }
+        prevTotalUnreadRef.current = newTotalUnread;
         setConversations(latestConvs);
       } catch {
         // Network resilience
@@ -105,7 +118,7 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [currentUser]);
 
-  // Real-time Single WebSocket Connection (No reconnect loops)
+  // Real-time Single WebSocket Connection with Audio & Native Notifications
   useEffect(() => {
     if (!currentUser) return;
 
@@ -123,6 +136,12 @@ export const App: React.FC = () => {
           const payload = JSON.parse(event.data);
           if (payload.event === 'message:receive') {
             const raw = payload.data;
+            // Incoming message from another user -> Play chime and trigger notification
+            if (raw.senderId !== currentUser.id) {
+              playNotificationChime();
+              triggerSystemNotification(raw.senderName || 'Encrypted Message', raw.plaintext?.slice(0, 80) || 'New message received');
+            }
+
             if (raw.conversationId === activeConvIdRef.current) {
               loadActiveMessages(activeConvIdRef.current);
             }
@@ -173,7 +192,7 @@ export const App: React.FC = () => {
       [activeConvId]: [...(prev[activeConvId] || []), optimisticMsg],
     }));
 
-    // Immediately update sidebar preview
+    // Immediately update sidebar preview and bring to top
     setConversations((prev) =>
       prev.map((c) =>
         c.id === activeConvId
@@ -181,6 +200,7 @@ export const App: React.FC = () => {
               ...c,
               lastMessageText: text,
               lastMessageTime: currentTimeStr,
+              lastMessageTimestamp: new Date().toISOString(),
               securityState: optimisticMsg.securityAnalysis.indicatorColor,
             }
           : c
@@ -389,6 +409,8 @@ export const App: React.FC = () => {
         onSelect={(id) => {
           setActiveConvId(id);
           setActiveTab('CHATS');
+          // Optimistically clear unread count for opened conversation
+          setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)));
           loadActiveMessages(id);
         }}
         activeTab={activeTab}

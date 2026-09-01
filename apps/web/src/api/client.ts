@@ -222,11 +222,12 @@ export class ApiClient {
               title: title || 'Secure Contact',
               type: c.type,
               avatar,
-              unreadCount: 0,
+              unreadCount: c.unreadCount || 0,
               isExcluded: c.isExcludedFromAi || false,
               isBlocked: c.isBlocked || false,
               lastMessageText: text || 'No messages yet',
               lastMessageTime: c.lastMessage ? new Date(c.lastMessage.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+              lastMessageTimestamp: c.lastMessage?.sentAt || c.updatedAt || c.createdAt || '',
               securityState: secState,
             };
           });
