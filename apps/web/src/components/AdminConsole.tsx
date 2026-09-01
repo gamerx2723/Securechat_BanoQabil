@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Users, Database, AlertTriangle, UserPlus, Trash2, ShieldCheck, ShieldAlert, RefreshCw, Key, Lock, Activity, CheckCircle, Ban, Crown, ArrowRight, X } from 'lucide-react';
-import { ApiClient } from '../api/client';
+import { ApiClient, API_BASE } from '../api/client';
 
 export const AdminConsole: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'USERS' | 'CONVERSATIONS' | 'TELEMETRY'>('USERS');
@@ -17,8 +17,6 @@ export const AdminConsole: React.FC = () => {
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<'USER' | 'ADMIN'>('USER');
-
-  const API_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:4000/api/v1';
 
   const authHeaders = () => {
     const token = ApiClient.getToken();

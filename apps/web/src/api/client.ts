@@ -1,6 +1,13 @@
 import { SecurityAnalysis, ChatMessage, ConversationItem, UserProfile } from '../types';
 
-const API_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:4000/api/v1';
+export function getApiBase(): string {
+  const envUrl = (import.meta.env.VITE_API_URL as string) || '';
+  if (!envUrl) return 'http://localhost:4000/api/v1';
+  const clean = envUrl.replace(/\/+$/, '');
+  return clean.endsWith('/api/v1') ? clean : `${clean}/api/v1`;
+}
+
+export const API_BASE = getApiBase();
 
 function safeBase64Encode(str: string): string {
   try {

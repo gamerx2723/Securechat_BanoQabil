@@ -30,15 +30,30 @@ export function createServer() {
     res.json({ status: 'HEALTHY', timestamp: new Date().toISOString(), service: 'SecureChat Core API' });
   });
 
-  // REST Routers
+  // REST Routers (Support both /api/v1/* and root /* endpoints)
   app.use('/api/v1/auth', authRouter);
+  app.use('/auth', authRouter);
+
   app.use('/api/v1/devices', devicesRouter);
+  app.use('/devices', devicesRouter);
+
   app.use('/api/v1/keys', keysRouter);
+  app.use('/keys', keysRouter);
+
   app.use('/api/v1/conversations', conversationsRouter);
+  app.use('/conversations', conversationsRouter);
+
   app.use('/api/v1/messages', messagesRouter);
+  app.use('/messages', messagesRouter);
+
   app.use('/api/v1/security', securityRouter);
+  app.use('/security', securityRouter);
+
   app.use('/api/v1/ai', aiRouter);
+  app.use('/ai', aiRouter);
+
   app.use('/api/v1/admin', adminRouter);
+  app.use('/admin', adminRouter);
 
   // 404 Handler
   app.use((req, res) => {

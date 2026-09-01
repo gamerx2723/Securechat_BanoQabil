@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, ShieldCheck, ShieldAlert, Key, Server, RefreshCw, CheckCircle, Brain, Sparkles, PlusCircle, Check } from 'lucide-react';
-import { ApiClient } from '../api/client';
+import { ApiClient, API_BASE } from '../api/client';
 import { AdminThreatReviewQueue } from './AdminThreatReviewQueue';
 
 export const SecurityCenter: React.FC = () => {
@@ -11,8 +11,6 @@ export const SecurityCenter: React.FC = () => {
   const [teachLabel, setTeachLabel] = useState<'MALICIOUS' | 'BENIGN'>('MALICIOUS');
   const [teachFeedback, setTeachFeedback] = useState<string | null>(null);
   const [teaching, setTeaching] = useState(false);
-
-  const API_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:4000/api/v1';
 
   const loadData = async () => {
     setLoading(true);
