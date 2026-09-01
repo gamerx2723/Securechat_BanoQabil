@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Lock, User, Key, AlertCircle, Sparkles, Crown, ArrowRight, Phone, Check } from 'lucide-react';
+import { Shield, Lock, User, Key, AlertCircle, Sparkles, Phone } from 'lucide-react';
 import { ApiClient } from '../api/client';
 import { UserProfile } from '../types';
 
@@ -16,19 +16,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const handleQuickLogin = async (user: string, pass: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await ApiClient.login(user, pass);
-      onSuccess(res.user);
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,9 +72,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
         className="glass-modal fade-in"
         style={{
           width: '100%',
-          maxWidth: '460px',
+          maxWidth: '440px',
           borderRadius: '24px',
-          padding: '32px',
+          padding: '32px 28px',
           boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 50px rgba(6, 182, 212, 0.15)',
           border: '1px solid rgba(255, 255, 255, 0.12)',
           margin: 'auto',
@@ -196,7 +183,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
         <form onSubmit={handleSubmit}>
           {isLogin ? (
             <>
-              {/* Login Identifier (Phone / Username / Email) */}
+              {/* Login Identifier (Phone / Username) */}
               <div style={{ marginBottom: '14px' }}>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '6px' }}>
                   Phone Number or Username
@@ -214,12 +201,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                   />
                 </div>
                 <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                  Sign in using your registered mobile phone number or handle
+                  Sign in using your registered mobile phone number or username
                 </span>
               </div>
 
               {/* Password */}
-              <div style={{ marginBottom: '18px' }}>
+              <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: '6px' }}>
                   Password
                 </label>
@@ -308,107 +295,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             )}
           </button>
         </form>
-
-        {/* Quick Role Selection for Demos */}
-        {isLogin && (
-          <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
-            <div style={{ textAlign: 'center', fontSize: '10px', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '10px' }}>
-              Quick Demo Accounts
-            </div>
-
-            {/* SuperAdmin Master Access Button */}
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('admin', 'AdminPass2026!')}
-              style={{
-                width: '100%',
-                marginBottom: '8px',
-                padding: '10px 12px',
-                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(239, 68, 68, 0.15))',
-                border: '1px solid rgba(245, 158, 11, 0.35)',
-                borderRadius: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                textAlign: 'left',
-                boxShadow: '0 0 15px rgba(245, 158, 11, 0.15)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '6px',
-                    background: 'rgba(245, 158, 11, 0.25)',
-                    color: '#fbbf24',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Crown size={16} />
-                </div>
-                <div>
-                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#fef08a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    SuperAdmin Account
-                    <span style={{ fontSize: '8px', fontWeight: 800, padding: '1px 4px', borderRadius: '4px', background: '#f59e0b', color: '#000' }}>MASTER</span>
-                  </div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Admin dashboard, user management & models</div>
-                </div>
-              </div>
-              <ArrowRight size={14} color="#fbbf24" />
-            </button>
-
-            {/* Standard User Quick Select */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('alice', 'Password123!')}
-                style={{
-                  padding: '8px 10px',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>A</div>
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)' }}>Alice Vance</div>
-                  <div style={{ fontSize: '9px', color: 'var(--text-muted)' }}>User View</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('bob', 'Password123!')}
-                style={{
-                  padding: '8px 10px',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--green-safe)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>B</div>
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)' }}>Bob Martinez</div>
-                  <div style={{ fontSize: '9px', color: 'var(--text-muted)' }}>User View</div>
-                </div>
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
