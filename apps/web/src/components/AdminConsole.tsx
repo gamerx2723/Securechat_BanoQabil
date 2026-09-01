@@ -18,7 +18,7 @@ export const AdminConsole: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<'USER' | 'ADMIN'>('USER');
 
-  const API_BASE = 'http://localhost:4000/api/v1';
+  const API_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:4000/api/v1';
 
   const authHeaders = () => {
     const token = ApiClient.getToken();

@@ -87,7 +87,8 @@ export const App: React.FC = () => {
 
     const token = ApiClient.getToken();
     const device = ApiClient.getDevice();
-    const wsUrl = `ws://localhost:4000/ws/v1?token=${token}&deviceId=${device.deviceId}`;
+    const wsBase = (import.meta.env.VITE_WS_URL as string) || 'ws://localhost:4000';
+    const wsUrl = `${wsBase.replace(/\/$/, '')}/ws/v1?token=${token}&deviceId=${device.deviceId}`;
 
     try {
       const ws = new WebSocket(wsUrl);

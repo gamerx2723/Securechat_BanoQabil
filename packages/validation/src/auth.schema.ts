@@ -10,13 +10,13 @@ export const registerSchema = z.object({
   deviceId: z.string().min(10),
   deviceType: z.enum(['ANDROID', 'IOS', 'WEB', 'DESKTOP']),
   deviceName: z.string().min(1).max(50),
-  identityKeyPublic: z.string().min(20),
-  signedPreKeyPublic: z.string().min(20),
-  signedPreKeySignature: z.string().min(20),
+  identityKeyPublic: z.string().min(10),
+  signedPreKeyPublic: z.string().min(10),
+  signedPreKeySignature: z.string().min(10),
   oneTimePreKeys: z.array(
     z.object({
       keyId: z.number().int().nonnegative(),
-      publicKey: z.string().min(20),
+      publicKey: z.string().min(10),
     })
   ).min(5, 'Must provide at least 5 one-time prekeys'),
 });

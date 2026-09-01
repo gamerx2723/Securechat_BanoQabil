@@ -1,6 +1,6 @@
 import { SecurityAnalysis, ChatMessage, ConversationItem, UserProfile } from '../types';
 
-const API_BASE = 'http://localhost:4000/api/v1';
+const API_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:4000/api/v1';
 
 function safeBase64Encode(str: string): string {
   try {
@@ -22,7 +22,7 @@ export class ApiClient {
         return JSON.parse(saved);
       } catch {}
     }
-    const newId = 'WEB_DEV_' + Math.random().toString(36).substring(2, 9).toUpperCase();
+    const newId = 'WEB_DEV_' + Math.random().toString(36).substring(2, 12).toUpperCase() + '_' + Date.now();
     const devObj = { deviceId: newId };
     localStorage.setItem('securechat_device', JSON.stringify(devObj));
     return devObj;
@@ -90,13 +90,13 @@ export class ApiClient {
   }): Promise<{ user: UserProfile; token: string }> {
     const device = this.getDevice();
     
-    // Generate cryptographic keys
+    // Generate cryptographic keys with valid length
     const identityKeyPublic = 'IK_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    const signedPreKeyPublic = 'SPK_' + Math.random().toString(36).substring(2, 15);
-    const signedPreKeySignature = 'SIG_' + Math.random().toString(36).substring(2, 15);
+    const signedPreKeyPublic = 'SPK_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const signedPreKeySignature = 'SIG_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     const oneTimePreKeys = Array.from({ length: 5 }, (_, i) => ({
       keyId: i + 1,
-      publicKey: 'OPK_' + (i + 1) + '_' + Math.random().toString(36).substring(2, 10),
+      publicKey: 'OPK_' + (i + 1) + '_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
     }));
 
     const res = await fetch(`${API_BASE}/auth/register`, {
