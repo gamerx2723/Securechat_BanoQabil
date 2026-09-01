@@ -131,18 +131,16 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       const analysis = await ApiClient.analyzePreSend(inputText);
       setIsEvaluating(false);
 
-      // OpSec principle: Only warn the sender if they are leaking THEIR OWN secrets / credentials / PII (DLP)
-      const isSensitiveDlp = analysis.primaryThreat === 'DLP_SECRET_EXPOSURE' ||
-        analysis.evidenceList.some(e =>
-          e.category === 'DLP_SECRET_EXPOSURE' ||
-          /password|cnic|bank|card|secret|passcode|token|key|credential|iban|pii/i.test(e.description)
-        );
+      // OpSec principle: Only warn the sender if they are leaking THEIR OWN secrets / credentials / personal data (DLP)
+      const isSensitiveDlp =
+        analysis.primaryThreat === 'DLP_SECRET_EXPOSURE' ||
+        analysis.evidenceList.some((e) => e.category === 'DLP_SECRET_EXPOSURE');
 
       if (isSensitiveDlp && analysis.riskScore >= 25) {
-        const topEv = analysis.evidenceList.find(e => /password|cnic|bank|card|secret|passcode|token|key|credential|iban|pii/i.test(e.description)) || analysis.evidenceList[0];
+        const topEv = analysis.evidenceList.find((e) => e.category === 'DLP_SECRET_EXPOSURE') || analysis.evidenceList[0];
         setThreatWarning({
           title: 'Data Loss Prevention Alert: ',
-          desc: topEv?.description || analysis.explanation,
+          desc: topEv?.description || 'You are about to transmit sensitive credentials or private personal data.',
           color: analysis.indicatorColor === 'RED' ? 'RED' : 'ORANGE',
         });
       } else {
@@ -160,11 +158,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     const analysis = await ApiClient.analyzePreSend(inputText);
 
     // If sensitive credentials, passwords, or personal data (DLP) detected, intercept and warn the sender!
-    const isSensitiveDlp = analysis.primaryThreat === 'DLP_SECRET_EXPOSURE' ||
-      analysis.evidenceList.some(e =>
-        e.category === 'DLP_SECRET_EXPOSURE' ||
-        /password|cnic|bank|card|secret|passcode|token|key|credential|iban|pii/i.test(e.description)
-      );
+    const isSensitiveDlp =
+      analysis.primaryThreat === 'DLP_SECRET_EXPOSURE' ||
+      analysis.evidenceList.some((e) => e.category === 'DLP_SECRET_EXPOSURE');
 
     if (isSensitiveDlp && analysis.riskScore >= 25) {
       setDlpModalState({
