@@ -382,7 +382,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {activeTab === 'SECOPS' && (
+        {activeTab === 'SECOPS' && currentUser.role === 'ADMIN' && (
           <SecurityCenter />
         )}
 

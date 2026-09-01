@@ -167,29 +167,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
             gap: '4px'
           }}
         >
-          <Shield size={13} /> AI
+          <Shield size={13} /> AI Guardian
         </button>
 
-        <button
-          onClick={() => onTabChange('SECOPS')}
-          style={{
-            flex: 1,
-            padding: '7px 0',
-            border: 'none',
-            borderRadius: '6px',
-            background: activeTab === 'SECOPS' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-            color: activeTab === 'SECOPS' ? '#60a5fa' : 'var(--text-muted)',
-            fontWeight: 600,
-            fontSize: '12px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '4px'
-          }}
-        >
-          <Activity size={13} /> SecOps
-        </button>
+        {/* Admin-Only SecOps & SuperAdmin Tabs */}
+        {isAdmin && (
+          <button
+            onClick={() => onTabChange('SECOPS')}
+            style={{
+              flex: 1,
+              padding: '7px 0',
+              border: 'none',
+              borderRadius: '6px',
+              background: activeTab === 'SECOPS' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+              color: activeTab === 'SECOPS' ? '#60a5fa' : 'var(--text-muted)',
+              fontWeight: 600,
+              fontSize: '12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px'
+            }}
+          >
+            <Activity size={13} /> SecOps
+          </button>
+        )}
 
         {/* Dynamic SuperAdmin Tab */}
         {isAdmin && (
