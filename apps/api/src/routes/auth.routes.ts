@@ -1,6 +1,15 @@
 import { Router, Response } from 'express';
 import { prisma } from '@securechat/database';
-import { registerSchema, loginSchema, refreshSchema } from '@securechat/validation';
+import {
+  registerSchema,
+  loginSchema,
+  refreshSchema,
+  normalizePhoneNumber,
+  normalizeUsername,
+  normalizeEmail,
+  normalizeDisplayName,
+  sanitizeText,
+} from '@securechat/validation';
 import { JwtService, AuthenticatedRequest, authMiddleware } from '../auth/jwt.service.js';
 import * as crypto from 'node:crypto';
 
@@ -19,12 +28,11 @@ authRouter.post('/register', async (req, res): Promise<void> => {
     }
 
     const {
-      username,
-      email,
       phone,
+      email,
+      username,
       password,
       displayName,
-      deviceId,
       deviceType = 'WEB',
       deviceName = 'SecureChat Web Client',
       identityKeyPublic,
@@ -33,26 +41,34 @@ authRouter.post('/register', async (req, res): Promise<void> => {
       oneTimePreKeys = [],
     } = parseResult.data;
 
-    const rawPhone = phone?.trim() || '';
-    const cleanDigits = rawPhone.replace(/[^0-9]/g, '');
-    const finalUsername = String(username || (cleanDigits ? `user_${cleanDigits}` : `user_${Date.now()}`));
-    const finalDisplayName = String(displayName || (cleanDigits ? `User +${cleanDigits.slice(-4)}` : finalUsername));
+    // Guaranteed canonical normalization across all inputs
+    const normalizedPhone = normalizePhoneNumber(phone);
+    const cleanDigits = normalizedPhone.replace(/\D/g, '');
+    const normalizedEmail = email ? normalizeEmail(email) : null;
+    const normalizedUsername = normalizeUsername(
+      username || (cleanDigits ? `user_${cleanDigits}` : `user_${Date.now()}`)
+    );
+    const normalizedDisplayName = normalizeDisplayName(
+      displayName || (cleanDigits ? `User +${cleanDigits.slice(-4)}` : normalizedUsername)
+    );
     const finalPassword = String(password);
 
-    // Check unique constraints
+    // Prevent duplicate registrations across any format of phone number, username, or email
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
-          { username: { equals: finalUsername, mode: 'insensitive' as const } },
-          ...(email ? [{ email: { equals: email.trim(), mode: 'insensitive' as const } }] : []),
-          ...(rawPhone ? [{ phone: rawPhone }] : []),
+          { phone: normalizedPhone },
           ...(cleanDigits.length >= 7 ? [{ phone: { contains: cleanDigits } }] : []),
+          { username: { equals: normalizedUsername, mode: 'insensitive' as const } },
+          ...(normalizedEmail ? [{ email: { equals: normalizedEmail, mode: 'insensitive' as const } }] : []),
         ],
       },
     });
 
     if (existingUser) {
-      res.status(409).json({ error: 'Username, email, or phone number already in use. Please sign in.' });
+      res.status(409).json({
+        error: 'This phone number or username is already registered. Please sign in.',
+      });
       return;
     }
 
@@ -63,12 +79,12 @@ authRouter.post('/register', async (req, res): Promise<void> => {
     const { user, createdDevice, accessToken, refreshToken } = await prisma.$transaction(async (tx: any) => {
       const newUser = await tx.user.create({
         data: {
-          username: finalUsername,
-          email: email || undefined,
-          phone: rawPhone || undefined,
-          displayName: finalDisplayName,
+          username: normalizedUsername,
+          email: normalizedEmail || undefined,
+          phone: normalizedPhone,
+          displayName: normalizedDisplayName,
           passwordHash: hashPassword(finalPassword),
-          role: finalUsername.toLowerCase().includes('admin') ? 'ADMIN' : 'USER',
+          role: normalizedUsername.includes('admin') ? 'ADMIN' : 'USER',
           status: 'ACTIVE',
           userPreference: {
             create: {
@@ -79,7 +95,7 @@ authRouter.post('/register', async (req, res): Promise<void> => {
             create: {
               deviceId: uniqueDeviceId,
               deviceType,
-              deviceName,
+              deviceName: sanitizeText(deviceName) || 'SecureChat Web Client',
               publicKey: identityKeyPublic || `pub-${uniqueDeviceId}`,
               identityKeys: {
                 create: {
@@ -164,21 +180,23 @@ authRouter.post('/login', async (req, res): Promise<void> => {
       return;
     }
 
-    const { identifier, password, deviceId, deviceType, deviceName } = parseResult.data;
+    const { identifier, password, deviceType, deviceName } = parseResult.data;
     const trimmedId = identifier.trim();
+    const normalizedPhone = normalizePhoneNumber(trimmedId);
     const cleanDigits = trimmedId.replace(/[^0-9]/g, '');
 
-    // Search user by username, email, phone, or phone-based username (e.g. user_03037701455)
+    // Search user by normalized phone, username, email, or raw phone
     const user = await prisma.user.findFirst({
       where: {
         OR: [
+          ...(normalizedPhone ? [{ phone: normalizedPhone }] : []),
+          { phone: trimmedId },
           { username: { equals: trimmedId, mode: 'insensitive' as const } },
           { email: { equals: trimmedId, mode: 'insensitive' as const } },
-          { phone: trimmedId },
           ...(cleanDigits.length >= 6 ? [
             { phone: { contains: cleanDigits } },
             { username: { contains: cleanDigits } },
-            { username: `user_${cleanDigits}` }
+            { username: `user_${cleanDigits}` },
           ] : []),
         ],
       },
@@ -188,7 +206,7 @@ authRouter.post('/login', async (req, res): Promise<void> => {
     });
 
     if (!user) {
-      res.status(401).json({ error: 'Invalid username, phone number, or password' });
+      res.status(401).json({ error: 'Account not found. Please check your username or phone number.' });
       return;
     }
 
@@ -201,7 +219,7 @@ authRouter.post('/login', async (req, res): Promise<void> => {
       (user.username.toLowerCase() === 'bob' && (password === 'Password123!' || password === 'bob123'));
 
     if (!isPasswordValid) {
-      res.status(401).json({ error: 'Invalid identifier or password' });
+      res.status(401).json({ error: 'Invalid password' });
       return;
     }
 
@@ -214,7 +232,7 @@ authRouter.post('/login', async (req, res): Promise<void> => {
     }
 
     // Find or register device
-    let device = user.devices.find((d: any) => d.deviceId === deviceId);
+    let device = user.devices?.[0];
     if (!device) {
       const uniqueDeviceId = `DEV_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
       device = await prisma.device.create({
@@ -222,7 +240,7 @@ authRouter.post('/login', async (req, res): Promise<void> => {
           userId: user.id,
           deviceId: uniqueDeviceId,
           deviceType: deviceType || 'WEB',
-          deviceName: deviceName || 'SecureChat Web Client',
+          deviceName: sanitizeText(deviceName) || 'SecureChat Web Client',
           publicKey: 'PUBKEY_' + uniqueDeviceId,
         },
       });
@@ -379,13 +397,17 @@ authRouter.patch('/profile', authMiddleware, async (req: AuthenticatedRequest, r
     const userId = req.user!.userId;
     const { displayName, avatarUrl, phone, status } = req.body;
 
+    const normalizedPhone = phone ? normalizePhoneNumber(phone) : undefined;
+    const sanitizedDisplayName = displayName ? normalizeDisplayName(displayName) : undefined;
+    const sanitizedStatus = status ? sanitizeText(status) : undefined;
+
     const updated = await prisma.user.update({
       where: { id: userId },
       data: {
-        displayName: displayName || undefined,
-        avatarUrl: avatarUrl || undefined,
-        phone: phone || undefined,
-        status: status || undefined,
+        displayName: sanitizedDisplayName || undefined,
+        avatarUrl: avatarUrl ? sanitizeText(avatarUrl) : undefined,
+        phone: normalizedPhone || undefined,
+        status: sanitizedStatus || undefined,
       },
       select: {
         id: true,

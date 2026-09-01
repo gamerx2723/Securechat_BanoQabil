@@ -1,9 +1,14 @@
 import { z } from 'zod';
+import { sanitizeText } from './sanitizer.js';
 
 export const createConversationSchema = z.object({
   type: z.enum(['DIRECT', 'GROUP']),
-  title: z.string().max(100).optional(),
-  participantUserIds: z.array(z.string()).min(1),
+  title: z
+    .string()
+    .max(100)
+    .transform((val) => sanitizeText(val))
+    .optional(),
+  participantUserIds: z.array(z.string().min(1)).min(1),
 });
 
 export const sendMessageSchema = z.object({
@@ -16,5 +21,5 @@ export const sendMessageSchema = z.object({
 
 export const messageReactionSchema = z.object({
   messageId: z.string().min(1),
-  emoji: z.string().min(1).max(8),
+  emoji: z.string().min(1).max(8).transform((val) => sanitizeText(val)),
 });
