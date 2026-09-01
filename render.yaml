@@ -32,7 +32,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: false
+        value: postgresql://neondb_owner:npg_5ts1CrEKRASh@ep-wandering-breeze-ae8wdpd3-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require
       - key: REDIS_URL
         sync: false
       - key: AI_SERVICE_URL

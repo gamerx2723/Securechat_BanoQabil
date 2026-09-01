@@ -8,6 +8,6 @@ export const config = {
   jwtAccessExpiry: '15m',
   jwtRefreshExpiryDays: 7,
   aiServiceUrl: process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000',
-  databaseUrl: process.env.DATABASE_URL || 'file:../../packages/database/prisma/dev.db',
-  corsOrigins: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+  databaseUrl: process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_5ts1CrEKRASh@ep-wandering-breeze-ae8wdpd3-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require',
+  corsOrigins: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['*'],
 };
