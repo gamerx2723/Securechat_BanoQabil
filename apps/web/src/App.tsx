@@ -117,6 +117,29 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [currentUser]);
 
+  // Mobile Software Keyboard Viewport Geometry Management
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const handleResize = () => {
+      if (window.visualViewport) {
+        document.documentElement.style.setProperty(
+          '--app-height',
+          `${window.visualViewport.height}px`
+        );
+      }
+    };
+
+    window.visualViewport.addEventListener('resize', handleResize);
+    window.visualViewport.addEventListener('scroll', handleResize);
+    handleResize();
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('scroll', handleResize);
+    };
+  }, []);
+
   // Real-time Single WebSocket Connection with Audio & Native Notifications
   useEffect(() => {
     if (!currentUser) return;
@@ -529,8 +552,13 @@ export const App: React.FC = () => {
         {/* 2. AI GUARDIAN TAB */}
         {activeTab === 'GUARDIAN' && (
           <GuardianPanel
-            conversation={currentConv}
-            messages={currentMessages}
+            conversations={conversations}
+            messagesMap={messagesMap}
+            activeConvId={activeConvId}
+            onSelectConversation={(id) => {
+              setActiveConvId(id);
+              loadActiveMessages(id);
+            }}
           />
         )}
 

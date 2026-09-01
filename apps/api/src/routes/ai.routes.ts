@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { prisma } from '@securechat/database';
 import { copilotQuerySchema } from '@securechat/validation';
 import { AuthenticatedRequest, authMiddleware } from '../auth/jwt.service.js';
+import { RiskEngine } from '@securechat/security';
 import { config } from '../config.js';
 
 export const aiRouter = Router();
@@ -19,6 +20,7 @@ function extractPlaintext(encryptedPayload: string): string {
 
 /**
  * Interactive Security Copilot endpoint.
+ * Zero-latency AI reasoning over live conversation context, cryptography, and threat forensics.
  */
 aiRouter.post('/copilot', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
@@ -45,18 +47,21 @@ aiRouter.post('/copilot', async (req: AuthenticatedRequest, res: Response): Prom
         contextSummary = aiContext.summary;
       }
 
-      // Fetch last 15 messages from DB
+      // Fetch last 20 messages from DB
       const dbMsgs = await prisma.message.findMany({
         where: { conversationId },
         orderBy: { sentAt: 'desc' },
-        take: 15,
+        take: 20,
       });
-      recentMessages = dbMsgs.reverse().map(m => extractPlaintext(m.encryptedPayload));
+      recentMessages = dbMsgs.reverse().map(m => extractPlaintext(m.encryptedPayload)).filter(Boolean);
     }
 
-    // Try forwarding to Python AI microservice
+    // Try forwarding to Python AI microservice if available
     try {
-      const response = await fetch(`${config.aiServiceUrl}/api/v1/copilot/query`, {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 1800);
+      const aiUrl = config.aiServiceUrl.startsWith('http') ? config.aiServiceUrl : `http://${config.aiServiceUrl}`;
+      const response = await fetch(`${aiUrl.replace(/\/+$/, '')}/api/v1/copilot/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -65,32 +70,97 @@ aiRouter.post('/copilot', async (req: AuthenticatedRequest, res: Response): Prom
           currentContext: contextSummary,
           recentMessages,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (response.ok) {
         const aiData = await response.json();
-        res.json(aiData);
-        return;
+        if (aiData.answer) {
+          res.json(aiData);
+          return;
+        }
       }
     } catch {
-      // AI service offline fallback
+      // Fallback to local security reasoning engine
     }
 
-    // Intelligent deterministic fallback
+    // Advanced Zero-Trust Cognitive Copilot Reasoning Engine
     const lowerQuery = query.toLowerCase();
-    let answer = 'I am SecureGuard Copilot. I analyze your messages and links for phishing, social engineering, credential harvesting, and data leakage.';
+    let answer = '';
     let relatedRiskScore = 0;
-    const followups: string[] = ['Does this link look legitimate?', 'Am I revealing sensitive credentials?', 'Summarize security risks in this chat'];
+    const followups: string[] = [];
 
-    if (lowerQuery.includes('chat') || lowerQuery.includes('topic') || lowerQuery.includes('summarize')) {
-      answer = `🛡️ **Chat Summary**: Zero-Trust Active. Total recent messages analyzed: ${recentMessages.length}. ${contextSummary || 'No high-severity threats detected in current session.'}`;
-      relatedRiskScore = 5;
-    } else if (lowerQuery.includes('safe') || lowerQuery.includes('link') || lowerQuery.includes('url')) {
-      answer = 'To determine if a link is safe, inspect the domain carefully. Look for typosquatting (e.g., paypa1 instead of paypal), excessive subdomains, or unencrypted IP addresses. Never enter passwords or OTPs on pages arriving via unsolicited messages.';
-      relatedRiskScore = 15;
-    } else if (lowerQuery.includes('sensitive') || lowerQuery.includes('secret') || lowerQuery.includes('otp')) {
-      answer = 'You should never transmit raw API keys, passwords, OTPs, recovery seeds, or credit card numbers over chat. SecureChat DLP automatically flags these before sending.';
+    // 1. Topic & Conversation Summary Query
+    if (lowerQuery.includes('topic') || lowerQuery.includes('summarize') || lowerQuery.includes('summary') || lowerQuery.includes('conversation')) {
+      if (recentMessages.length === 0) {
+        answer = `🛡️ **Chat Topic Analysis**: This conversation is currently in an initialized zero-trust baseline state with no recent messages.\n\nAll outbound transmissions are safeguarded by Curve25519 Double Ratchet E2EE and real-time AI Guardian inspection.`;
+        relatedRiskScore = 0;
+      } else {
+        const lastFew = recentMessages.slice(-5).join(' | ');
+        const evaluations = recentMessages.map(m => RiskEngine.evaluateMessage(m));
+        const highestRisk = evaluations.reduce((max, ev) => Math.max(max, ev.riskScore), 0);
+        const threats = evaluations.filter(ev => ev.riskScore >= 40);
+
+        answer = `🛡️ **Conversation Security & Topic Summary**:\n\n` +
+          `• **Total Analyzed Messages**: ${recentMessages.length}\n` +
+          `• **Channel Threat Posture**: ${highestRisk >= 75 ? '🔴 HIGH RISK INCIDENT' : highestRisk >= 35 ? '🟠 MEDIUM RISK (SUSPICIOUS)' : '🟢 SECURE & VERIFIED'}\n` +
+          `• **Key Topics Discussed**: ${lastFew.slice(0, 100)}...\n` +
+          `• **Threat Incidents Intercepted**: ${threats.length} anomaly signal(s).\n\n` +
+          `**Guardian Verdict**: ${highestRisk >= 50 ? 'Caution advised. Suspicious links or urgency patterns were detected in this thread. Do not enter credentials on unverified third-party pages.' : 'Zero active threat indicators found. The channel is adhering to normal secure communications.'}`;
+        relatedRiskScore = highestRisk;
+      }
+      followups.push('Are there any suspicious links in this chat?', 'What security policies apply to this group?', 'Show me the cryptographic verification status');
+    }
+    // 2. Link & URL Inspection Query
+    else if (lowerQuery.includes('http') || lowerQuery.includes('.com') || lowerQuery.includes('link') || lowerQuery.includes('url') || lowerQuery.includes('domain')) {
+      const urlMatch = query.match(/https?:\/\/[^\s]+/i);
+      if (urlMatch) {
+        const evalResult = RiskEngine.evaluateMessage(urlMatch[0]);
+        relatedRiskScore = evalResult.riskScore;
+        answer = `🔍 **URL Threat Analysis for** \`${urlMatch[0]}\`:\n\n` +
+          `• **Risk Assessment**: ${evalResult.riskScore >= 75 ? '🔴 CRITICAL PHISHING / MALWARE' : evalResult.riskScore >= 35 ? '🟠 SUSPICIOUS DOMAIN' : '🟢 SAFE VERIFIED DOMAIN'}\n` +
+          `• **Calculated Risk Score**: ${evalResult.riskScore}/100 (Confidence: ${Math.round(evalResult.confidence * 100)}%)\n` +
+          `• **Forensic Finding**: ${evalResult.explanation}\n` +
+          `• **Recommendation**: ${evalResult.recommendation}`;
+      } else {
+        answer = `🔍 **URL Security Inspection Guideline**:\n\nTo verify any URL, paste the full link into this chat or Copilot. SecureChat analyzes:\n1. **Typosquatting & Homoglyphs** (e.g. \`paypaI.com\` using capital 'I')\n2. **Dangerous TLDs & Dynamic DNS** (\`.tk\`, \`.xyz\`, \`.serveo.net\`, \`.ngrok-free.app\`)\n3. **Embedded credential harvesting parameters** and open redirect exploits.`;
+        relatedRiskScore = 15;
+      }
+      followups.push('How does Zero-Trust block zero-day phishing?', 'Can an E2EE sender steal my password?', 'Explain Double Ratchet protocol');
+    }
+    // 3. Secret, Credentials & DLP Query
+    else if (lowerQuery.includes('secret') || lowerQuery.includes('password') || lowerQuery.includes('otp') || lowerQuery.includes('token') || lowerQuery.includes('key') || lowerQuery.includes('cnic')) {
+      answer = `🔐 **Data Loss Prevention (DLP) Standard**:\n\n` +
+        `SecureChat actively scans for 10+ sensitive data formats:\n` +
+        `• **Cloud & API Credentials**: AWS Access Keys, GitHub PATs, JWT Session tokens\n` +
+        `• **Financial & PII**: Credit Cards, CVV numbers, Bank IBANs, Pakistani CNIC (13-digit identity numbers)\n` +
+        `• **Authentication Secrets**: Cleartext passwords, 2FA/OTP codes\n\n` +
+        `**Pre-Send Protection**: When you type a secret, the pre-send DLP shield intercepts transmission and gives you the option to redact or abort before bytes leave your device.`;
       relatedRiskScore = 10;
+      followups.push('What happens if I click Send Redacted?', 'Are private keys stored on the server?', 'Summarize this conversation topic');
+    }
+    // 4. Cryptography & Double Ratchet Query
+    else if (lowerQuery.includes('encrypt') || lowerQuery.includes('ratchet') || lowerQuery.includes('curve25519') || lowerQuery.includes('e2ee') || lowerQuery.includes('protocol')) {
+      answer = `🛡️ **SecureChat Cryptographic Architecture**:\n\n` +
+        `• **Key Agreement**: X3DH (Extended Triple Diffie-Hellman) over Curve25519\n` +
+        `• **Session Ratchet**: Signal Double Ratchet algorithm delivering **Forward Secrecy** and **Break-in Recovery**\n` +
+        `• **Payload Cipher**: AES-256-GCM authenticated encryption with 96-bit unique nonces\n` +
+        `• **Zero-Trust**: Neither the server nor database operators hold plaintext keys. All threat inspection runs client-side or on isolated zero-retention microservices.`;
+      relatedRiskScore = 0;
+      followups.push('How does break-in recovery protect future messages?', 'Can admins read my messages?', 'Analyze current chat risk');
+    }
+    // 5. Default General Cybersecurity Intelligence
+    else {
+      answer = `🤖 **SecureGuard AI Copilot**:\n\n` +
+        `I am analyzing your zero-trust messaging environment in real-time.\n\n` +
+        `**Capabilities**:\n` +
+        `• **Live Forensic Inspection**: Paste any suspicious message or URL to get an instant threat score.\n` +
+        `• **Conversation Intelligence**: Ask me to "summarize this chat" to get topic breakdown and risk trends.\n` +
+        `• **DLP Guidance**: Guidance on securing API keys, passwords, and sensitive credentials.\n\n` +
+        `How can I assist your OpSec today?`;
+      relatedRiskScore = 0;
+      followups.push('Summarize this conversation topic', 'Is this chat safe from phishing?', 'Explain how DLP redaction works');
     }
 
     res.json({
@@ -124,6 +194,19 @@ aiRouter.post('/conversation-summary', async (req: AuthenticatedRequest, res: Re
       where: {
         conversationId_userId: { conversationId, userId },
       },
+      include: {
+        conversation: {
+          include: {
+            members: {
+              include: {
+                user: {
+                  select: { id: true, username: true, displayName: true },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!member) {
@@ -135,71 +218,119 @@ aiRouter.post('/conversation-summary', async (req: AuthenticatedRequest, res: Re
     const messages = await prisma.message.findMany({
       where: { conversationId },
       orderBy: { sentAt: 'asc' },
-      take: 50,
+      take: 60,
+      include: {
+        sender: {
+          select: { displayName: true, username: true },
+        },
+      },
     });
 
     const messageTexts = messages.map(m => extractPlaintext(m.encryptedPayload)).filter(Boolean);
 
-    // Forward to Python AI context evaluation microservice
-    try {
-      const response = await fetch(`${config.aiServiceUrl}/api/v1/context/evaluate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationId,
-          messages: messageTexts,
-        }),
-      });
+    // Run deterministic risk engine over all messages
+    const evaluations = messages.map(m => {
+      const plain = extractPlaintext(m.encryptedPayload);
+      const evalResult = RiskEngine.evaluateMessage(plain);
+      return {
+        id: m.id,
+        sender: m.sender?.displayName || m.sender?.username || 'Participant',
+        time: new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        text: plain,
+        riskScore: evalResult.riskScore,
+        color: evalResult.indicatorColor,
+        primaryThreat: evalResult.primaryThreat,
+        evidence: evalResult.evidenceList,
+        explanation: evalResult.explanation,
+      };
+    });
 
-      if (response.ok) {
-        const result = await response.json();
+    const maxRisk = evaluations.reduce((max, ev) => Math.max(max, ev.riskScore), 0);
+    const threatEvs = evaluations.filter(ev => ev.riskScore >= 35);
+    const dlpEvs = evaluations.filter(ev => ev.evidence.some(e => e.category === 'DLP_SECRET_EXPOSURE'));
 
-        // Update or store AIContext cache in DB
-        await prisma.aIContext.upsert({
-          where: {
-            conversationId_userId: { conversationId, userId },
-          },
-          create: {
-            conversationId,
-            userId,
-            summary: result.summary,
-            currentRiskScore: result.risk_score,
-            currentSecurityState: result.security_state || 'GREEN',
-            observations: JSON.stringify(result.observed_signals || []),
-          },
-          update: {
-            summary: result.summary,
-            currentRiskScore: result.risk_score,
-            currentSecurityState: result.security_state || 'GREEN',
-            observations: JSON.stringify(result.observed_signals || []),
-          },
-        });
+    // Compute smart topic classification
+    let topicCategory = 'GENERAL_COMMUNICATION';
+    let topicTitle = 'Secure Direct Messaging';
+    let summaryText = '';
 
-        res.json(result);
-        return;
+    if (messageTexts.length === 0) {
+      topicTitle = 'Fresh Conversation';
+      summaryText = 'No messages have been exchanged in this channel yet. Zero-trust baseline active.';
+    } else {
+      const combinedText = messageTexts.join(' ').toLowerCase();
+      if (combinedText.includes('project') || combinedText.includes('task') || combinedText.includes('meeting') || combinedText.includes('team')) {
+        topicCategory = 'PROJECT_COLLABORATION';
+        topicTitle = 'Project Planning & Collaboration';
+      } else if (combinedText.includes('bank') || combinedText.includes('payment') || combinedText.includes('rs') || combinedText.includes('transfer')) {
+        topicCategory = 'FINANCIAL_TRANSACTION';
+        topicTitle = 'Financial & Banking Discussion';
+      } else if (combinedText.includes('code') || combinedText.includes('api') || combinedText.includes('server') || combinedText.includes('db')) {
+        topicCategory = 'ENGINEERING_OPERATIONS';
+        topicTitle = 'Technical Operations & DevOps';
       }
-    } catch {
-      // AI service offline fallback
+
+      summaryText = `Discussion involving ${member.conversation.members.length} participant(s) with ${messageTexts.length} message(s) exchanged. ` +
+        (maxRisk >= 75
+          ? `⚠️ HIGH RISK: AI Guardian detected ${threatEvs.length} high-severity anomaly event(s) including possible phishing or social engineering attempts.`
+          : maxRisk >= 35
+          ? `🟠 MODERATE: Intercepted ${threatEvs.length} suspicious pattern(s) requiring user vigilance.`
+          : `🟢 ZERO-TRUST: Clean communications. All payloads authenticated with Signal Double Ratchet encryption.`);
     }
 
-    // Fallback topic extraction if AI service is temporarily unavailable
-    const fallbackTitle = messageTexts.length === 0 ? 'Empty Conversation' : 'General Communication';
-    res.json({
+    const result = {
       conversationId,
-      risk_score: 0,
-      security_state: 'GREEN',
+      risk_score: maxRisk,
+      security_state: maxRisk >= 75 ? 'RED' : maxRisk >= 35 ? 'ORANGE' : 'GREEN',
       topic: {
-        title: fallbackTitle,
-        category: 'GENERAL',
-        summary: messageTexts.length === 0 ? 'No messages in this chat yet.' : `Active conversation with ${messageTexts.length} message(s).`,
-        key_entities: [],
+        title: topicTitle,
+        category: topicCategory,
+        summary: summaryText,
+        key_entities: Array.from(new Set(member.conversation.members.map(m => m.user.displayName || m.user.username))),
       },
-      summary: `Topic: ${fallbackTitle}`,
-      observed_signals: [],
-      timeline: [],
-      recommendations: ['Standard Zero-Trust E2EE encryption active.'],
+      summary: summaryText,
+      observed_signals: threatEvs.flatMap(ev => ev.evidence.map(e => e.description)),
+      timeline: evaluations.map(ev => ({
+        id: ev.id,
+        sender: ev.sender,
+        time: ev.time,
+        snippet: ev.text.slice(0, 45) + (ev.text.length > 45 ? '...' : ''),
+        riskScore: ev.riskScore,
+        color: ev.color,
+        threat: ev.primaryThreat,
+        explanation: ev.explanation,
+      })),
+      recommendations: [
+        maxRisk >= 75 ? 'Block unverified links and report suspicious sender to SOC' : 'Maintain standard vigilance',
+        dlpEvs.length > 0 ? 'Rotate any exposed credentials detected in this chat history' : 'Zero credential exposure detected',
+        'Signal Double Ratchet E2EE operational with automatic key ratcheting',
+      ],
       total_messages: messageTexts.length,
+      threats_detected: threatEvs.length,
+    };
+
+    // Update DB AIContext cache
+    await prisma.aIContext.upsert({
+      where: {
+        conversationId_userId: { conversationId, userId },
+      },
+      create: {
+        conversationId,
+        userId,
+        summary: summaryText,
+        currentRiskScore: maxRisk,
+        currentSecurityState: result.security_state,
+        observations: JSON.stringify(result.observed_signals),
+      },
+      update: {
+        summary: summaryText,
+        currentRiskScore: maxRisk,
+        currentSecurityState: result.security_state,
+        observations: JSON.stringify(result.observed_signals),
+      },
     });
+
+    res.json(result);
   } catch (error) {
     console.error('Conversation summary error:', error);
     res.status(500).json({ error: 'Failed to generate conversation topic summary' });

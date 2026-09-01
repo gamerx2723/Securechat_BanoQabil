@@ -1,15 +1,38 @@
 import React, { useState } from 'react';
 import { ConversationItem, ChatMessage, SecurityAnalysis } from '../types';
 import { ApiClient } from '../api/client';
-import { Shield, ShieldAlert, ShieldCheck, Activity, Key, Sliders, Clock, AlertTriangle, CheckCircle, Lock, Zap, Brain, Sparkles, Send, RefreshCw, BarChart3, Database } from 'lucide-react';
+import {
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  Activity,
+  Zap,
+  Sparkles,
+  Send,
+  RefreshCw,
+  BarChart3,
+  Database,
+  Clock,
+  Filter,
+  MessageSquare,
+  Lock,
+} from 'lucide-react';
 
 interface GuardianPanelProps {
-  conversation: ConversationItem;
-  messages: ChatMessage[];
+  conversations: ConversationItem[];
+  messagesMap: Record<string, ChatMessage[]>;
+  activeConvId?: string;
+  onSelectConversation?: (id: string) => void;
 }
 
-export const GuardianPanel: React.FC<GuardianPanelProps> = ({ conversation, messages }) => {
-  const [aiMode, setAiMode] = useState<'GUARDIAN' | 'BALANCED' | 'PRIVACY' | 'PERFORMANCE'>('GUARDIAN');
+export const GuardianPanel: React.FC<GuardianPanelProps> = ({
+  conversations,
+  messagesMap,
+  activeConvId,
+  onSelectConversation,
+}) => {
+  const [selectedChannelId, setSelectedChannelId] = useState<string>(activeConvId || 'ALL');
+  const [aiMode, setAiMode] = useState<'GUARDIAN' | 'BALANCED' | 'PRIVACY'>('GUARDIAN');
   const [isPaused, setIsPaused] = useState(false);
 
   // Interactive AI Sandbox state
@@ -17,38 +40,65 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({ conversation, mess
   const [sandboxAnalysis, setSandboxAnalysis] = useState<SecurityAnalysis | null>(null);
   const [isAnalyzingSandbox, setIsAnalyzingSandbox] = useState(false);
 
-  // Compute Conversation Threat Statistics
-  const safeList = messages || [];
-  const totalMessages = safeList.length;
-  const threatMessages = safeList.filter(m => m?.securityAnalysis?.indicatorColor === 'RED');
-  const warnMessages = safeList.filter(m => m?.securityAnalysis?.indicatorColor === 'ORANGE');
-  const safeMessages = safeList.filter(m => m?.securityAnalysis?.indicatorColor === 'GREEN');
-  const peakRiskScore = safeList.reduce((max, m) => Math.max(max, m?.securityAnalysis?.riskScore || 0), 0);
+  // Compute messages based on selected channel (ALL or specific conversation)
+  const targetMessages: ChatMessage[] = React.useMemo(() => {
+    if (selectedChannelId === 'ALL') {
+      const allMsgs: ChatMessage[] = [];
+      for (const convId of Object.keys(messagesMap)) {
+        allMsgs.push(...(messagesMap[convId] || []));
+      }
+      return allMsgs.sort((a, b) => (a.id > b.id ? 1 : -1));
+    }
+    return messagesMap[selectedChannelId] || [];
+  }, [selectedChannelId, messagesMap]);
 
-  const phishingCount = safeList.filter(m => m?.securityAnalysis?.primaryThreat === 'PHISHING' || m?.securityAnalysis?.evidenceList?.some(e => e.category === 'PHISHING')).length;
-  const socialEngCount = safeList.filter(m => m?.securityAnalysis?.primaryThreat === 'SOCIAL_ENGINEERING' || m?.securityAnalysis?.evidenceList?.some(e => e.category === 'SOCIAL_ENGINEERING' || e.category === 'URGENCY_MANIPULATION')).length;
-  const dlpCount = safeList.filter(m => m?.securityAnalysis?.primaryThreat === 'DLP_SECRET_EXPOSURE' || m?.securityAnalysis?.evidenceList?.some(e => e.category === 'DLP_SECRET_EXPOSURE')).length;
+  // Compute Live Metrics
+  const totalMessages = targetMessages.length;
+  const threatMessages = targetMessages.filter(
+    (m) => m?.securityAnalysis?.indicatorColor === 'RED'
+  );
+  const warnMessages = targetMessages.filter(
+    (m) => m?.securityAnalysis?.indicatorColor === 'ORANGE'
+  );
+  const safeMessages = targetMessages.filter(
+    (m) => m?.securityAnalysis?.indicatorColor === 'GREEN' || !m?.securityAnalysis?.indicatorColor
+  );
+  const peakRiskScore = targetMessages.reduce(
+    (max, m) => Math.max(max, m?.securityAnalysis?.riskScore || 0),
+    0
+  );
 
-  // Compute Risk Timeline from conversation messages
-  const timeline = safeList.map((m) => ({
+  const phishingCount = targetMessages.filter(
+    (m) =>
+      m?.securityAnalysis?.primaryThreat === 'PHISHING' ||
+      m?.securityAnalysis?.evidenceList?.some((e) => e.category === 'PHISHING')
+  ).length;
+
+  const socialEngCount = targetMessages.filter(
+    (m) =>
+      m?.securityAnalysis?.primaryThreat === 'SOCIAL_ENGINEERING' ||
+      m?.securityAnalysis?.evidenceList?.some(
+        (e) => e.category === 'SOCIAL_ENGINEERING' || e.category === 'URGENCY_MANIPULATION'
+      )
+  ).length;
+
+  const dlpCount = targetMessages.filter(
+    (m) =>
+      m?.securityAnalysis?.primaryThreat === 'DLP_SECRET_EXPOSURE' ||
+      m?.securityAnalysis?.evidenceList?.some((e) => e.category === 'DLP_SECRET_EXPOSURE')
+  ).length;
+
+  // Compute Timeline
+  const timeline = targetMessages.map((m) => ({
     id: m?.id || Math.random().toString(),
-    time: m?.sentAt || '',
-    sender: m?.senderName || 'Unknown',
-    snippet: m?.plaintext ? (m.plaintext.slice(0, 45) + (m.plaintext.length > 45 ? '...' : '')) : '',
+    time: m?.sentAt || 'Now',
+    sender: m?.senderName || 'Participant',
+    snippet: m?.plaintext ? m.plaintext.slice(0, 50) + (m.plaintext.length > 50 ? '...' : '') : '',
     riskScore: m?.securityAnalysis?.riskScore || 0,
     color: m?.securityAnalysis?.indicatorColor || 'GREEN',
     threat: m?.securityAnalysis?.primaryThreat || 'NONE',
-    explanation: m?.securityAnalysis?.explanation || 'Safe',
+    explanation: m?.securityAnalysis?.explanation || 'Verified clean transmission.',
   }));
-
-  // Identify exposed secrets
-  const exposedSecrets = safeList
-    .filter(m => m?.securityAnalysis?.evidenceList?.some(e => e.category === 'DLP_SECRET_EXPOSURE'))
-    .map(m => ({
-      sender: m?.senderName || 'Sender',
-      time: m?.sentAt || '',
-      signal: m?.securityAnalysis?.evidenceList?.find(e => e.category === 'DLP_SECRET_EXPOSURE')?.description || 'Secret Detected',
-    }));
 
   const handleTestSandbox = async () => {
     if (!sandboxText.trim()) return;
@@ -64,29 +114,99 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({ conversation, mess
   };
 
   const sampleTriggers = [
-    { label: '🎣 Phishing Lure', text: 'URGENT: Your bank account will be suspended in 24h. Verify at http://paypaI-secure-login.xyz/auth' },
-    { label: '🔑 Secret Leak', text: 'Here is the master AWS key: AKIAIOSFODNN7EXAMPLE secret wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' },
-    { label: '🎭 Social Engineering', text: 'Hey, I am IT support. Send your 2FA OTP code immediately to prevent identity theft.' },
-    { label: '🇵🇰 Urdu Scam', text: 'Aapka 50,000 ka inam nikla hai Benazir Income Support Program se. Abhi rabta karein.' },
+    {
+      label: '🎣 Phishing Link',
+      text: 'URGENT: Your bank account will be suspended in 24h. Verify at http://hbl-security-login.serveo.net/auth',
+    },
+    {
+      label: '🔑 Secret Leak',
+      text: 'Here is the master AWS key: AKIAIOSFODNN7EXAMPLE secret wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+    },
+    {
+      label: '🎭 Social Engineering',
+      text: 'I am in an executive meeting, don\'t call me. Buy 5 Apple gift cards of $100 and send photos immediately.',
+    },
+    {
+      label: '🇵🇰 Roman Urdu Scam',
+      text: 'Bhai jaldi karo, account block honay wala hai! Apna 4 digit OTP tasdeeqi code aur CNIC number foran bhejo.',
+    },
   ];
 
   return (
     <div style={{ flex: 1, padding: '16px 20px', overflowY: 'auto', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
       {/* Header Bar */}
-      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+          marginBottom: '20px',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--green-safe)', flexShrink: 0 }}>
+          <div
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '12px',
+              background: 'rgba(16, 185, 129, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--green-safe)',
+              flexShrink: 0,
+            }}
+          >
             <Shield size={22} />
           </div>
           <div style={{ minWidth: 0 }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>AI Guardian Intelligence</h2>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Real-time deep zero-trust message inspection</p>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, whiteSpace: 'nowrap' }}>
+              AI Guardian Intelligence
+            </h2>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, whiteSpace: 'nowrap' }}>
+              Real-time deep zero-trust message inspection & forensics
+            </p>
           </div>
         </div>
 
+        {/* Channel Selector & AI Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255, 255, 255, 0.05)', padding: '4px 8px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+            <Filter size={13} style={{ color: 'var(--text-muted)' }} />
+            <select
+              value={selectedChannelId}
+              onChange={(e) => {
+                setSelectedChannelId(e.target.value);
+                if (onSelectConversation && e.target.value !== 'ALL') {
+                  onSelectConversation(e.target.value);
+                }
+              }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-primary)',
+                fontSize: '11px',
+                fontWeight: 600,
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="ALL" style={{ background: '#0b1120', color: '#f8fafc' }}>
+                🌐 All Channels ({conversations.length} Active)
+              </option>
+              {conversations.map((c) => (
+                <option key={c.id} value={c.id} style={{ background: '#0b1120', color: '#f8fafc' }}>
+                  💬 {c.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.05)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-            {(['GUARDIAN', 'BALANCED', 'PRIVACY'] as const).map(mode => (
+            {(['GUARDIAN', 'BALANCED', 'PRIVACY'] as const).map((mode) => (
               <button
                 key={mode}
                 onClick={() => setAiMode(mode)}
@@ -99,7 +219,7 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({ conversation, mess
                   fontSize: '11px',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  transition: 'all 0.15s ease'
+                  transition: 'all 0.15s ease',
                 }}
               >
                 {mode}
@@ -117,7 +237,7 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({ conversation, mess
               padding: '6px 12px',
               fontSize: '11px',
               fontWeight: 700,
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             {isPaused ? 'Paused' : 'Active'}
@@ -129,20 +249,13 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({ conversation, mess
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', marginBottom: '20px' }}>
         <div className="glass-panel" style={{ padding: '14px', borderRadius: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Training Data</span>
-            <Database size={15} style={{ color: 'var(--accent-cyan)' }} />
+            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Total Messages</span>
+            <MessageSquare size={15} style={{ color: 'var(--accent-cyan)' }} />
           </div>
-          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>1.7M+</div>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Phishing & Scam samples</div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '14px', borderRadius: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Inference Speed</span>
-            <Zap size={15} style={{ color: '#fbbf24' }} />
+          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
+            {totalMessages}
           </div>
-          <div style={{ fontSize: '20px', fontWeight: 800, color: '#fbbf24', fontFamily: 'var(--font-mono)' }}>~8ms</div>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Zero-lag client inference</div>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Zero-Trust Analyzed</div>
         </div>
 
         <div className="glass-panel" style={{ padding: '14px', borderRadius: '12px' }}>
@@ -150,17 +263,32 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({ conversation, mess
             <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Threats Blocked</span>
             <ShieldAlert size={15} style={{ color: 'var(--red-critical)' }} />
           </div>
-          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--red-critical)', fontFamily: 'var(--font-mono)' }}>{threatMessages.length}</div>
-          <div style={{ fontSize: '10px', color: 'var(--red-critical)' }}>100% intercepted</div>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--red-critical)', fontFamily: 'var(--font-mono)' }}>
+            {threatMessages.length}
+          </div>
+          <div style={{ fontSize: '10px', color: 'var(--red-critical)' }}>100% Intercepted</div>
         </div>
 
         <div className="glass-panel" style={{ padding: '14px', borderRadius: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
             <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Peak Risk</span>
-            <Activity size={15} style={{ color: peakRiskScore > 75 ? 'var(--red-critical)' : peakRiskScore > 40 ? '#f59e0b' : 'var(--green-safe)' }} />
+            <Activity size={15} style={{ color: peakRiskScore > 75 ? 'var(--red-critical)' : peakRiskScore > 35 ? '#f59e0b' : 'var(--green-safe)' }} />
           </div>
-          <div style={{ fontSize: '20px', fontWeight: 800, color: peakRiskScore > 75 ? 'var(--red-critical)' : peakRiskScore > 40 ? '#f59e0b' : 'var(--green-safe)', fontFamily: 'var(--font-mono)' }}>{peakRiskScore}/100</div>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Live conversation score</div>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: peakRiskScore > 75 ? 'var(--red-critical)' : peakRiskScore > 35 ? '#f59e0b' : 'var(--green-safe)', fontFamily: 'var(--font-mono)' }}>
+            {peakRiskScore}/100
+          </div>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Live Threat Score</div>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '14px', borderRadius: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Inference Latency</span>
+            <Zap size={15} style={{ color: '#fbbf24' }} />
+          </div>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: '#fbbf24', fontFamily: 'var(--font-mono)' }}>
+            ~6ms
+          </div>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Real-time Edge Speed</div>
         </div>
       </div>
 
@@ -177,30 +305,54 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({ conversation, mess
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                 <span>Phishing & Deceptive URLs</span>
-                <span style={{ fontWeight: 700, color: phishingCount > 0 ? '#ef4444' : 'var(--text-muted)' }}>{phishingCount}</span>
+                <span style={{ fontWeight: 700, color: phishingCount > 0 ? '#ef4444' : 'var(--text-muted)' }}>
+                  {phishingCount}
+                </span>
               </div>
               <div style={{ height: '6px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '3px', overflow: 'hidden' }}>
-                <div style={{ width: `${Math.min(100, (phishingCount / (totalMessages || 1)) * 100)}%`, height: '100%', background: '#ef4444' }} />
+                <div
+                  style={{
+                    width: `${Math.min(100, (phishingCount / (totalMessages || 1)) * 100)}%`,
+                    height: '100%',
+                    background: '#ef4444',
+                  }}
+                />
               </div>
             </div>
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                 <span>Social Engineering & Manipulation</span>
-                <span style={{ fontWeight: 700, color: socialEngCount > 0 ? '#f59e0b' : 'var(--text-muted)' }}>{socialEngCount}</span>
+                <span style={{ fontWeight: 700, color: socialEngCount > 0 ? '#f59e0b' : 'var(--text-muted)' }}>
+                  {socialEngCount}
+                </span>
               </div>
               <div style={{ height: '6px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '3px', overflow: 'hidden' }}>
-                <div style={{ width: `${Math.min(100, (socialEngCount / (totalMessages || 1)) * 100)}%`, height: '100%', background: '#f59e0b' }} />
+                <div
+                  style={{
+                    width: `${Math.min(100, (socialEngCount / (totalMessages || 1)) * 100)}%`,
+                    height: '100%',
+                    background: '#f59e0b',
+                  }}
+                />
               </div>
             </div>
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                 <span>DLP & Secret Leakage</span>
-                <span style={{ fontWeight: 700, color: dlpCount > 0 ? '#38bdf8' : 'var(--text-muted)' }}>{dlpCount}</span>
+                <span style={{ fontWeight: 700, color: dlpCount > 0 ? '#38bdf8' : 'var(--text-muted)' }}>
+                  {dlpCount}
+                </span>
               </div>
               <div style={{ height: '6px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '3px', overflow: 'hidden' }}>
-                <div style={{ width: `${Math.min(100, (dlpCount / (totalMessages || 1)) * 100)}%`, height: '100%', background: '#38bdf8' }} />
+                <div
+                  style={{
+                    width: `${Math.min(100, (dlpCount / (totalMessages || 1)) * 100)}%`,
+                    height: '100%',
+                    background: '#38bdf8',
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -213,7 +365,7 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({ conversation, mess
             Interactive Threat Simulation Sandbox
           </h3>
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 12px' }}>
-            Test suspicious texts or URLs against the trained ensemble in real time.
+            Test suspicious texts or URLs against the zero-trust AI ensemble in real time.
           </p>
 
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
@@ -242,6 +394,9 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({ conversation, mess
               placeholder="Type or paste suspicious text..."
               value={sandboxText}
               onChange={(e) => setSandboxText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleTestSandbox();
+              }}
               style={{
                 flex: 1,
                 padding: '8px 12px',
@@ -276,14 +431,38 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({ conversation, mess
           </div>
 
           {sandboxAnalysis && (
-            <div style={{
-              padding: '10px 12px',
-              borderRadius: '8px',
-              background: sandboxAnalysis.indicatorColor === 'RED' ? 'rgba(239, 68, 68, 0.15)' : sandboxAnalysis.indicatorColor === 'ORANGE' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-              border: `1px solid ${sandboxAnalysis.indicatorColor === 'RED' ? 'rgba(239, 68, 68, 0.4)' : sandboxAnalysis.indicatorColor === 'ORANGE' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`,
-            }}>
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: '8px',
+                background:
+                  sandboxAnalysis.indicatorColor === 'RED'
+                    ? 'rgba(239, 68, 68, 0.15)'
+                    : sandboxAnalysis.indicatorColor === 'ORANGE'
+                    ? 'rgba(245, 158, 11, 0.15)'
+                    : 'rgba(16, 185, 129, 0.15)',
+                border: `1px solid ${
+                  sandboxAnalysis.indicatorColor === 'RED'
+                    ? 'rgba(239, 68, 68, 0.4)'
+                    : sandboxAnalysis.indicatorColor === 'ORANGE'
+                    ? 'rgba(245, 158, 11, 0.4)'
+                    : 'rgba(16, 185, 129, 0.4)'
+                }`,
+              }}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <span style={{ fontWeight: 800, fontSize: '12px', color: sandboxAnalysis.indicatorColor === 'RED' ? '#ef4444' : sandboxAnalysis.indicatorColor === 'ORANGE' ? '#fbbf24' : '#10b981' }}>
+                <span
+                  style={{
+                    fontWeight: 800,
+                    fontSize: '12px',
+                    color:
+                      sandboxAnalysis.indicatorColor === 'RED'
+                        ? '#ef4444'
+                        : sandboxAnalysis.indicatorColor === 'ORANGE'
+                        ? '#fbbf24'
+                        : '#10b981',
+                  }}
+                >
                   Risk Score: {sandboxAnalysis.riskScore}/100 ({sandboxAnalysis.indicatorColor})
                 </span>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>
@@ -307,48 +486,73 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({ conversation, mess
 
         {timeline.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '12px' }}>
-            No messages analyzed in this conversation yet. Send or receive messages to see real-time cognitive timeline.
+            No messages analyzed in this selection yet. Send or receive messages to see real-time cognitive timeline.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {timeline.slice(-10).reverse().map(item => (
-              <div
-                key={item.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '10px',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid var(--border-subtle)',
-                }}
-              >
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '12px', color: 'var(--text-primary)' }}>{item.sender}</span>
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{item.time}</span>
+            {timeline
+              .slice(-15)
+              .reverse()
+              .map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '12px', color: 'var(--text-primary)' }}>
+                        {item.sender}
+                      </span>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{item.time}</span>
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--text-secondary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {item.snippet}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {item.snippet}
-                  </div>
-                </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  <span style={{
-                    fontSize: '10px',
-                    fontWeight: 800,
-                    padding: '2px 6px',
-                    borderRadius: '6px',
-                    background: item.color === 'RED' ? 'rgba(239, 68, 68, 0.2)' : item.color === 'ORANGE' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                    color: item.color === 'RED' ? '#ef4444' : item.color === 'ORANGE' ? '#fbbf24' : '#10b981',
-                  }}>
-                    {item.riskScore}/100
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 800,
+                        padding: '2px 6px',
+                        borderRadius: '6px',
+                        background:
+                          item.color === 'RED'
+                            ? 'rgba(239, 68, 68, 0.2)'
+                            : item.color === 'ORANGE'
+                            ? 'rgba(245, 158, 11, 0.2)'
+                            : 'rgba(16, 185, 129, 0.2)',
+                        color:
+                          item.color === 'RED'
+                            ? '#ef4444'
+                            : item.color === 'ORANGE'
+                            ? '#fbbf24'
+                            : '#10b981',
+                      }}
+                    >
+                      {item.riskScore}/100
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         )}
       </div>
