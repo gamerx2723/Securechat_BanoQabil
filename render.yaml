@@ -1,0 +1,48 @@
+services:
+  # ----------------------------------------------------
+  # 1. Python AI Threat Microservice
+  # ----------------------------------------------------
+  - type: web
+    name: securechat-ai-service
+    env: python
+    region: oregon
+    plan: free
+    rootDir: apps/ai-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m uvicorn src.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: ENV
+        value: production
+
+  # ----------------------------------------------------
+  # 2. Core API & WebSocket Server
+  # ----------------------------------------------------
+  - type: web
+    name: securechat-api
+    env: docker
+    region: oregon
+    plan: free
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: PORT
+        value: 4000
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: AI_SERVICE_URL
+        fromService:
+          type: web
+          name: securechat-ai-service
+          property: host
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: "*"
