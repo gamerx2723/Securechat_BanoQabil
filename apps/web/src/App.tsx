@@ -3,7 +3,6 @@ import { ConversationItem, ChatMessage, SecurityAnalysis, UserProfile } from './
 import { Sidebar } from './components/Sidebar';
 import { ChatArea } from './components/ChatArea';
 import { GuardianPanel } from './components/GuardianPanel';
-import { SecurityCenter } from './components/SecurityCenter';
 import { EvidenceModal } from './components/EvidenceModal';
 import { CopilotDrawer } from './components/CopilotDrawer';
 import { ConversationTopicModal } from './components/ConversationTopicModal';
@@ -14,14 +13,14 @@ import { ProfileModal } from './components/ProfileModal';
 import { ProfileOnboardingModal } from './components/ProfileOnboardingModal';
 import { ApiClient } from './api/client';
 import { playNotificationChime, requestNotificationPermission, triggerSystemNotification } from './utils/notifications';
-import { ArrowLeft, Shield, MessageSquare, Activity, Crown, Lock, Plus, Sparkles, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Shield, MessageSquare, Crown, Lock, Plus, Sparkles, ShieldCheck } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(ApiClient.getCurrentUser());
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [activeConvId, setActiveConvId] = useState<string>('');
   const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>({});
-  const [activeTab, setActiveTab] = useState<'CHATS' | 'GUARDIAN' | 'SECOPS' | 'ADMIN'>('CHATS');
+  const [activeTab, setActiveTab] = useState<'CHATS' | 'GUARDIAN' | 'ADMIN'>('CHATS');
   const [inspectedMessage, setInspectedMessage] = useState<ChatMessage | null>(null);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
@@ -401,7 +400,7 @@ export const App: React.FC = () => {
 
   return (
     <div className="app-layout">
-      {/* Left Sidebar (Hidden on mobile if inside a conversation or viewing AI/SecOps/Admin tabs) */}
+      {/* Left Sidebar (Hidden on mobile if inside a conversation or viewing AI/Admin tabs) */}
       <Sidebar
         className={Boolean(activeConvId) || activeTab !== 'CHATS' ? 'sidebar-hidden-mobile' : ''}
         conversations={conversations}
@@ -470,8 +469,7 @@ export const App: React.FC = () => {
             </button>
             <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               {activeTab === 'GUARDIAN' && <><Shield size={16} /> AI Guardian</>}
-              {activeTab === 'SECOPS' && <><Activity size={16} /> Security Operations</>}
-              {activeTab === 'ADMIN' && <><Crown size={16} /> Admin Console</>}
+              {activeTab === 'ADMIN' && <><Crown size={16} style={{ color: '#fbbf24' }} /> Admin Console</>}
             </div>
           </div>
         )}
@@ -536,12 +534,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* 3. SECOPS TAB (ADMIN ONLY) */}
-        {activeTab === 'SECOPS' && currentUser.role === 'ADMIN' && (
-          <SecurityCenter />
-        )}
-
-        {/* 4. ADMIN CONSOLE TAB (ADMIN ONLY) */}
+        {/* 3. COMBINED SUPERADMIN CONSOLE TAB (ADMIN ONLY) */}
         {activeTab === 'ADMIN' && currentUser.role === 'ADMIN' && (
           <AdminConsole />
         )}

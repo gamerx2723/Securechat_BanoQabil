@@ -6,8 +6,8 @@ interface SidebarProps {
   conversations: ConversationItem[];
   activeId: string;
   onSelect: (id: string) => void;
-  activeTab: 'CHATS' | 'GUARDIAN' | 'SECOPS' | 'ADMIN';
-  onTabChange: (tab: 'CHATS' | 'GUARDIAN' | 'SECOPS' | 'ADMIN') => void;
+  activeTab: 'CHATS' | 'GUARDIAN' | 'ADMIN';
+  onTabChange: (tab: 'CHATS' | 'GUARDIAN' | 'ADMIN') => void;
   onOpenCopilot: () => void;
   onNewChat: () => void;
   onLogout: () => void;
@@ -332,57 +332,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
 
             {isAdmin && (
-              <>
-                <button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    onTabChange('SECOPS');
-                  }}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '8px 10px',
-                    border: 'none',
-                    borderRadius: '8px',
-                    background: 'transparent',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                >
-                  <Activity size={15} style={{ color: '#60a5fa' }} />
-                  <span>SecOps Operations</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    onTabChange('ADMIN');
-                  }}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '8px 10px',
-                    border: 'none',
-                    borderRadius: '8px',
-                    background: 'transparent',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                >
-                  <Crown size={15} style={{ color: '#fbbf24' }} />
-                  <span>SuperAdmin Console</span>
-                </button>
-              </>
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onTabChange('ADMIN');
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '8px 10px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  color: '#fbbf24',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <Crown size={15} />
+                <span>Admin Command Center</span>
+              </button>
             )}
 
             <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '4px 0' }} />
@@ -416,12 +389,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ display: 'flex', padding: '8px 10px', gap: '4px', background: 'rgba(0, 0, 0, 0.2)' }}>
+      <div style={{ display: 'flex', padding: '8px 10px', gap: '6px', background: 'rgba(0, 0, 0, 0.2)' }}>
         <button
           onClick={() => onTabChange('CHATS')}
           style={{
             flex: 1,
-            padding: '7px 0',
+            padding: '8px 0',
             border: 'none',
             borderRadius: '6px',
             background: activeTab === 'CHATS' ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
@@ -456,7 +429,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => onTabChange('GUARDIAN')}
           style={{
             flex: 1,
-            padding: '7px 0',
+            padding: '8px 0',
             border: 'none',
             borderRadius: '6px',
             background: activeTab === 'GUARDIAN' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
@@ -470,39 +443,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
             gap: '4px'
           }}
         >
-          <Shield size={13} /> AI Guardian
+          <Shield size={13} />
+          <span>AI Guardian</span>
         </button>
 
-        {/* Admin-Only SecOps & SuperAdmin Tabs */}
-        {isAdmin && (
-          <button
-            onClick={() => onTabChange('SECOPS')}
-            style={{
-              flex: 1,
-              padding: '7px 0',
-              border: 'none',
-              borderRadius: '6px',
-              background: activeTab === 'SECOPS' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-              color: activeTab === 'SECOPS' ? '#60a5fa' : 'var(--text-muted)',
-              fontWeight: 600,
-              fontSize: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '4px'
-            }}
-          >
-            <Activity size={13} /> SecOps
-          </button>
-        )}
-
+        {/* Combined SuperAdmin Command Center Tab */}
         {isAdmin && (
           <button
             onClick={() => onTabChange('ADMIN')}
             style={{
-              flex: 1.2,
-              padding: '7px 0',
+              flex: 1.1,
+              padding: '8px 0',
               border: 'none',
               borderRadius: '6px',
               background: activeTab === 'ADMIN' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(245, 158, 11, 0.08)',
@@ -517,7 +468,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               borderBottom: activeTab === 'ADMIN' ? '2px solid #f59e0b' : 'none'
             }}
           >
-            <Crown size={13} /> Admin
+            <Crown size={13} />
+            <span>Admin</span>
           </button>
         )}
       </div>
@@ -594,7 +546,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     setIsSelecting(false);
                     setSelectedIds([]);
                   }}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '11px', cursor: 'display', display: 'flex', alignItems: 'center' }}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                 >
                   <X size={13} />
                 </button>

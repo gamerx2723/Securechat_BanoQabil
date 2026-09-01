@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Users, Database, AlertTriangle, UserPlus, Trash2, ShieldCheck, ShieldAlert, RefreshCw, Key, Lock, Activity, CheckCircle, Ban, Crown, ArrowRight, X } from 'lucide-react';
+import { Shield, Users, Database, AlertTriangle, UserPlus, Trash2, ShieldCheck, ShieldAlert, RefreshCw, Key, Lock, Activity, CheckCircle, Ban, Crown, ArrowRight, X, Sparkles, Brain, Server, Check } from 'lucide-react';
 import { ApiClient, API_BASE } from '../api/client';
+import { AdminThreatReviewQueue } from './AdminThreatReviewQueue';
 
 export const AdminConsole: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'USERS' | 'CONVERSATIONS' | 'TELEMETRY'>('USERS');
+  const [activeSubTab, setActiveSubTab] = useState<'USERS' | 'SECOPS' | 'THREATS' | 'AI_CALIBRATION' | 'CONVERSATIONS'>('USERS');
   const [users, setUsers] = useState<any[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
   const [telemetry, setTelemetry] = useState<any>(null);
+  const [learningStats, setLearningStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,6 +19,12 @@ export const AdminConsole: React.FC = () => {
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<'USER' | 'ADMIN'>('USER');
+
+  // AI Model Manual Teaching State
+  const [teachInput, setTeachInput] = useState('');
+  const [teachLabel, setTeachLabel] = useState<'MALICIOUS' | 'BENIGN'>('MALICIOUS');
+  const [teachFeedback, setTeachFeedback] = useState<string | null>(null);
+  const [teaching, setTeaching] = useState(false);
 
   const authHeaders = () => {
     const token = ApiClient.getToken();
@@ -34,6 +42,11 @@ export const AdminConsole: React.FC = () => {
       const telRes = await fetch(`${API_BASE}/admin/telemetry`, { headers: authHeaders() });
       if (telRes.ok) {
         setTelemetry(await telRes.json());
+      } else {
+        const secTelRes = await fetch(`${API_BASE}/security/telemetry`, { headers: authHeaders() });
+        if (secTelRes.ok) {
+          setTelemetry(await secTelRes.json());
+        }
       }
 
       // 2. Users
@@ -47,6 +60,10 @@ export const AdminConsole: React.FC = () => {
       if (convRes.ok) {
         setConversations(await convRes.json());
       }
+
+      // 4. Learning stats
+      const stats = await ApiClient.getLearningStats();
+      setLearningStats(stats);
     } catch (err: any) {
       setError(err.message || 'Failed to load admin data');
     } finally {
@@ -90,584 +107,471 @@ export const AdminConsole: React.FC = () => {
   };
 
   const handleChangeRole = async (userId: string, currentRole: string) => {
-    const newRole = currentRole === 'ADMIN' ? 'USER' : 'ADMIN';
-    if (!confirm(`Change role of this user to ${newRole}?`)) return;
+    const nextRole = currentRole === 'ADMIN' ? 'USER' : 'ADMIN';
+    if (!confirm(`Change role of this user to ${nextRole}?`)) return;
 
     try {
       const res = await fetch(`${API_BASE}/admin/users/${userId}/role`, {
         method: 'PATCH',
         headers: authHeaders(),
-        body: JSON.stringify({ role: newRole }),
+        body: JSON.stringify({ role: nextRole }),
       });
-      if (res.ok) loadData();
-    } catch {
-      alert('Failed to update role');
-    }
-  };
 
-  const handleToggleStatus = async (userId: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
-    if (!confirm(`Set user status to ${newStatus}?`)) return;
-
-    try {
-      const res = await fetch(`${API_BASE}/admin/users/${userId}/status`, {
-        method: 'PATCH',
-        headers: authHeaders(),
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) loadData();
-    } catch {
-      alert('Failed to update status');
+      if (!res.ok) throw new Error('Failed to update role');
+      loadData();
+    } catch (err: any) {
+      alert(err.message);
     }
   };
 
   const handleDeleteUser = async (userId: string, username: string) => {
-    if (!confirm(`Are you sure you want to permanently delete account '@${username}' and all associated keys?`)) return;
+    if (!confirm(`Are you sure you want to permanently delete user @${username}? This action cannot be undone.`)) return;
 
     try {
       const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });
-      if (res.ok) loadData();
-      else {
-        const err = await res.json();
-        alert(err.error || 'Failed to delete user');
-      }
-    } catch {
-      alert('Failed to delete user');
+
+      if (!res.ok) throw new Error('Failed to delete user');
+      loadData();
+    } catch (err: any) {
+      alert(err.message);
     }
   };
 
-  const handleDeleteConversation = async (convId: string) => {
-    if (!confirm('Are you sure you want to delete this conversation channel?')) return;
-
+  const handleManualTeach = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!teachInput.trim()) return;
+    setTeaching(true);
     try {
-      const res = await fetch(`${API_BASE}/admin/conversations/${convId}`, {
-        method: 'DELETE',
-        headers: authHeaders(),
-      });
-      if (res.ok) loadData();
-    } catch {
-      alert('Failed to delete conversation');
+      const res = await ApiClient.teachAI(teachInput, teachLabel, 'ADMIN_MANUAL_TEACHING');
+      if (res.success) {
+        setTeachFeedback(`✅ Successfully calibrated weights for ${teachLabel}. SGD weights updated online.`);
+        setTeachInput('');
+        loadData();
+        setTimeout(() => setTeachFeedback(null), 4000);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTeaching(false);
     }
   };
 
   return (
-    <div style={{ flex: 1, height: '100vh', overflowY: 'auto', background: 'var(--bg-primary)', padding: '32px', color: 'var(--text-primary)' }}>
-      {/* Header Banner */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '24px', borderBottom: '1px solid var(--border-subtle)', marginBottom: '28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{
-            width: '52px',
-            height: '52px',
-            borderRadius: '16px',
-            background: 'linear-gradient(135deg, #f59e0b, #ef4444)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            boxShadow: '0 0 25px rgba(245, 158, 11, 0.35)',
-          }}>
-            <Crown size={28} />
+    <div style={{ flex: 1, padding: '16px 20px', overflowY: 'auto', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+      {/* Header Bar */}
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(239, 68, 68, 0.2))', border: '1px solid rgba(245, 158, 11, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fbbf24', flexShrink: 0 }}>
+            <Crown size={22} />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                SuperAdmin Governance Console
-              </h1>
-              <span style={{ fontSize: '10px', fontWeight: 800, padding: '3px 8px', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
-                ROOT PERMISSIONS
-              </span>
-            </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '4px 0 0' }}>
-              Full database governance, user account management & zero-trust threat telemetry
-            </p>
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>SuperAdmin Command Center</h2>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Unified administration, SecOps telemetry & AI calibration</p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={loadData}
             disabled={loading}
             className="btn-ghost"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            Refresh Data
-          </button>
-
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn-primary"
-            style={{ fontSize: '12px', padding: '9px 16px' }}
-          >
-            <UserPlus size={16} /> Provision User
+            <span>Refresh</span>
           </button>
         </div>
       </div>
 
-      {/* Metrics Banner */}
-      {telemetry && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
-          <div className="glass-panel" style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-              <span>Total Accounts</span>
-              <Users size={18} color="var(--accent-cyan)" />
-            </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)' }}>{telemetry.metrics.totalUsers}</div>
-            <div style={{ fontSize: '11px', color: 'var(--green-safe)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <CheckCircle size={12} /> Active in SQLite Database
-            </div>
-          </div>
-
-          <div className="glass-panel" style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-              <span>Registered Devices</span>
-              <Key size={18} color="var(--orange-warn)" />
-            </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)' }}>{telemetry.metrics.totalDevices}</div>
-            <div style={{ fontSize: '11px', color: 'var(--accent-cyan)', marginTop: '4px' }}>
-              E2EE Curve25519 Keys
-            </div>
-          </div>
-
-          <div className="glass-panel" style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-              <span>Encrypted Messages</span>
-              <Lock size={18} color="var(--green-safe)" />
-            </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)' }}>{telemetry.metrics.totalMessages}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Double Ratchet Frames
-            </div>
-          </div>
-
-          <div className="glass-panel" style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-              <span>Security Interceptions</span>
-              <ShieldAlert size={18} color="var(--red-critical)" />
-            </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--red-critical)' }}>{telemetry.metrics.totalSecurityEvents}</div>
-            <div style={{ fontSize: '11px', color: '#fb7185', marginTop: '4px' }}>
-              {telemetry.metrics.redEvents} Critical Threat Blocks
-            </div>
-          </div>
+      {error && (
+        <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', marginBottom: '16px', fontSize: '13px' }}>
+          {error}
         </div>
       )}
 
-      {/* Sub Tabs */}
-      <div style={{ display: 'flex', gap: '20px', borderBottom: '1px solid var(--border-subtle)', marginBottom: '24px' }}>
-        <button
-          onClick={() => setActiveSubTab('USERS')}
-          style={{
-            paddingBottom: '12px',
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeSubTab === 'USERS' ? '2px solid var(--accent-cyan)' : '2px solid transparent',
-            color: activeSubTab === 'USERS' ? 'var(--accent-cyan)' : 'var(--text-muted)',
-            fontWeight: 700,
-            fontSize: '14px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <Users size={16} /> User Accounts Directory ({users.length})
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab('CONVERSATIONS')}
-          style={{
-            paddingBottom: '12px',
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeSubTab === 'CONVERSATIONS' ? '2px solid var(--accent-cyan)' : '2px solid transparent',
-            color: activeSubTab === 'CONVERSATIONS' ? 'var(--accent-cyan)' : 'var(--text-muted)',
-            fontWeight: 700,
-            fontSize: '14px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <Database size={16} /> Database Channels ({conversations.length})
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab('TELEMETRY')}
-          style={{
-            paddingBottom: '12px',
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeSubTab === 'TELEMETRY' ? '2px solid var(--accent-cyan)' : '2px solid transparent',
-            color: activeSubTab === 'TELEMETRY' ? 'var(--accent-cyan)' : 'var(--text-muted)',
-            fontWeight: 700,
-            fontSize: '14px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <Activity size={16} /> Threat Audit Stream ({telemetry?.recentEvents?.length || 0})
-        </button>
+      {/* Sub-tabs Navigation (Horizontally scrollable on mobile) */}
+      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '18px', WebkitOverflowScrolling: 'touch' }}>
+        {[
+          { id: 'USERS', label: 'Users & Access', icon: Users },
+          { id: 'SECOPS', label: 'SecOps Telemetry', icon: Activity },
+          { id: 'THREATS', label: 'Threat Review Queue', icon: AlertTriangle },
+          { id: 'AI_CALIBRATION', label: 'AI Model Calibration', icon: Brain },
+          { id: 'CONVERSATIONS', label: 'Conversations Audit', icon: Database },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeSubTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id as any)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: isActive ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                background: isActive ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                color: isActive ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
+            >
+              <Icon size={14} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* 1. USERS DIRECTORY TAB */}
+      {/* 1. USERS & ACCESS SUB-TAB */}
       {activeSubTab === 'USERS' && (
-        <div className="glass-panel" style={{ borderRadius: '16px', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Registered Database Accounts</h3>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{users.length} Total Users</span>
-          </div>
-
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: 'rgba(0, 0, 0, 0.4)', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <th style={{ padding: '14px 20px' }}>User Identity</th>
-                <th style={{ padding: '14px 20px' }}>Role</th>
-                <th style={{ padding: '14px 20px' }}>Status</th>
-                <th style={{ padding: '14px 20px' }}>Device Keys</th>
-                <th style={{ padding: '14px 20px' }}>Activity</th>
-                <th style={{ padding: '14px 20px' }}>Created</th>
-                <th style={{ padding: '14px 20px', textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                  <td style={{ padding: '14px 20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{
-                        width: '34px',
-                        height: '34px',
-                        borderRadius: '10px',
-                        background: u.role === 'ADMIN' ? 'linear-gradient(135deg, #f59e0b, #ef4444)' : 'linear-gradient(135deg, #0284c7, #06b6d4)',
-                        color: '#fff',
-                        fontWeight: 'bold',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '13px',
-                      }}>
-                        {u.displayName?.charAt(0) || u.username.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{u.displayName || u.username}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>@{u.username} {u.email ? `• ${u.email}` : ''}</div>
-                      </div>
-                    </div>
-                  </td>
-
-                  <td style={{ padding: '14px 20px' }}>
-                    <span style={{
-                      fontSize: '10px',
-                      fontWeight: 800,
-                      padding: '3px 7px',
-                      borderRadius: '5px',
-                      background: u.role === 'ADMIN' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.08)',
-                      color: u.role === 'ADMIN' ? '#fbbf24' : 'var(--text-secondary)',
-                      border: u.role === 'ADMIN' ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-subtle)',
-                    }}>
-                      {u.role}
-                    </span>
-                  </td>
-
-                  <td style={{ padding: '14px 20px' }}>
-                    <span style={{
-                      fontSize: '10px',
-                      fontWeight: 800,
-                      padding: '3px 7px',
-                      borderRadius: '5px',
-                      background: u.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
-                      color: u.status === 'ACTIVE' ? 'var(--green-safe)' : 'var(--red-critical)',
-                    }}>
-                      {u.status}
-                    </span>
-                  </td>
-
-                  <td style={{ padding: '14px 20px' }}>
-                    <div style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
-                      {u.devices?.length || 0} Device(s)
-                    </div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Curve25519 Initialized</div>
-                  </td>
-
-                  <td style={{ padding: '14px 20px', color: 'var(--text-secondary)' }}>
-                    <div>{u._count?.sentMessages || 0} messages</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{u._count?.conversationMembers || 0} channels</div>
-                  </td>
-
-                  <td style={{ padding: '14px 20px', color: 'var(--text-muted)', fontSize: '12px' }}>
-                    {new Date(u.createdAt).toLocaleDateString()}
-                  </td>
-
-                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                      <button
-                        onClick={() => handleChangeRole(u.id, u.role)}
-                        style={{ padding: '5px 10px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
-                      >
-                        {u.role === 'ADMIN' ? 'Demote' : 'Make Admin'}
-                      </button>
-
-                      <button
-                        onClick={() => handleToggleStatus(u.id, u.status)}
-                        style={{
-                          padding: '5px 10px',
-                          background: u.status === 'ACTIVE' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                          border: 'none',
-                          borderRadius: '6px',
-                          color: u.status === 'ACTIVE' ? 'var(--orange-warn)' : 'var(--green-safe)',
-                          fontSize: '11px',
-                          cursor: 'pointer',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {u.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
-                      </button>
-
-                      <button
-                        onClick={() => handleDeleteUser(u.id, u.username)}
-                        style={{ padding: '5px 8px', background: 'rgba(244, 63, 94, 0.15)', border: 'none', borderRadius: '6px', color: 'var(--red-critical)', cursor: 'pointer' }}
-                        title="Delete User"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* 2. CONVERSATIONS TAB */}
-      {activeSubTab === 'CONVERSATIONS' && (
-        <div className="glass-panel" style={{ borderRadius: '16px', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Active Database Communication Channels</h3>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{conversations.length} Total</span>
-          </div>
-
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: 'rgba(0, 0, 0, 0.4)', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <th style={{ padding: '14px 20px' }}>Channel Name / ID</th>
-                <th style={{ padding: '14px 20px' }}>Type</th>
-                <th style={{ padding: '14px 20px' }}>Members</th>
-                <th style={{ padding: '14px 20px' }}>Message Count</th>
-                <th style={{ padding: '14px 20px' }}>Last Updated</th>
-                <th style={{ padding: '14px 20px', textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {conversations.map((c) => (
-                <tr key={c.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                  <td style={{ padding: '14px 20px' }}>
-                    <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.title || 'Direct Conversation'}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{c.id}</div>
-                  </td>
-
-                  <td style={{ padding: '14px 20px' }}>
-                    <span style={{ fontSize: '10px', fontWeight: 800, padding: '3px 7px', borderRadius: '5px', background: 'rgba(6, 182, 212, 0.15)', color: 'var(--accent-cyan)' }}>
-                      {c.type}
-                    </span>
-                  </td>
-
-                  <td style={{ padding: '14px 20px', color: 'var(--text-secondary)' }}>
-                    {c.members?.map((m: any) => m.user?.displayName || m.user?.username).join(', ') || 'No members'}
-                  </td>
-
-                  <td style={{ padding: '14px 20px', fontFamily: 'var(--font-mono)' }}>
-                    {c._count?.messages || 0} frames
-                  </td>
-
-                  <td style={{ padding: '14px 20px', color: 'var(--text-muted)', fontSize: '12px' }}>
-                    {new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </td>
-
-                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                    <button
-                      onClick={() => handleDeleteConversation(c.id)}
-                      style={{ padding: '6px 10px', background: 'rgba(244, 63, 94, 0.15)', border: 'none', borderRadius: '6px', color: 'var(--red-critical)', cursor: 'pointer' }}
-                      title="Delete Channel"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* 3. TELEMETRY TAB */}
-      {activeSubTab === 'TELEMETRY' && telemetry && (
         <div>
-          <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '16px' }}>Threat Category Distribution</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-              {telemetry.threatBreakdown?.map((t: any) => (
-                <div key={t.category} style={{ padding: '14px', background: 'rgba(0, 0, 0, 0.35)', border: '1px solid var(--border-subtle)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{t.category}</span>
-                  <span style={{ fontSize: '12px', fontWeight: 800, padding: '2px 8px', borderRadius: '6px', background: 'rgba(244, 63, 94, 0.2)', color: 'var(--red-critical)' }}>
-                    {t.count} detected
-                  </span>
-                </div>
-              ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+              Registered Network Accounts: <strong style={{ color: 'var(--text-primary)' }}>{users.length}</strong>
             </div>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '7px 14px' }}
+            >
+              <UserPlus size={14} /> Create New User
+            </button>
           </div>
 
-          <div className="glass-panel" style={{ borderRadius: '16px', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Real-Time Security Event Audit Stream</h3>
-            </div>
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              {telemetry.recentEvents?.map((e: any) => (
-                <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      background: e.indicatorColor === 'RED' ? 'var(--red-critical)' : e.indicatorColor === 'ORANGE' ? 'var(--orange-warn)' : 'var(--green-safe)',
-                      boxShadow: e.indicatorColor === 'RED' ? '0 0 10px var(--red-glow)' : 'none',
-                    }} />
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>{e.type}</span>
-                        <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-secondary)' }}>{e.severity}</span>
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        {e.explanation || 'Zero trust security inspection event.'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--red-critical)' }}>
-                      {e.riskScore}% Risk
-                    </div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{new Date(e.createdAt).toLocaleTimeString()}</div>
-                  </div>
-                </div>
-              ))}
+          <div className="glass-panel" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left', minWidth: '500px' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(255, 255, 255, 0.04)', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <th style={{ padding: '12px 14px' }}>User</th>
+                    <th style={{ padding: '12px 14px' }}>Role</th>
+                    <th style={{ padding: '12px 14px' }}>E2EE Devices</th>
+                    <th style={{ padding: '12px 14px' }}>Registered</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '12px 14px' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {u.displayName || u.username}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>@{u.username}</div>
+                      </td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <span style={{
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: u.role === 'ADMIN' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                          color: u.role === 'ADMIN' ? '#fbbf24' : 'var(--green-safe)',
+                        }}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>
+                        {u.devices?.length || 1} Enclaves
+                      </td>
+                      <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '11px' }}>
+                        {new Date(u.createdAt).toLocaleDateString()}
+                      </td>
+                      <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '6px' }}>
+                          <button
+                            onClick={() => handleChangeRole(u.id, u.role)}
+                            title="Toggle Admin / User role"
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.06)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '6px',
+                              padding: '4px 8px',
+                              fontSize: '11px',
+                              color: 'var(--text-secondary)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Toggle Role
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(u.id, u.username)}
+                            title="Delete User"
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              borderRadius: '6px',
+                              padding: '4px 8px',
+                              fontSize: '11px',
+                              color: '#f87171',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
       )}
 
-      {/* CREATE USER MODAL */}
+      {/* 2. SECOPS TELEMETRY SUB-TAB */}
+      {activeSubTab === 'SECOPS' && (
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+            <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Total Messages</span>
+                <ShieldCheck size={16} style={{ color: 'var(--green-safe)' }} />
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
+                {telemetry?.totalProtectedMessages || telemetry?.totalMessages || 0}
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--green-safe)' }}>Double Ratchet Active</div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Threats Intercepted</span>
+                <ShieldAlert size={16} style={{ color: 'var(--red-critical)' }} />
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--red-critical)', fontFamily: 'var(--font-mono)' }}>
+                {telemetry?.redThreats || 0}
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--red-critical)' }}>100% Zero-Trust</div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Active Devices</span>
+                <Server size={16} style={{ color: '#60a5fa' }} />
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: 800, color: '#60a5fa', fontFamily: 'var(--font-mono)' }}>
+                {telemetry?.activeDevices || telemetry?.totalDevices || 0}
+              </div>
+              <div style={{ fontSize: '10px', color: '#60a5fa' }}>Curve25519 Enclaves</div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>AI Exemplars</span>
+                <Brain size={16} style={{ color: '#a78bfa' }} />
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: 800, color: '#a78bfa', fontFamily: 'var(--font-mono)' }}>
+                {learningStats?.total_exemplars || 0}
+              </div>
+              <div style={{ fontSize: '10px', color: '#a78bfa' }}>Vector Signatures</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. THREAT REVIEW QUEUE SUB-TAB */}
+      {activeSubTab === 'THREATS' && (
+        <div>
+          <AdminThreatReviewQueue />
+        </div>
+      )}
+
+      {/* 4. AI MODEL CALIBRATION SUB-TAB */}
+      {activeSubTab === 'AI_CALIBRATION' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="glass-panel" style={{ padding: '20px', borderRadius: '14px', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <Sparkles size={20} style={{ color: '#a78bfa' }} />
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>Active Online Learning: Teach AI New Threat Signatures</h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                  Fine-tune SGD model weights in memory for Zero-Day patterns or clear false alarms.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleManualTeach} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <input
+                type="text"
+                className="secure-input"
+                placeholder="Enter sample phrase, URL, or pretext..."
+                value={teachInput}
+                onChange={(e) => setTeachInput(e.target.value)}
+                style={{ width: '100%', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '8px', padding: '10px 14px', fontSize: '13px' }}
+              />
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <select
+                  value={teachLabel}
+                  onChange={(e) => setTeachLabel(e.target.value as any)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    color: teachLabel === 'MALICIOUS' ? '#ef4444' : '#10b981',
+                    fontWeight: 700,
+                    fontSize: '12px',
+                  }}
+                >
+                  <option value="MALICIOUS" style={{ background: '#0b1120', color: '#ef4444' }}>Mark as MALICIOUS / THREAT</option>
+                  <option value="BENIGN" style={{ background: '#0b1120', color: '#10b981' }}>Mark as BENIGN / SAFE</option>
+                </select>
+
+                <button
+                  type="submit"
+                  disabled={teaching || !teachInput.trim()}
+                  className="btn-primary"
+                  style={{ fontSize: '12px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  {teaching ? <RefreshCw size={14} className="animate-spin" /> : <Brain size={14} />}
+                  <span>Calibrate Online Model</span>
+                </button>
+              </div>
+
+              {teachFeedback && (
+                <div style={{ padding: '8px 12px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--green-safe)', fontSize: '12px' }}>
+                  {teachFeedback}
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 5. CONVERSATIONS AUDIT SUB-TAB */}
+      {activeSubTab === 'CONVERSATIONS' && (
+        <div className="glass-panel" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left', minWidth: '500px' }}>
+              <thead>
+                <tr style={{ background: 'rgba(255, 255, 255, 0.04)', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <th style={{ padding: '12px 14px' }}>Channel ID / Title</th>
+                  <th style={{ padding: '12px 14px' }}>Type</th>
+                  <th style={{ padding: '12px 14px' }}>Members</th>
+                  <th style={{ padding: '12px 14px' }}>Security State</th>
+                </tr>
+              </thead>
+              <tbody>
+                {conversations.map((c) => (
+                  <tr key={c.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                    <td style={{ padding: '12px 14px' }}>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.title || c.id}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{c.id}</div>
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.08)' }}>
+                        {c.type}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>
+                      {c.members?.length || 2} Users
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: 800,
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        background: c.securityState === 'RED' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                        color: c.securityState === 'RED' ? '#ef4444' : 'var(--green-safe)',
+                      }}>
+                        {c.securityState || 'GREEN'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Create User Modal */}
       {showCreateModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'rgba(0, 0, 0, 0.8)',
-          backdropFilter: 'blur(12px)',
-          padding: '20px',
-        }}>
-          <div className="glass-modal fade-in" style={{
-            width: '100%',
-            maxWidth: '440px',
-            borderRadius: '20px',
-            padding: '24px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(6, 182, 212, 0.2)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                <UserPlus size={18} color="var(--accent-cyan)" /> Provision User Account
-              </h3>
+        <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div className="glass-modal" style={{ width: '100%', maxWidth: '420px', padding: '20px', borderRadius: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0 }}>Create User Account</h3>
               <button onClick={() => setShowCreateModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  Username
-                </label>
+                <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Username *</label>
                 <input
                   type="text"
                   required
+                  placeholder="e.g. alice_sec"
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder="e.g. sec_engineer"
                   className="secure-input"
-                  style={{ padding: '9px 12px', fontSize: '13px' }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', fontSize: '13px' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  Display Name
-                </label>
+                <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Display Name</label>
                 <input
                   type="text"
-                  required
+                  placeholder="e.g. Alice Smith"
                   value={newDisplayName}
                   onChange={(e) => setNewDisplayName(e.target.value)}
-                  placeholder="e.g. Security Engineer"
                   className="secure-input"
-                  style={{ padding: '9px 12px', fontSize: '13px' }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', fontSize: '13px' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  Email (Optional)
-                </label>
+                <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Email (Optional)</label>
                 <input
                   type="email"
+                  placeholder="alice@secure.chat"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="engineer@securechat.internal"
                   className="secure-input"
-                  style={{ padding: '9px 12px', fontSize: '13px' }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', fontSize: '13px' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  Initial Password
-                </label>
+                <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Password *</label>
                 <input
                   type="password"
                   required
+                  placeholder="Min 6 characters"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Set initial password"
                   className="secure-input"
-                  style={{ padding: '9px 12px', fontSize: '13px' }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', fontSize: '13px' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  Account Role
-                </label>
+                <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>System Role</label>
                 <select
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value as any)}
-                  className="secure-input"
-                  style={{ padding: '9px 12px', fontSize: '13px' }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.06)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontSize: '13px' }}
                 >
-                  <option value="USER">Standard User (Messaging & Guardian)</option>
-                  <option value="ADMIN">SuperAdmin (Full DB & User Control)</option>
+                  <option value="USER" style={{ background: '#0b1120' }}>Standard User</option>
+                  <option value="ADMIN" style={{ background: '#0b1120' }}>SuperAdmin</option>
                 </select>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
@@ -681,7 +585,7 @@ export const AdminConsole: React.FC = () => {
                   className="btn-primary"
                   style={{ flex: 1, padding: '10px' }}
                 >
-                  Create & Provision
+                  Create Account
                 </button>
               </div>
             </form>

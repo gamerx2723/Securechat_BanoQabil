@@ -63,311 +63,294 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({ conversation, mess
     }
   };
 
+  const sampleTriggers = [
+    { label: '🎣 Phishing Lure', text: 'URGENT: Your bank account will be suspended in 24h. Verify at http://paypaI-secure-login.xyz/auth' },
+    { label: '🔑 Secret Leak', text: 'Here is the master AWS key: AKIAIOSFODNN7EXAMPLE secret wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' },
+    { label: '🎭 Social Engineering', text: 'Hey, I am IT support. Send your 2FA OTP code immediately to prevent identity theft.' },
+    { label: '🇵🇰 Urdu Scam', text: 'Aapka 50,000 ka inam nikla hai Benazir Income Support Program se. Abhi rabta karein.' },
+  ];
+
   return (
-    <div style={{ flex: 1, padding: '24px', overflowY: 'auto', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-      {/* Title & Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(16, 185, 129, 0.2))', border: '1px solid rgba(6, 182, 212, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-cyan)' }}>
-            <Brain size={24} />
+    <div style={{ flex: 1, padding: '16px 20px', overflowY: 'auto', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+      {/* Header Bar */}
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--green-safe)', flexShrink: 0 }}>
+            <Shield size={22} />
           </div>
-          <div>
-            <h2 style={{ fontSize: '22px', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Guardian AI Intelligence Center</h2>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '2px 0 0' }}>Real-time machine learning telemetry, risk radar & threat sandbox</p>
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>AI Guardian Intelligence</h2>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Real-time deep zero-trust message inspection</p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', color: 'var(--green-safe)', fontSize: '12px', fontWeight: 700 }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--green-safe)', boxShadow: '0 0 8px var(--green-safe)' }}></span>
-            AI Microservice Online
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.05)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+            {(['GUARDIAN', 'BALANCED', 'PRIVACY'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setAiMode(mode)}
+                style={{
+                  background: aiMode === mode ? 'var(--green-safe)' : 'transparent',
+                  color: aiMode === mode ? '#000' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {mode}
+              </button>
+            ))}
           </div>
+
           <button
             onClick={() => setIsPaused(!isPaused)}
-            className="btn-ghost"
-            style={{ fontSize: '12px', color: isPaused ? 'var(--orange-warn)' : 'var(--text-secondary)' }}
+            style={{
+              background: isPaused ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.15)',
+              border: `1px solid ${isPaused ? '#ef4444' : 'var(--green-safe)'}`,
+              color: isPaused ? '#ef4444' : 'var(--green-safe)',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              fontSize: '11px',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
           >
-            <Clock size={14} style={{ marginRight: '4px' }} />
-            {isPaused ? 'Paused (15m)' : 'Pause AI (15m)'}
+            {isPaused ? 'Paused' : 'Active'}
           </button>
         </div>
       </div>
 
-      {/* Top AI Metrics Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px', marginBottom: '24px' }}>
-        <div className="glass-panel" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(6, 182, 212, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-cyan)' }}>
-            <Zap size={20} />
+      {/* Real-time AI Health & Dataset Metrics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+        <div className="glass-panel" style={{ padding: '14px', borderRadius: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Training Data</span>
+            <Database size={15} style={{ color: 'var(--accent-cyan)' }} />
           </div>
-          <div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>INFERENCE SPEED</div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>~8ms / msg</div>
-            <div style={{ fontSize: '10px', color: 'var(--green-safe)' }}>Ultra-Low Latency</div>
-          </div>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>1.7M+</div>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Phishing & Scam samples</div>
         </div>
 
-        <div className="glass-panel" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--green-safe)' }}>
-            <Database size={20} />
+        <div className="glass-panel" style={{ padding: '14px', borderRadius: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Inference Speed</span>
+            <Zap size={15} style={{ color: '#fbbf24' }} />
           </div>
-          <div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>TRAINING DATASET</div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>1,789,038+</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Tricky Messages & URLs</div>
-          </div>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: '#fbbf24', fontFamily: 'var(--font-mono)' }}>~8ms</div>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Zero-lag client inference</div>
         </div>
 
-        <div className="glass-panel" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: peakRiskScore >= 75 ? 'rgba(244, 63, 94, 0.15)' : peakRiskScore >= 25 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: peakRiskScore >= 75 ? 'var(--red-critical)' : peakRiskScore >= 25 ? 'var(--orange-warn)' : 'var(--green-safe)' }}>
-            <BarChart3 size={20} />
+        <div className="glass-panel" style={{ padding: '14px', borderRadius: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Threats Blocked</span>
+            <ShieldAlert size={15} style={{ color: 'var(--red-critical)' }} />
           </div>
-          <div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>PEAK RISK SCORE</div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: peakRiskScore >= 75 ? 'var(--red-critical)' : peakRiskScore >= 25 ? 'var(--orange-warn)' : 'var(--green-safe)' }}>
-              {peakRiskScore}/100
-            </div>
-            <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
-              {peakRiskScore >= 75 ? 'Critical Threat Flagged' : peakRiskScore >= 25 ? 'Suspicious Activity' : 'Zero-Trust Secure'}
-            </div>
-          </div>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--red-critical)', fontFamily: 'var(--font-mono)' }}>{threatMessages.length}</div>
+          <div style={{ fontSize: '10px', color: 'var(--red-critical)' }}>100% intercepted</div>
         </div>
 
-        <div className="glass-panel" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-purple)' }}>
-            <ShieldCheck size={20} />
+        <div className="glass-panel" style={{ padding: '14px', borderRadius: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Peak Risk</span>
+            <Activity size={15} style={{ color: peakRiskScore > 75 ? 'var(--red-critical)' : peakRiskScore > 40 ? '#f59e0b' : 'var(--green-safe)' }} />
           </div>
-          <div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>ACTIVE PRECISION</div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>99.8% Precision</div>
-            <div style={{ fontSize: '10px', color: 'var(--accent-purple)' }}>Multi-Tier Ensemble</div>
-          </div>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: peakRiskScore > 75 ? 'var(--red-critical)' : peakRiskScore > 40 ? '#f59e0b' : 'var(--green-safe)', fontFamily: 'var(--font-mono)' }}>{peakRiskScore}/100</div>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Live conversation score</div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '24px' }}>
-        {/* 1. Interactive AI Threat Sandbox */}
-        <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-cyan)' }}>
-            <Sparkles size={16} /> Live AI Threat Simulator & Sandbox
+      {/* Threat Category Gauges & Sandbox */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+        {/* Threat Distribution */}
+        <div className="glass-panel" style={{ padding: '18px', borderRadius: '14px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <BarChart3 size={16} style={{ color: 'var(--accent-cyan)' }} />
+            Threat Vector Breakdown
           </h3>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
-            Paste any suspicious link, tricky message, or test script to run full neural threat inference:
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                <span>Phishing & Deceptive URLs</span>
+                <span style={{ fontWeight: 700, color: phishingCount > 0 ? '#ef4444' : 'var(--text-muted)' }}>{phishingCount}</span>
+              </div>
+              <div style={{ height: '6px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ width: `${Math.min(100, (phishingCount / (totalMessages || 1)) * 100)}%`, height: '100%', background: '#ef4444' }} />
+              </div>
+            </div>
+
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                <span>Social Engineering & Manipulation</span>
+                <span style={{ fontWeight: 700, color: socialEngCount > 0 ? '#f59e0b' : 'var(--text-muted)' }}>{socialEngCount}</span>
+              </div>
+              <div style={{ height: '6px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ width: `${Math.min(100, (socialEngCount / (totalMessages || 1)) * 100)}%`, height: '100%', background: '#f59e0b' }} />
+              </div>
+            </div>
+
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                <span>DLP & Secret Leakage</span>
+                <span style={{ fontWeight: 700, color: dlpCount > 0 ? '#38bdf8' : 'var(--text-muted)' }}>{dlpCount}</span>
+              </div>
+              <div style={{ height: '6px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ width: `${Math.min(100, (dlpCount / (totalMessages || 1)) * 100)}%`, height: '100%', background: '#38bdf8' }} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Interactive Threat Simulation Sandbox */}
+        <div className="glass-panel" style={{ padding: '18px', borderRadius: '14px', border: '1px solid rgba(6, 182, 212, 0.3)' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Sparkles size={16} style={{ color: 'var(--accent-cyan)' }} />
+            Interactive Threat Simulation Sandbox
+          </h3>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 12px' }}>
+            Test suspicious texts or URLs against the trained ensemble in real time.
           </p>
 
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+            {sampleTriggers.map((s, idx) => (
+              <button
+                key={idx}
+                onClick={() => setSandboxText(s.text)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '6px',
+                  padding: '3px 8px',
+                  fontSize: '10px',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
             <input
               type="text"
-              className="secure-input"
-              placeholder="e.g. URGENT: Verify your account at http://bank-verify.xyz/auth..."
+              placeholder="Type or paste suspicious text..."
               value={sandboxText}
               onChange={(e) => setSandboxText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleTestSandbox()}
-              style={{ fontSize: '13px', padding: '10px 14px' }}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '8px',
+                color: 'var(--text-primary)',
+                fontSize: '12px',
+                outline: 'none',
+              }}
             />
             <button
               onClick={handleTestSandbox}
               disabled={isAnalyzingSandbox || !sandboxText.trim()}
-              className="btn-primary"
-              style={{ padding: '10px 16px', fontSize: '13px', whiteSpace: 'nowrap' }}
-            >
-              {isAnalyzingSandbox ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
-              <span>Test AI</span>
-            </button>
-          </div>
-
-          {/* Quick preset buttons */}
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', alignSelf: 'center' }}>Presets:</span>
-            <button
-              onClick={() => setSandboxText('URGENT: Your Bank of America account is suspended. Verify at http://bankofamerica-security-verify.xyz')}
-              className="btn-ghost"
-              style={{ fontSize: '11px', padding: '4px 8px' }}
-            >
-              Phishing Link
-            </button>
-            <button
-              onClick={() => setSandboxText('Hey, buy 5x $100 Apple gift cards and send me the codes right now.')}
-              className="btn-ghost"
-              style={{ fontSize: '11px', padding: '4px 8px' }}
-            >
-              Gift Card Scam
-            </button>
-            <button
-              onClick={() => setSandboxText('Here is the AWS root key: AKIAIOSFODNN7EXAMPLE')}
-              className="btn-ghost"
-              style={{ fontSize: '11px', padding: '4px 8px' }}
-            >
-              DLP Secret Leak
-            </button>
-          </div>
-
-          {/* Sandbox Evaluation Output */}
-          {sandboxAnalysis && (
-            <div
               style={{
-                marginTop: 'auto',
-                padding: '14px',
-                borderRadius: '10px',
-                background: sandboxAnalysis.indicatorColor === 'RED' ? 'rgba(244, 63, 94, 0.12)' : sandboxAnalysis.indicatorColor === 'ORANGE' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)',
-                border: `1px solid ${sandboxAnalysis.indicatorColor === 'RED' ? 'rgba(244, 63, 94, 0.35)' : sandboxAnalysis.indicatorColor === 'ORANGE' ? 'rgba(245, 158, 11, 0.35)' : 'rgba(16, 185, 129, 0.35)'}`,
+                background: 'var(--accent-cyan)',
+                color: '#000',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '0 14px',
+                fontWeight: 700,
+                fontSize: '12px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontWeight: 800, fontSize: '13px', color: sandboxAnalysis.indicatorColor === 'RED' ? 'var(--red-critical)' : sandboxAnalysis.indicatorColor === 'ORANGE' ? 'var(--orange-warn)' : 'var(--green-safe)' }}>
-                  {sandboxAnalysis.indicatorColor === 'RED' ? '🚨 CRITICAL THREAT DETECTED' : sandboxAnalysis.indicatorColor === 'ORANGE' ? '⚠️ SUSPICIOUS PATTERN DETECTED' : '🛡️ VERIFIED SAFE'}
+              {isAnalyzingSandbox ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+              Test
+            </button>
+          </div>
+
+          {sandboxAnalysis && (
+            <div style={{
+              padding: '10px 12px',
+              borderRadius: '8px',
+              background: sandboxAnalysis.indicatorColor === 'RED' ? 'rgba(239, 68, 68, 0.15)' : sandboxAnalysis.indicatorColor === 'ORANGE' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+              border: `1px solid ${sandboxAnalysis.indicatorColor === 'RED' ? 'rgba(239, 68, 68, 0.4)' : sandboxAnalysis.indicatorColor === 'ORANGE' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <span style={{ fontWeight: 800, fontSize: '12px', color: sandboxAnalysis.indicatorColor === 'RED' ? '#ef4444' : sandboxAnalysis.indicatorColor === 'ORANGE' ? '#fbbf24' : '#10b981' }}>
+                  Risk Score: {sandboxAnalysis.riskScore}/100 ({sandboxAnalysis.indicatorColor})
                 </span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 800 }}>
-                  Risk: {sandboxAnalysis.riskScore}/100
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  {sandboxAnalysis.primaryThreat}
                 </span>
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 6px' }}>
+              <p style={{ fontSize: '11px', margin: 0, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                 {sandboxAnalysis.explanation}
               </p>
-              {sandboxAnalysis.evidenceList.length > 0 && (
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '6px' }}>
-                  {sandboxAnalysis.evidenceList.map((ev, i) => (
-                    <span key={i} style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-                      {ev.signal} ({Math.round(ev.confidence * 100)}%)
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>
+      </div>
 
-        {/* 2. Security Operation Modes */}
-        <div className="glass-panel" style={{ padding: '20px' }}>
-          <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sliders size={16} style={{ color: 'var(--green-safe)' }} /> Security Operation Mode
-          </h3>
+      {/* Live Conversation Threat Timeline */}
+      <div className="glass-panel" style={{ padding: '18px', borderRadius: '14px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Clock size={16} style={{ color: 'var(--accent-cyan)' }} />
+          Live Threat Inspection Log ({timeline.length} Messages)
+        </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            {[
-              { mode: 'GUARDIAN', title: 'Guardian Mode', desc: 'Maximum protection: Deep phishing, social engineering & DLP evaluation.' },
-              { mode: 'BALANCED', title: 'Balanced Mode', desc: 'Optimal trade-off between security and subtle alerts.' },
-              { mode: 'PRIVACY', title: 'Privacy Mode', desc: 'Strict on-device local model processing only.' },
-              { mode: 'PERFORMANCE', title: 'Performance Mode', desc: 'Ultra-fast regex-first deterministic scanning.' },
-            ].map(item => (
+        {timeline.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '12px' }}>
+            No messages analyzed in this conversation yet. Send or receive messages to see real-time cognitive timeline.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {timeline.slice(-10).reverse().map(item => (
               <div
-                key={item.mode}
-                onClick={() => setAiMode(item.mode as any)}
+                key={item.id}
                 style={{
-                  padding: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                  padding: '10px 12px',
                   borderRadius: '8px',
-                  background: aiMode === item.mode ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.02)',
-                  border: aiMode === item.mode ? '1px solid var(--green-safe)' : '1px solid var(--border-subtle)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid var(--border-subtle)',
                 }}
               >
-                <div style={{ fontWeight: 700, fontSize: '13px', color: aiMode === item.mode ? 'var(--green-safe)' : 'var(--text-primary)', marginBottom: '4px' }}>
-                  {item.title}
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                    <span style={{ fontWeight: 700, fontSize: '12px', color: 'var(--text-primary)' }}>{item.sender}</span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{item.time}</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.snippet}
+                  </div>
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                  {item.desc}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <span style={{
+                    fontSize: '10px',
+                    fontWeight: 800,
+                    padding: '2px 6px',
+                    borderRadius: '6px',
+                    background: item.color === 'RED' ? 'rgba(239, 68, 68, 0.2)' : item.color === 'ORANGE' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                    color: item.color === 'RED' ? '#ef4444' : item.color === 'ORANGE' ? '#fbbf24' : '#10b981',
+                  }}>
+                    {item.riskScore}/100
+                  </span>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* Bottom Grid: Risk Timeline & Secret Map */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-        {/* 3. Real-Time Conversation Risk Timeline */}
-        <div className="glass-panel" style={{ padding: '20px' }}>
-          <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Activity size={16} style={{ color: 'var(--orange-warn)' }} /> Conversation Risk Timeline ({totalMessages} msgs)
-          </h3>
-
-          {timeline.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
-              No messages recorded in this conversation yet.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '280px', overflowY: 'auto' }}>
-              {timeline.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: item.color === 'RED' ? 'var(--red-critical)' : item.color === 'ORANGE' ? 'var(--orange-warn)' : 'var(--green-safe)',
-                      boxShadow: `0 0 8px ${item.color === 'RED' ? 'var(--red-glow)' : item.color === 'ORANGE' ? 'var(--orange-glow)' : 'var(--green-glow)'}`,
-                      flexShrink: 0,
-                    }} />
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.sender}: {item.snippet}
-                      </div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                        {item.time} • {item.threat}
-                      </div>
-                    </div>
-                  </div>
-
-                  <span
-                    className={item.color === 'RED' ? 'badge-red' : item.color === 'ORANGE' ? 'badge-orange' : 'badge-green'}
-                    style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '6px', fontWeight: 800, flexShrink: 0, marginLeft: '8px' }}
-                  >
-                    {item.riskScore}/100
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 4. Secret Exposure Map */}
-        <div className="glass-panel" style={{ padding: '20px' }}>
-          <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Key size={16} style={{ color: 'var(--accent-cyan)' }} /> Secret Exposure & DLP Map
-          </h3>
-
-          {exposedSecrets.length === 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', color: 'var(--green-safe)', textAlign: 'center' }}>
-              <CheckCircle size={32} style={{ marginBottom: '8px' }} />
-              <div style={{ fontWeight: 700, fontSize: '14px' }}>Zero Leaks Detected</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No exposed API keys, credit cards, or passwords found in this conversation.</div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto' }}>
-              {exposedSecrets.map((sec, i) => (
-                <div
-                  key={i}
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(245, 158, 11, 0.08)',
-                    border: '1px solid rgba(245, 158, 11, 0.25)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--orange-warn)' }}>{sec.signal}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Sender: {sec.sender} • {sec.time}</div>
-                  </div>
-                  <AlertTriangle size={14} style={{ color: 'var(--orange-warn)', flexShrink: 0 }} />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );
