@@ -44,73 +44,72 @@ export const AdminThreatReviewQueue: React.FC = () => {
   });
 
   return (
-    <div style={{ marginTop: '24px' }}>
+    <div style={{ marginTop: '14px' }}>
       {/* Header & Stats */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <div>
-          <h3 style={{ fontSize: '17px', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Users size={20} style={{ color: '#60a5fa' }} />
-            Crowd-Sourced Threat Moderation & SuperAdmin Training Queue
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
+        <div style={{ minWidth: 0 }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Users size={18} style={{ color: '#60a5fa', flexShrink: 0 }} />
+            <span>Threat Moderation & Training Queue</span>
           </h3>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '3px 0 0' }}>
-            Review user-flagged messages, inspect crowd consensus, and approve samples to train the AI model online.
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+            Inspect user reports, check community consensus, and train the AI model online.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={loadReviews}
-            disabled={loading}
-            className="btn-ghost"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
-          >
-            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
-          </button>
-        </div>
+        <button
+          onClick={loadReviews}
+          disabled={loading}
+          className="btn-ghost"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
+        >
+          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
+        </button>
       </div>
 
-      {/* Analytics Counter Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '20px' }}>
-        <div className="glass-panel" style={{ padding: '14px 18px', background: 'rgba(255, 255, 255, 0.02)' }}>
-          <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>Total User Reports</div>
-          <div style={{ fontSize: '22px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', marginTop: '4px' }}>
+      {/* Analytics Counter Row (Responsive auto-fit grid) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '10px', marginBottom: '16px' }}>
+        <div className="glass-panel" style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.02)' }}>
+          <div style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Total Reports</div>
+          <div style={{ fontSize: '20px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', marginTop: '2px' }}>
             {stats.totalReported}
           </div>
         </div>
 
-        <div className="glass-panel" style={{ padding: '14px 18px', background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-          <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#f59e0b', fontWeight: 600 }}>Pending Moderation</div>
-          <div style={{ fontSize: '22px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#f59e0b', marginTop: '4px' }}>
+        <div className="glass-panel" style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+          <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#f59e0b', fontWeight: 700 }}>Pending</div>
+          <div style={{ fontSize: '20px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#f59e0b', marginTop: '2px' }}>
             {stats.pendingCount}
           </div>
         </div>
 
-        <div className="glass-panel" style={{ padding: '14px 18px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-          <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#10b981', fontWeight: 600 }}>Trained & Calibrated</div>
-          <div style={{ fontSize: '22px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#10b981', marginTop: '4px' }}>
+        <div className="glass-panel" style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+          <div style={{ fontSize: '10px', textTransform: 'uppercase', color: '#10b981', fontWeight: 700 }}>Trained</div>
+          <div style={{ fontSize: '20px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#10b981', marginTop: '2px' }}>
             {stats.trainedCount}
           </div>
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+      {/* Filter Tabs (Horizontal scroll on mobile) */}
+      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '14px', WebkitOverflowScrolling: 'touch' }}>
         {(['PENDING', 'ALL', 'TRAINED'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setFilter(tab)}
             style={{
-              padding: '6px 14px',
+              padding: '6px 12px',
               borderRadius: '6px',
-              border: 'none',
-              fontSize: '12px',
+              border: filter === tab ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+              fontSize: '11px',
               fontWeight: 700,
               cursor: 'pointer',
-              background: filter === tab ? 'var(--primary-color, #2563eb)' : 'rgba(255, 255, 255, 0.05)',
-              color: filter === tab ? '#ffffff' : 'var(--text-muted)',
+              whiteSpace: 'nowrap',
+              background: filter === tab ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+              color: filter === tab ? 'var(--accent-cyan)' : 'var(--text-secondary)',
             }}
           >
-            {tab === 'PENDING' ? `Pending Queue (${stats.pendingCount})` : tab === 'TRAINED' ? `Trained (${stats.trainedCount})` : `All (${stats.totalReported})`}
+            {tab === 'PENDING' ? `Pending (${stats.pendingCount})` : tab === 'TRAINED' ? `Trained (${stats.trainedCount})` : `All (${stats.totalReported})`}
           </button>
         ))}
       </div>
@@ -137,7 +136,7 @@ export const AdminThreatReviewQueue: React.FC = () => {
                 key={r.id}
                 className="glass-panel"
                 style={{
-                  padding: '16px',
+                  padding: '14px',
                   borderRadius: '10px',
                   border: isTrainedMalicious 
                     ? '1px solid rgba(239, 68, 68, 0.3)' 
@@ -147,13 +146,13 @@ export const AdminThreatReviewQueue: React.FC = () => {
                   background: 'rgba(255, 255, 255, 0.02)',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                  <div style={{ flex: 1, marginRight: '16px' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', wordBreak: 'break-word' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '200px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', wordBreak: 'break-word', lineHeight: 1.4 }}>
                       "{r.text}"
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      Reported on {new Date(r.createdAt).toLocaleString()} • AI Risk Score: {r.aiRiskScore}% ({r.aiThreatType})
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      Reported {new Date(r.createdAt).toLocaleDateString()} • AI Risk: {r.aiRiskScore}% ({r.aiThreatType})
                     </div>
                   </div>
 
@@ -162,10 +161,10 @@ export const AdminThreatReviewQueue: React.FC = () => {
                     <span
                       style={{
                         display: 'inline-block',
-                        padding: '3px 8px',
+                        padding: '2px 6px',
                         borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 700,
+                        fontSize: '10px',
+                        fontWeight: 800,
                         background: isTrainedMalicious
                           ? 'rgba(239, 68, 68, 0.2)'
                           : isTrainedBenign
@@ -179,29 +178,29 @@ export const AdminThreatReviewQueue: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Crowd Consensus Ratio */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'rgba(0, 0, 0, 0.2)', padding: '8px 12px', borderRadius: '8px', marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#ef4444', fontWeight: 700 }}>
-                    <ThumbsDown size={13} /> {r.threatVotes} Users Voted Threat
+                {/* Crowd Consensus Ratio (Flex wrap for mobile) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(0, 0, 0, 0.25)', padding: '8px 10px', borderRadius: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#ef4444', fontWeight: 700 }}>
+                    <ThumbsDown size={12} /> {r.threatVotes} Threat
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#10b981', fontWeight: 700 }}>
-                    <ThumbsUp size={13} /> {r.safeVotes} Users Voted Safe
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#10b981', fontWeight: 700 }}>
+                    <ThumbsUp size={12} /> {r.safeVotes} Safe
                   </div>
 
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ flex: 1, height: '6px', background: 'rgba(16, 185, 129, 0.3)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{ flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ flex: 1, height: '5px', background: 'rgba(16, 185, 129, 0.3)', borderRadius: '3px', overflow: 'hidden' }}>
                       <div style={{ width: `${threatPercent}%`, height: '100%', background: '#ef4444' }}></div>
                     </div>
-                    <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                      {threatPercent}% Threat Consensus
+                    <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                      {threatPercent}%
                     </span>
                   </div>
                 </div>
 
-                {/* Admin Action Controls */}
+                {/* Admin Action Controls (Flex-wrap on mobile so buttons stack neatly without overflowing) */}
                 {isPending && (
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
                     <button
                       onClick={() => handleDecision(r.id, 'TRAIN_MALICIOUS')}
                       disabled={processingId === r.id}
@@ -210,16 +209,16 @@ export const AdminThreatReviewQueue: React.FC = () => {
                         border: 'none',
                         borderRadius: '6px',
                         color: '#ffffff',
-                        padding: '6px 14px',
+                        padding: '6px 10px',
                         fontSize: '11px',
                         fontWeight: 700,
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px',
+                        gap: '4px',
                       }}
                     >
-                      <Sparkles size={13} /> ⚡ Approve & Train AI (Malicious)
+                      <Sparkles size={12} /> Train Threat
                     </button>
 
                     <button
@@ -230,25 +229,25 @@ export const AdminThreatReviewQueue: React.FC = () => {
                         border: 'none',
                         borderRadius: '6px',
                         color: '#ffffff',
-                        padding: '6px 14px',
+                        padding: '6px 10px',
                         fontSize: '11px',
                         fontWeight: 700,
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px',
+                        gap: '4px',
                       }}
                     >
-                      <Check size={13} /> ✅ Approve & Calibrate (Safe)
+                      <Check size={12} /> Train Safe
                     </button>
 
                     <button
                       onClick={() => handleDecision(r.id, 'DISMISS')}
                       disabled={processingId === r.id}
                       className="btn-ghost"
-                      style={{ padding: '6px 12px', fontSize: '11px' }}
+                      style={{ padding: '6px 10px', fontSize: '11px' }}
                     >
-                      <X size={13} /> Dismiss
+                      <X size={12} /> Dismiss
                     </button>
                   </div>
                 )}
@@ -257,9 +256,8 @@ export const AdminThreatReviewQueue: React.FC = () => {
           })}
         </div>
       ) : (
-        <div style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)', fontSize: '13px' }} className="glass-panel">
-          <ShieldCheck size={28} style={{ color: 'var(--green-safe)', margin: '0 auto 8px auto' }} />
-          No items in this filter. All crowd reports reviewed!
+        <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--text-muted)', fontSize: '12px' }} className="glass-panel">
+          No reports in this queue. When users flag messages, they will appear here for review.
         </div>
       )}
     </div>
