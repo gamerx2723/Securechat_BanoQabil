@@ -29,11 +29,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const isGreen = analysis.indicatorColor === 'GREEN';
   const isDlp = analysis.primaryThreat === 'DLP_SECRET_EXPOSURE';
 
-  // OpSec Principle:
-  // - Sender ONLY sees warnings for their OWN sensitive data leaks (DLP) to prevent self-harm.
-  // - Sender is NOT given threat scores on phishing/social engineering attacks to prevent evasion crafting.
-  // - Receiver gets FULL prominent protection warnings & threat scores for incoming attacks.
-  const showWarningBanner = isSelf ? isDlp : (isRed || isOrange);
+  // Real-time Visual Threat Defense: Show warning banners on any detected threat
+  const showWarningBanner = isRed || isOrange || isDlp;
 
   const bubbleBorder = isSelf
     ? isDlp

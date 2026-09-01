@@ -131,17 +131,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       const analysis = await ApiClient.analyzePreSend(inputText);
       setIsEvaluating(false);
 
-      // OpSec principle: Only warn the sender if they are leaking THEIR OWN secrets / credentials / PII (DLP)
-      const isSensitiveDlp = analysis.primaryThreat === 'DLP_SECRET_EXPOSURE' ||
-        analysis.evidenceList.some(e => 
-          e.category === 'DLP_SECRET_EXPOSURE' ||
-          /password|cnic|bank|card|secret|passcode|token|key|credential|iban|pii/i.test(e.description)
-        );
-
-      if (isSensitiveDlp && analysis.riskScore >= 25) {
-        const topEv = analysis.evidenceList.find(e => /password|cnic|bank|card|secret|passcode|token|key|credential|iban|pii/i.test(e.description)) || analysis.evidenceList[0];
+      if (analysis.riskScore >= 25) {
+        const topEv = analysis.evidenceList[0];
         setThreatWarning({
-          title: 'Data Loss Prevention Alert: ',
+          title: analysis.indicatorColor === 'RED' ? '🚨 Threat Detected: ' : '⚠️ Security Notice: ',
           desc: topEv?.description || analysis.explanation,
           color: analysis.indicatorColor === 'RED' ? 'RED' : 'ORANGE',
         });
@@ -159,14 +152,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
     const analysis = await ApiClient.analyzePreSend(inputText);
 
-    // If sensitive credentials, passwords, or personal data (DLP) detected, intercept and warn the sender!
-    const isSensitiveDlp = analysis.primaryThreat === 'DLP_SECRET_EXPOSURE' ||
-      analysis.evidenceList.some(e => 
-        e.category === 'DLP_SECRET_EXPOSURE' ||
-        /password|cnic|bank|card|secret|passcode|token|key|credential|iban|pii/i.test(e.description)
-      );
-
-    if (isSensitiveDlp && analysis.riskScore >= 25) {
+    // If critical threat or data leak detected, trigger Pre-Send Interception modal
+    if (analysis.riskScore >= 40) {
       setDlpModalState({
         isOpen: true,
         draftText: inputText,
