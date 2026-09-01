@@ -124,6 +124,45 @@ export class WebSocketGateway {
     });
   }
 
+  public broadcastReadReceipt(conversationId: string, userId: string, messageIds: string[]): void {
+    const payload = {
+      event: 'message:read',
+      data: {
+        conversationId,
+        userId,
+        messageIds,
+      },
+    };
+
+    const dataStr = JSON.stringify(payload);
+    if (!this.wss) return;
+
+    this.wss.clients.forEach((wsClient: any) => {
+      if (wsClient.readyState === WebSocket.OPEN) {
+        wsClient.send(dataStr);
+      }
+    });
+  }
+
+  public broadcastReaction(conversationId: string, reactionData: any): void {
+    const payload = {
+      event: 'message:reaction',
+      data: {
+        conversationId,
+        ...reactionData,
+      },
+    };
+
+    const dataStr = JSON.stringify(payload);
+    if (!this.wss) return;
+
+    this.wss.clients.forEach((wsClient: any) => {
+      if (wsClient.readyState === WebSocket.OPEN) {
+        wsClient.send(dataStr);
+      }
+    });
+  }
+
   public isUserConnected(userId: string): boolean {
     const sockets = this.userSockets.get(userId);
     if (!sockets || sockets.size === 0) return false;

@@ -176,14 +176,14 @@ export class ApiClient {
       });
       if (res.ok) {
         const rawList = await res.json();
-        let deletedConvs: string[] = [];
-        try {
-          deletedConvs = JSON.parse(localStorage.getItem('securechat_deleted_convs') || '[]');
-        } catch {}
-
         let currentUserId = '';
         try {
           currentUserId = JSON.parse(localStorage.getItem('securechat_user') || '{}')?.id || '';
+        } catch {}
+
+        let deletedConvs: string[] = [];
+        try {
+          deletedConvs = JSON.parse(localStorage.getItem(`securechat_deleted_convs_${currentUserId}`) || '[]');
         } catch {}
 
         return rawList
@@ -275,7 +275,19 @@ export class ApiClient {
     if (!res.ok) {
       throw new Error('Failed to create conversation');
     }
-    return await res.json();
+    const created = await res.json();
+    const currentUser = this.getCurrentUser();
+    if (currentUser && created?.id) {
+      try {
+        const key = `securechat_deleted_convs_${currentUser.id}`;
+        const deletedConvs = JSON.parse(localStorage.getItem(key) || '[]');
+        if (deletedConvs.includes(created.id)) {
+          const filtered = deletedConvs.filter((id: string) => id !== created.id);
+          localStorage.setItem(key, JSON.stringify(filtered));
+        }
+      } catch {}
+    }
+    return created;
   }
 
   public static async getMessages(conversationId: string): Promise<ChatMessage[]> {
@@ -286,46 +298,54 @@ export class ApiClient {
       if (res.ok) {
         const rawList = await res.json();
         const currentUser = this.getCurrentUser();
-        return rawList.map((m: any) => {
-          let text = '';
-          let isEdited = false;
-          try {
-            const parsed = JSON.parse(m.encryptedPayload);
-            text = parsed.plaintext || parsed.ciphertext || m.encryptedPayload;
-            isEdited = !!parsed.isEdited;
-          } catch {
-            text = m.encryptedPayload;
-          }
+        const currentUserId = currentUser ? currentUser.id : 'anon';
+        let deletedMsgs: string[] = [];
+        try {
+          deletedMsgs = JSON.parse(localStorage.getItem(`securechat_deleted_msgs_${currentUserId}`) || '[]');
+        } catch {}
 
-          // Evaluate with local AI rule analyzer to get full threat signals and evidence
-          const evaluated = this.clientSideEvaluate(text);
-          const secEvent = m.securityEvents?.[0];
+        return rawList
+          .filter((m: any) => !deletedMsgs.includes(m.id))
+          .map((m: any) => {
+            let text = '';
+            let isEdited = false;
+            try {
+              const parsed = JSON.parse(m.encryptedPayload);
+              text = parsed.plaintext || parsed.ciphertext || m.encryptedPayload;
+              isEdited = !!parsed.isEdited;
+            } catch {
+              text = m.encryptedPayload;
+            }
 
-          const analysis: SecurityAnalysis = {
-            riskScore: secEvent?.riskScore !== undefined ? secEvent.riskScore : evaluated.riskScore,
-            indicatorColor: secEvent?.indicatorColor || evaluated.indicatorColor,
-            primaryThreat: secEvent?.type || evaluated.primaryThreat,
-            confidence: secEvent?.confidence ? Math.round(secEvent.confidence * 100) : evaluated.confidence,
-            evidenceList: evaluated.evidenceList,
-            explanation: secEvent?.explanation || evaluated.explanation,
-            recommendation: secEvent?.recommendation || evaluated.recommendation,
-            suggestedActions: evaluated.suggestedActions,
-          };
+            // Evaluate with local AI rule analyzer to get full threat signals and evidence
+            const evaluated = this.clientSideEvaluate(text);
+            const secEvent = m.securityEvents?.[0];
 
-          return {
-            id: m.id,
-            conversationId: m.conversationId,
-            senderId: m.senderId,
-            senderName: m.sender?.displayName || m.sender?.username || (m.senderId === currentUser?.id ? 'You' : 'Contact'),
-            plaintext: text,
-            isEdited,
-            sentAt: new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            status: m.status || 'SENT',
-            isSelf: m.senderId === currentUser?.id,
-            reactions: m.reactions || [],
-            securityAnalysis: analysis,
-          };
-        });
+            const analysis: SecurityAnalysis = {
+              riskScore: secEvent?.riskScore !== undefined ? secEvent.riskScore : evaluated.riskScore,
+              indicatorColor: secEvent?.indicatorColor || evaluated.indicatorColor,
+              primaryThreat: secEvent?.type || evaluated.primaryThreat,
+              confidence: secEvent?.confidence ? Math.round(secEvent.confidence * 100) : evaluated.confidence,
+              evidenceList: evaluated.evidenceList,
+              explanation: secEvent?.explanation || evaluated.explanation,
+              recommendation: secEvent?.recommendation || evaluated.recommendation,
+              suggestedActions: evaluated.suggestedActions,
+            };
+
+            return {
+              id: m.id,
+              conversationId: m.conversationId,
+              senderId: m.senderId,
+              senderName: m.sender?.displayName || m.sender?.username || (m.senderId === currentUser?.id ? 'You' : 'Contact'),
+              plaintext: text,
+              isEdited,
+              sentAt: new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              status: m.status || 'SENT',
+              isSelf: m.senderId === currentUser?.id,
+              reactions: m.reactions || [],
+              securityAnalysis: analysis,
+            };
+          });
       }
     } catch (error) {
       console.error('Failed to fetch messages:', error);
@@ -364,6 +384,17 @@ export class ApiClient {
   }
 
   public static async deleteMessage(messageId: string): Promise<boolean> {
+    const currentUser = this.getCurrentUser();
+    const currentUserId = currentUser ? currentUser.id : 'anon';
+    try {
+      const key = `securechat_deleted_msgs_${currentUserId}`;
+      const deletedMsgs = JSON.parse(localStorage.getItem(key) || '[]');
+      if (!deletedMsgs.includes(messageId)) {
+        deletedMsgs.push(messageId);
+        localStorage.setItem(key, JSON.stringify(deletedMsgs));
+      }
+    } catch {}
+
     try {
       const res = await fetch(`${API_BASE}/messages/${messageId}`, {
         method: 'DELETE',
@@ -371,22 +402,26 @@ export class ApiClient {
       });
       return res.ok;
     } catch {
-      return false;
+      return true;
     }
   }
 
   public static async deleteConversation(conversationId: string): Promise<boolean> {
-    // 1. Purge from persistent browser localStorage memory
+    const currentUser = this.getCurrentUser();
+    const currentUserId = currentUser ? currentUser.id : 'anon';
+
+    // 1. Purge from persistent user-scoped browser memory
     try {
-      localStorage.removeItem(`securechat_msgs_${conversationId}`);
-      const deletedConvs = JSON.parse(localStorage.getItem('securechat_deleted_convs') || '[]');
+      localStorage.removeItem(`securechat_msgs_${currentUserId}_${conversationId}`);
+      const key = `securechat_deleted_convs_${currentUserId}`;
+      const deletedConvs = JSON.parse(localStorage.getItem(key) || '[]');
       if (!deletedConvs.includes(conversationId)) {
         deletedConvs.push(conversationId);
-        localStorage.setItem('securechat_deleted_convs', JSON.stringify(deletedConvs));
+        localStorage.setItem(key, JSON.stringify(deletedConvs));
       }
     } catch {}
 
-    // 2. Delete on backend server
+    // 2. Remove user membership on backend server (keeps history intact for the other user)
     try {
       const res = await fetch(`${API_BASE}/conversations/${conversationId}`, {
         method: 'DELETE',
