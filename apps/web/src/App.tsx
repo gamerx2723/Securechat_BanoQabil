@@ -158,13 +158,28 @@ export const App: React.FC = () => {
           const payload = JSON.parse(event.data);
           if (payload.event === 'message:receive') {
             const raw = payload.data;
-            // Incoming message from another user -> Play chime and trigger notification
-            if (raw.senderId !== currentUser.id) {
-              playNotificationChime();
-              triggerSystemNotification(raw.senderName || 'Encrypted Message', raw.plaintext?.slice(0, 80) || 'New message received');
+            const messageObj = raw?.message || raw;
+            const convId = raw?.conversationId || messageObj?.conversationId;
+            const senderId = messageObj?.senderId;
+            const senderName = messageObj?.sender?.displayName || messageObj?.sender?.username || 'Encrypted Message';
+
+            let previewText = '';
+            if (messageObj?.encryptedPayload) {
+              try {
+                const parsed = JSON.parse(messageObj.encryptedPayload);
+                previewText = parsed.plaintext || messageObj.encryptedPayload;
+              } catch {
+                previewText = messageObj.encryptedPayload;
+              }
             }
 
-            if (raw.conversationId === activeConvIdRef.current) {
+            // Incoming message from another user -> Play chime and trigger notification
+            if (senderId && senderId !== currentUser.id) {
+              playNotificationChime();
+              triggerSystemNotification(senderName, previewText.slice(0, 80) || 'New message received');
+            }
+
+            if (convId === activeConvIdRef.current) {
               loadActiveMessages(activeConvIdRef.current);
             }
             loadConversations();
