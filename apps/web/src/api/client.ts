@@ -19,11 +19,13 @@ function safeBase64Encode(str: string): string {
 
 export class ApiClient {
   public static getToken(): string | null {
-    return localStorage.getItem('securechat_token');
+    if (typeof window === 'undefined') return null;
+    return sessionStorage.getItem('securechat_token') || localStorage.getItem('securechat_token');
   }
 
   public static getDevice(): { deviceId: string; id?: string } {
-    const saved = localStorage.getItem('securechat_device');
+    if (typeof window === 'undefined') return { deviceId: 'DEV_SSR' };
+    const saved = sessionStorage.getItem('securechat_device') || localStorage.getItem('securechat_device');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -31,12 +33,14 @@ export class ApiClient {
     }
     const newId = 'WEB_DEV_' + Math.random().toString(36).substring(2, 12).toUpperCase() + '_' + Date.now();
     const devObj = { deviceId: newId };
+    sessionStorage.setItem('securechat_device', JSON.stringify(devObj));
     localStorage.setItem('securechat_device', JSON.stringify(devObj));
     return devObj;
   }
 
   public static getCurrentUser(): UserProfile | null {
-    const saved = localStorage.getItem('securechat_user');
+    if (typeof window === 'undefined') return null;
+    const saved = sessionStorage.getItem('securechat_user') || localStorage.getItem('securechat_user');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -46,6 +50,10 @@ export class ApiClient {
   }
 
   public static logout(): void {
+    if (typeof window === 'undefined') return;
+    sessionStorage.removeItem('securechat_token');
+    sessionStorage.removeItem('securechat_refresh_token');
+    sessionStorage.removeItem('securechat_user');
     localStorage.removeItem('securechat_token');
     localStorage.removeItem('securechat_refresh_token');
     localStorage.removeItem('securechat_user');
@@ -79,10 +87,17 @@ export class ApiClient {
     }
 
     const data = await res.json();
-    localStorage.setItem('securechat_token', data.tokens.accessToken);
-    localStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
-    localStorage.setItem('securechat_user', JSON.stringify(data.user));
-    localStorage.setItem('securechat_device', JSON.stringify(data.device));
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('securechat_token', data.tokens.accessToken);
+      sessionStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
+      sessionStorage.setItem('securechat_user', JSON.stringify(data.user));
+      sessionStorage.setItem('securechat_device', JSON.stringify(data.device));
+
+      localStorage.setItem('securechat_token', data.tokens.accessToken);
+      localStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
+      localStorage.setItem('securechat_user', JSON.stringify(data.user));
+      localStorage.setItem('securechat_device', JSON.stringify(data.device));
+    }
 
     return { user: data.user, token: data.tokens.accessToken };
   }
@@ -127,10 +142,17 @@ export class ApiClient {
     }
 
     const data = await res.json();
-    localStorage.setItem('securechat_token', data.tokens.accessToken);
-    localStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
-    localStorage.setItem('securechat_user', JSON.stringify(data.user));
-    localStorage.setItem('securechat_device', JSON.stringify(data.device));
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('securechat_token', data.tokens.accessToken);
+      sessionStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
+      sessionStorage.setItem('securechat_user', JSON.stringify(data.user));
+      sessionStorage.setItem('securechat_device', JSON.stringify(data.device));
+
+      localStorage.setItem('securechat_token', data.tokens.accessToken);
+      localStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
+      localStorage.setItem('securechat_user', JSON.stringify(data.user));
+      localStorage.setItem('securechat_device', JSON.stringify(data.device));
+    }
 
     return { user: data.user, token: data.tokens.accessToken };
   }
@@ -151,9 +173,16 @@ export class ApiClient {
       throw new Error(err.error || 'Failed to update profile');
     }
     const updated = await res.json();
-    const stored = JSON.parse(localStorage.getItem('securechat_user') || '{}');
+    const stored = JSON.parse(
+      (typeof window !== 'undefined' ? sessionStorage.getItem('securechat_user') : null) ||
+      (typeof window !== 'undefined' ? localStorage.getItem('securechat_user') : null) ||
+      '{}'
+    );
     const merged = { ...stored, ...updated };
-    localStorage.setItem('securechat_user', JSON.stringify(merged));
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('securechat_user', JSON.stringify(merged));
+      localStorage.setItem('securechat_user', JSON.stringify(merged));
+    }
     return merged;
   }
 
@@ -178,7 +207,11 @@ export class ApiClient {
         const rawList = await res.json();
         let currentUserId = '';
         try {
-          currentUserId = JSON.parse(localStorage.getItem('securechat_user') || '{}')?.id || '';
+          currentUserId = JSON.parse(
+            (typeof window !== 'undefined' ? sessionStorage.getItem('securechat_user') : null) ||
+            (typeof window !== 'undefined' ? localStorage.getItem('securechat_user') : null) ||
+            '{}'
+          )?.id || '';
         } catch {}
 
         return rawList.map((c: any) => {
@@ -199,7 +232,10 @@ export class ApiClient {
           let avatar = c.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
 
           if (c.members && c.members.length > 0) {
-            const otherMembers = c.members.filter((m: any) => (m.userId || m.id) !== currentUserId);
+            const otherMembers = c.members.filter((m: any) => {
+              const memberId = m.userId || m.id || m.user?.id;
+              return memberId !== currentUserId;
+            });
             if (c.type === 'DIRECT' || !title) {
               if (otherMembers.length > 0) {
                 title = otherMembers[0].displayName || otherMembers[0].username || otherMembers[0].user?.displayName || otherMembers[0].user?.username || 'Recipient';

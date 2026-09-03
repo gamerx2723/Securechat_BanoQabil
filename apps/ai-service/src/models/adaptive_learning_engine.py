@@ -10,7 +10,7 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.metrics.pairwise import cosine_similarity
 
 FEEDBACK_STORE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "feedback_exemplars.json")
-ADAPTIVE_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models_store", "adaptive_online_model.joblib")
+ADAPTIVE_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models_store", "unified_online_guardian.joblib")
 
 class AdaptiveLearningEngine:
     """

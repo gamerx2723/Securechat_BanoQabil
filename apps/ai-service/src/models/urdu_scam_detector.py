@@ -3,7 +3,7 @@ import re
 import joblib
 from typing import Dict, Any, List
 
-MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models_store", "roman_urdu_phishing_model.joblib")
+MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models_store", "unified_online_guardian.joblib")
 _ml_roman_urdu_model = None
 
 def get_roman_urdu_model():
@@ -97,11 +97,16 @@ class UrduScamDetector:
         # 2. 500k-Dataset Trained Machine Learning Model Inference
         if ml_model is not None and len(words) >= 3:
             try:
-                pred_prob = ml_model.predict_proba([text])[0][1]
+                if isinstance(ml_model, dict):
+                    vec = ml_model.get("vectorizer")
+                    clf = ml_model.get("model")
+                    pred_prob = clf.predict_proba(vec.transform([text]))[0][1]
+                else:
+                    pred_prob = ml_model.predict_proba([text])[0][1]
                 ml_score = float(pred_prob) * 100
                 if ml_score >= 65.0 or (ml_score >= 50.0 and len(categories_detected) > 0):
                     score = max(score, ml_score)
-                    signals.append(f"Trained 500k Roman Urdu ML Classifier: {ml_score:.1f}% scam confidence")
+                    signals.append(f"Unified Online Guardian ML Classifier: {ml_score:.1f}% scam confidence")
                 elif ml_score < 20.0 and not categories_detected:
                     score = min(score, 10.0)
             except Exception as e:

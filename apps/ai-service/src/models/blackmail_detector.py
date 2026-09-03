@@ -3,7 +3,7 @@ import re
 import joblib
 from typing import Dict, Any, List
 
-MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models_store", "blackmail_model.joblib")
+MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models_store", "unified_online_guardian.joblib")
 _ml_blackmail_model = None
 
 def get_blackmail_model():
