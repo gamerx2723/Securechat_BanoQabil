@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Lock, User, Key, AlertCircle, Sparkles, Phone } from 'lucide-react';
+import { Shield, Lock, User, Key, AlertCircle, Sparkles, Phone, Crown, Zap } from 'lucide-react';
 import { ApiClient } from '../api/client';
 import { UserProfile } from '../types';
 
@@ -16,6 +16,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const handleQuickAdminLogin = async (target: 'asad' | 'sinner') => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await ApiClient.quickAdminLogin(target);
+      onSuccess(res.user);
+    } catch (err: any) {
+      setError(err.message || 'Quick login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,6 +168,125 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             Register (Phone Only)
           </button>
         </div>
+
+        {/* Quick 1-Click Admin Testing Login */}
+        {isLogin && (
+          <div
+            style={{
+              marginBottom: '20px',
+              padding: '12px 14px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(6, 182, 212, 0.08))',
+              border: '1px solid rgba(245, 158, 11, 0.25)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Zap size={14} style={{ color: '#fbbf24' }} />
+                <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#fbbf24' }}>
+                  1-Click Admin Quick Login
+                </span>
+              </div>
+              <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24' }}>
+                TESTING
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              {/* Admin 1: Muhammad Asad */}
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleQuickAdminLogin('asad')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '9px 10px',
+                  borderRadius: '12px',
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(6, 182, 212, 0.18)';
+                  e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.6)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                  e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.3)';
+                  e.currentTarget.style.transform = 'none';
+                }}
+              >
+                <img
+                  src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
+                  alt="Muhammad Asad"
+                  style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1.5px solid #06b6d4' }}
+                />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      M. Asad
+                    </span>
+                    <Crown size={10} style={{ color: '#fbbf24', flexShrink: 0 }} />
+                  </div>
+                  <span style={{ fontSize: '9px', color: 'var(--text-muted)', display: 'block' }}>
+                    SuperAdmin
+                  </span>
+                </div>
+              </button>
+
+              {/* Admin 2: GMX Sinner */}
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleQuickAdminLogin('sinner')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '9px 10px',
+                  borderRadius: '12px',
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(244, 63, 94, 0.3)',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(244, 63, 94, 0.18)';
+                  e.currentTarget.style.borderColor = 'rgba(244, 63, 94, 0.6)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                  e.currentTarget.style.borderColor = 'rgba(244, 63, 94, 0.3)';
+                  e.currentTarget.style.transform = 'none';
+                }}
+              >
+                <img
+                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+                  alt="GMX Sinner"
+                  style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1.5px solid #f43f5e' }}
+                />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      GMX Sinner
+                    </span>
+                    <Crown size={10} style={{ color: '#fbbf24', flexShrink: 0 }} />
+                  </div>
+                  <span style={{ fontSize: '9px', color: 'var(--text-muted)', display: 'block' }}>
+                    SuperAdmin
+                  </span>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Error Alert */}
         {error && (

