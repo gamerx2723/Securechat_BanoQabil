@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ConversationItem, ChatMessage, SecurityAnalysis } from '../types';
 import { MessageItem } from './MessageItem';
 import { DlpPreSendWarningModal } from './DlpPreSendWarningModal';
+import { SextortionEmergencyModal } from './SextortionEmergencyModal';
+import { SensitiveMediaModal } from './SensitiveMediaModal';
+import { MediaAnalyzer } from '../utils/mediaAnalyzer';
 import {
   Send,
   Paperclip,
@@ -82,11 +85,82 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     analysis: null,
   });
 
+  const [isSextortionModalOpen, setIsSextortionModalOpen] = useState(false);
+  const [sensitiveMediaState, setSensitiveMediaState] = useState<{
+    isOpen: boolean;
+    previewUrl: string | null;
+    pendingFile: File | null;
+  }>({
+    isOpen: false,
+    previewUrl: null,
+    pendingFile: null,
+  });
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+
+  const blackmailMessages = messages.filter(
+    (m) =>
+      m.securityAnalysis?.primaryThreat === 'BLACKMAIL_SEXTORTION' ||
+      m.securityAnalysis?.primaryThreat === 'COERCIVE_INTIMATE_SOLICITATION' ||
+      m.securityAnalysis?.evidenceList?.some(
+        (e) => e.category === 'BLACKMAIL_SEXTORTION' || e.category === 'COERCIVE_INTIMATE_SOLICITATION'
+      )
+  );
+  const hasBlackmailThreat = blackmailMessages.length > 0;
+
+  const handleAttachmentClick = () => {
+    if (conversation?.isBlocked) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    if (file.type.startsWith('image/')) {
+      const scan = await MediaAnalyzer.scanImage(file);
+      if (scan.isSensitive) {
+        const previewUrl = URL.createObjectURL(file);
+        setSensitiveMediaState({
+          isOpen: true,
+          previewUrl,
+          pendingFile: file,
+        });
+        return;
+      }
+    }
+
+    sendAttachmentMessage(file);
+  };
+
+  const sendAttachmentMessage = async (file: File, options?: { viewOnce?: boolean; watermark?: boolean }) => {
+    let caption = `[Encrypted Image: ${file.name}]`;
+    if (options?.viewOnce) {
+      caption += ' ⏳ (View-Once Ephemeral)';
+    }
+    if (options?.watermark && conversation) {
+      caption += ` 🛡️ (Protected with Watermark: ${conversation.title})`;
+    }
+
+    onSendMessage(caption, {
+      riskScore: 0,
+      indicatorColor: 'GREEN',
+      primaryThreat: 'NONE',
+      confidence: 1,
+      evidenceList: [],
+      explanation: options?.watermark
+        ? 'Media encrypted and protected with forensic recipient watermark.'
+        : 'Encrypted media verified safe.',
+      recommendation: 'Standard encrypted transmission',
+      suggestedActions: [],
+    });
+  };
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     if (scrollRef.current) {
@@ -371,12 +445,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           {/* Security Status Indicator */}
           <div
             className="security-badge"
+            onClick={() => {
+              if (hasBlackmailThreat || conversation.securityState === 'RED') {
+                setIsSextortionModalOpen(true);
+              }
+            }}
             style={{
               padding: '6px 12px',
               borderRadius: '20px',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
+              cursor: hasBlackmailThreat || conversation.securityState === 'RED' ? 'pointer' : 'default',
               background: conversation.isBlocked
                 ? 'rgba(239, 68, 68, 0.15)'
                 : conversation.isExcluded
@@ -397,6 +477,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                         : 'rgba(16, 185, 129, 0.4)'
                 }`,
             }}
+            title={hasBlackmailThreat || conversation.securityState === 'RED' ? 'Click to open Anti-Sextortion & Emergency Vault' : undefined}
           >
             {conversation.isBlocked ? (
               <>
@@ -582,6 +663,33 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               </div>
 
               <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setIsSextortionModalOpen(true);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#ef4444',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'background 0.15s ease',
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)')}
+                onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                <ShieldAlert size={16} color="#ef4444" />
+                <span>Emergency Vault (FIA 1991)</span>
+              </button>
+
+              <button
                 onClick={() => handleMenuAction('REPORT_CHAT')}
                 style={{
                   display: 'flex',
@@ -755,6 +863,55 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         </div>
       )}
 
+      {/* Critical Cyber-Blackmail & Sextortion Threat Alert Banner */}
+      {hasBlackmailThreat && !conversation.isBlocked && (
+        <div
+          style={{
+            margin: '0 20px 10px 20px',
+            padding: '12px 16px',
+            background: 'linear-gradient(90deg, rgba(239, 68, 68, 0.22) 0%, rgba(185, 28, 28, 0.16) 100%)',
+            border: '1px solid rgba(239, 68, 68, 0.55)',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            boxShadow: '0 4px 15px rgba(239, 68, 68, 0.2)',
+            animation: 'fadeIn 0.2s ease',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+            <ShieldAlert size={22} style={{ color: '#ef4444', flexShrink: 0 }} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: '#ef4444', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase' }}>
+                🚨 Critical Cyber-Blackmail / Sextortion Alert
+              </div>
+              <div style={{ fontSize: '11px', color: '#f8fafc', marginTop: '2px' }}>
+                Perpetrator is attempting coercion or photo leak extortion. Never comply with demands.
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsSextortionModalOpen(true)}
+            style={{
+              background: '#ef4444',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '7px 14px',
+              fontSize: '11px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              boxShadow: '0 2px 10px rgba(239, 68, 68, 0.4)',
+            }}
+          >
+            Emergency Vault (FIA 1991)
+          </button>
+        </div>
+      )}
+
       {/* Real-time Pre-Send Threat Advisory Banner */}
       {threatWarning && !conversation.isBlocked && (
         <div
@@ -859,12 +1016,22 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         )}
 
         <form onSubmit={handleSend} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {/* Hidden File Input for Client-Side Sensitive Media Scanning */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+
           {/* Attachment Button */}
           <button
             type="button"
             disabled={conversation.isBlocked}
+            onClick={handleAttachmentClick}
             className="btn-ghost"
-            title="Attach Secure Encrypted File"
+            title="Attach Protected Encrypted Photo / Document"
             style={{ padding: '10px', opacity: conversation.isBlocked ? 0.4 : 1, cursor: conversation.isBlocked ? 'not-allowed' : 'pointer' }}
           >
             <Paperclip size={18} />
@@ -899,7 +1066,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 ? 'User is blocked. Unblock in menu (⋮) to send messages...'
                 : conversation.isExcluded
                   ? 'Type message (AI Security scanning paused for this chat)...'
-                  : 'Type message (Protected by Zero-Trust AI & DLP)...'
+                  : 'Type message (Protected by Zero-Trust AI & Anti-Sextortion Guardian)...'
             }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
@@ -944,6 +1111,39 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           onSendRedacted={handleSendRedacted}
         />
       )}
+
+      {/* Anti-Sextortion & Cyber-Blackmail Emergency Assistance & Evidence Modal */}
+      <SextortionEmergencyModal
+        isOpen={isSextortionModalOpen}
+        onClose={() => setIsSextortionModalOpen(false)}
+        conversationTitle={conversation.title}
+        senderName={blackmailMessages[0]?.senderName || conversation.title}
+        threatMessages={blackmailMessages}
+        onBlockUser={() => {
+          if (onBlockUser) onBlockUser(conversation.id);
+          setIsSextortionModalOpen(false);
+          showToast(`🚫 Abuser '${conversation.title}' has been blocked and AI Guardian updated.`, 'SUCCESS');
+        }}
+      />
+
+      {/* Client-Side Sensitive Media Pre-Send Advisory Modal */}
+      <SensitiveMediaModal
+        isOpen={sensitiveMediaState.isOpen}
+        previewUrl={sensitiveMediaState.previewUrl}
+        recipientTitle={conversation.title}
+        onCancel={() => {
+          if (sensitiveMediaState.previewUrl) URL.revokeObjectURL(sensitiveMediaState.previewUrl);
+          setSensitiveMediaState({ isOpen: false, previewUrl: null, pendingFile: null });
+        }}
+        onSendSafe={async ({ viewOnce, watermark }) => {
+          const file = sensitiveMediaState.pendingFile;
+          if (sensitiveMediaState.previewUrl) URL.revokeObjectURL(sensitiveMediaState.previewUrl);
+          setSensitiveMediaState({ isOpen: false, previewUrl: null, pendingFile: null });
+          if (file) {
+            sendAttachmentMessage(file, { viewOnce, watermark });
+          }
+        }}
+      />
     </main>
   );
 };

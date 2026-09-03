@@ -9,8 +9,23 @@ from src.models.social_engineering_detector import SocialEngineeringDetector
 from src.models.dlp_detector import DlpDetector
 from src.models.context_engine import ConversationContextEngine
 from src.models.explainability_engine import ExplainabilityEngine
+from src.models.blackmail_detector import BlackmailDetector
 
 class TestSecureChatAiService(unittest.TestCase):
+    
+    def test_blackmail_and_sextortion_detection(self):
+        sample_threat = "teri pictures Facebook aur WhatsApp pe viral kar dunga agar paise na diye"
+        res = BlackmailDetector.scan(sample_threat)
+        self.assertTrue(res["blackmail_detected"])
+        self.assertTrue(res["is_blackmail_threat"])
+        self.assertGreaterEqual(res["risk_score"], 80)
+        print("[PASS] AI Test: Blackmail & Non-consensual image leak extortion detector")
+
+        sample_coercion = "agar sach mein mujh se pyar karti ho to private pic send karo foran"
+        res2 = BlackmailDetector.scan(sample_coercion)
+        self.assertTrue(res2["blackmail_detected"])
+        self.assertTrue(res2["is_coercive_solicitation"])
+        print("[PASS] AI Test: Coercive intimate solicitation & emotional manipulation detector")
     
     def test_phishing_detector_homoglyph_and_brand(self):
         sample = "Verify immediately: https://paypa1-update.xyz/login"

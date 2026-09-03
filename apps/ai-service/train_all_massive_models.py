@@ -27,6 +27,7 @@ domain_regex = re.compile(r"^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(/.*)?$", re.IGNORECASE
 se_texts, se_labels = [], []
 urls, url_labels = [], []
 urdu_texts, urdu_labels = [], []
+blackmail_texts, blackmail_labels = [], []
 
 all_files = sorted(os.listdir(data_dir))
 print(f"Discovered {len(all_files)} dataset files in '{data_dir}':\n")
@@ -168,6 +169,23 @@ for fname in all_files:
                                     urls.append(u.strip())
                                     url_labels.append(lbl)
 
+                    elif "blackmail" in fname.lower() or "sextortion" in fname.lower():
+                        if len(row) >= 2:
+                            txt = row[0].strip()
+                            lbl = parse_label(row[1])
+                            if txt:
+                                blackmail_texts.append(txt)
+                                blackmail_labels.append(lbl)
+                                if is_urdu_script(txt) or is_roman_urdu(txt):
+                                    urdu_texts.append(txt)
+                                    urdu_labels.append(lbl)
+                                else:
+                                    se_texts.append(txt)
+                                    se_labels.append(lbl)
+                                for u in url_regex.findall(txt):
+                                    urls.append(u.strip())
+                                    url_labels.append(lbl)
+
                     elif "urdu" in fname.lower() or "bilingual" in fname.lower():
                         # Urdu / Roman Urdu files: row[0]=text, row[1]=label
                         if len(row) >= 2:
@@ -303,8 +321,19 @@ X_adapt = adapt_vec.fit_transform(all_adaptive_texts)
 adapt_model = SGDClassifier(loss="log_loss", penalty="l2", alpha=1e-5, max_iter=2000, random_state=42)
 adapt_model.fit(X_adapt, all_adaptive_labels)
 
-joblib.dump({"vectorizer": adapt_vec, "model": adapt_model}, os.path.join(store_dir, "adaptive_online_model.joblib"))
-print(f"   ✅ Adaptive Online Base Model trained in {time.time()-t0:.2f}s and saved.")
+# ==============================================================================
+# 5. TRAIN BLACKMAIL & SEXTORTION DETECTOR MODEL
+# ==============================================================================
+print(f"\n🧠 [5/5] Training Blackmail & Sextortion Model on {len(blackmail_texts):,} samples...")
+t0 = time.time()
+bm_vec = TfidfVectorizer(ngram_range=(1, 3), max_features=40000, analyzer="word", sublinear_tf=True)
+X_bm = bm_vec.fit_transform(blackmail_texts)
+bm_model = SGDClassifier(loss="log_loss", penalty="l2", alpha=1e-5, max_iter=2000, random_state=42)
+bm_model.fit(X_bm, blackmail_labels)
+
+joblib.dump({"vectorizer": bm_vec, "model": bm_model}, os.path.join(store_dir, "blackmail_model.joblib"))
+joblib.dump({"vectorizer": adapt_vec, "model": adapt_model}, os.path.join(store_dir, "unified_online_guardian.joblib"))
+print(f"   ✅ Blackmail & Sextortion Model and Unified Online Guardian trained in {time.time()-t0:.2f}s and saved.")
 
 print("\n" + "=" * 70)
 print(f"🎉 ALL MODELS TRAINED ON ALL {len(all_files)} FILES & SAVED TO models_store/")

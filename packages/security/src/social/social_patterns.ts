@@ -28,7 +28,21 @@ export class SocialEngineeringScanner {
       weight: 60,
       description: 'Direct deposit or payroll wire transfer redirection fraud.',
     },
-    // 4. Extortion, Blackmail & Ransom Threats
+    // 4. Extortion, Non-Consensual Image Leak & Sextortion Blackmail Threats (Urdu, Roman Urdu, English)
+    {
+      category: 'BLACKMAIL_SEXTORTION',
+      regex: /(?:\b(?:teri|tumhari|apki|uski|your)\b.*?\b(?:pics?|pictures?|photos?|videos?|tasveere?i?n?|recordings?|nudes?)\b.*?\b(?:viral|leak|upload|send|post|share|expose|daal|charha|forward|bhej)\b.*?\b(?:kar dunga|kar donga|kardunga|kr donga|karoon?ga|dunga|will|warna|ruin|barbaad)\b|\b(?:facebook|tiktok|instagram|social media|internet|youtube|whatsapp|group)\b.*?\b(?:pe|par|main|mein)\b.*?\b(?:daal|upload|charha|viral|post|leak|share)\b.*?\b(?:dunga|kardunga|kr donga|donga)\b|\b(?:tere|tumhare|apke|your)\b.*?\b(?:abba|abbu|bhai|walid|family|rishtedar(?:on)?|ghar wal(?:on)?|ammi|parents|friends)\b.*?\b(?:ko|k pas|to)\b.*?\b(?:send|bhej|dikha|forward)\b.*?\b(?:dunga|kardunga|kr donga|donga)\b|\b(?:i will|i\'ll)\s+(?:leak|expose|post|viral|share|publish)\s+(?:your\s+)?(?:nudes?|pics?|pictures?|private|photos?|videos?)\b|\b(?:send|bhejo|transfer)\s+.*?\b(?:money|paise|pics?|photos?|nudes?)\b.*?\b(?:warna|or else|otherwise)\b.*?\b(?:viral|leak|barbaad|ruin)\b|\b(?:saboot hai mere paas|barbaad kar dunga|sab ko dikhaunga|ruin your life|sab ko bhej dunga)\b|(?:تصویریں\s*وائرل|ویڈیو\s*لیک|فیس\s*بک\s*پر|والدین\s*کو\s*بھیج|برباد\s*کر\s*دوں\s*گا|بلیک\s*میل|سب\s*کو\s*دکھاؤں\s*گا))/i,
+      weight: 95,
+      description: 'Critical cyber-blackmail, sextortion, or non-consensual private image leak threat detected.',
+    },
+    // 4b. Coercive Intimate Media Solicitation & Emotional Exploitation
+    {
+      category: 'COERCIVE_INTIMATE_SOLICITATION',
+      regex: /(?:\b(?:nudes?|private\s*(?:pic|pics|photo|photos|video|videos)|tasveer|tasveerein)\b.*?\b(?:send karo|bhejo|dikhao|share karo|do)\b|\b(?:camera|cam)\s*(?:kholo|on karo|start karo|open karo)\b|\b(?:kapr[ae]y?\s*utaro|take off your clothes)\b|\bagar\s*(?:sach\s*mein\s*)?(?:pyar|mohabbat)\s*(?:karti|karte)\s*ho\s*to\s*.*?\b(?:saboot do|tasveer|pic|photo)\b|\bprove your love\b.*?\b(?:sending|photo|pic|picture)\b|\bif you (?:really )?love me\b.*?\b(?:send|show)\b|\b(?:kisi ko|kisi se)\s*(?:mat batana|share na karna|nahi batana)\b.*?\b(?:secret|raz|baat)\b|\bbreak up\s*kar\s*(?:lunga|loonga)\s*agar\s*.*?(?:pic|photo|tasveer)\b|(?:برہنہ\s*تصویر|ثبوت\s*دو|پیار\s*کا\s*ثبوت|کپڑے\s*اتار))/i,
+      weight: 80,
+      description: 'Coercive solicitation of private/intimate imagery or emotional manipulation detected.',
+    },
+    // 4c. General Device Compromise / Webcam Ransom Threats
     {
       category: 'SOCIAL_ENGINEERING',
       regex: /(?:\b(?:webcam footage|recorded your webcam|compromised your device|leaked to your contacts|transfer \$?\d+ in bitcoin|bitcoin to wallet|pay the ransom|private files will be leaked|compromised your system)\b)/i,

@@ -4,6 +4,7 @@ from typing import Optional, List
 from ..models.phishing_detector import PhishingDetector
 from ..models.social_engineering_detector import SocialEngineeringDetector
 from ..models.urdu_scam_detector import UrduScamDetector
+from ..models.blackmail_detector import BlackmailDetector
 from ..models.zero_day_cognitive_engine import ZeroDayCognitiveEngine
 from ..models.deep_cognitive_engine import DeepCognitiveEngine
 from ..models.adaptive_learning_engine import AdaptiveLearningEngine
@@ -26,6 +27,7 @@ async def analyze_message(req: AnalyzeRequest):
     zero_day = ZeroDayCognitiveEngine.analyze_zero_day_intent(req.text)
     deep_cognitive = DeepCognitiveEngine.analyze_deep_intent(req.text)
     adaptive_mem = AdaptiveLearningEngine.query_adaptive_memory(req.text)
+    blackmail = BlackmailDetector.scan(req.text)
     dlp = DlpDetector.scan(req.text)
 
     # Compute risk score 0 - 100
@@ -34,6 +36,9 @@ async def analyze_message(req: AnalyzeRequest):
     
     if social["social_engineering_index"] >= 0.25:
         accumulated_risk += social["social_engineering_index"] * 45
+
+    if blackmail["blackmail_detected"]:
+        accumulated_risk = max(accumulated_risk, float(blackmail["risk_score"]))
 
     if zero_day["zero_day_threat_detected"]:
         accumulated_risk = max(accumulated_risk, float(zero_day["cognitive_risk_score"]))
@@ -67,7 +72,11 @@ async def analyze_message(req: AnalyzeRequest):
 
     # Determine primary threat
     primary_threat = "SAFE"
-    if phishing["phishing_detected"]:
+    if blackmail["is_blackmail_threat"]:
+        primary_threat = "BLACKMAIL_SEXTORTION"
+    elif blackmail["is_coercive_solicitation"]:
+        primary_threat = "COERCIVE_INTIMATE_SOLICITATION"
+    elif phishing["phishing_detected"]:
         primary_threat = "PHISHING"
     elif adaptive_mem["has_memory_match"] and adaptive_mem["matched_exemplar"] and adaptive_mem["matched_exemplar"]["label"] == "MALICIOUS":
         primary_threat = "SOCIAL_ENGINEERING"
@@ -83,6 +92,8 @@ async def analyze_message(req: AnalyzeRequest):
         primary_threat = "DLP_SECRET_EXPOSURE"
 
     explanation = ExplainabilityEngine.generate_explanation(final_score, color, phishing, social, dlp, urdu_scam)
+    if blackmail["blackmail_detected"] and color == "RED":
+        explanation = "CRITICAL ALERT: Non-consensual image leak extortion or coercive blackmail threat detected. Protect your private media and access legal assistance immediately."
 
     return {
         "risk_score": final_score,
@@ -92,6 +103,7 @@ async def analyze_message(req: AnalyzeRequest):
         "phishing_analysis": phishing,
         "social_engineering_analysis": social,
         "urdu_scam_analysis": urdu_scam,
+        "blackmail_analysis": blackmail,
         "zero_day_analysis": zero_day,
         "deep_cognitive_analysis": deep_cognitive,
         "adaptive_memory_analysis": adaptive_mem,
