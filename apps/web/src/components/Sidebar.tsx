@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ConversationItem, SecurityIndicatorColor } from '../types';
-import { Shield, ShieldAlert, ShieldCheck, MessageSquare, Activity, ShieldQuestion, Plus, Lock, Search, LogOut, Crown, CheckSquare, Square, Trash2, X, MoreVertical, User, Settings, Sparkles, Key, Check } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, MessageSquare, Activity, ShieldQuestion, Plus, Lock, Search, LogOut, Crown, CheckSquare, Square, Trash2, X, MoreVertical, User, Sparkles } from 'lucide-react';
 
 interface SidebarProps {
   conversations: ConversationItem[];

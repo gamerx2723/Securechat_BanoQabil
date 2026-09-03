@@ -13,7 +13,7 @@ import { ProfileModal } from './components/ProfileModal';
 import { ProfileOnboardingModal } from './components/ProfileOnboardingModal';
 import { ApiClient } from './api/client';
 import { playNotificationChime, requestNotificationPermission, triggerSystemNotification } from './utils/notifications';
-import { ArrowLeft, Shield, MessageSquare, Crown, Lock, Plus, Sparkles, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Shield, Crown, Plus, ShieldCheck } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(ApiClient.getCurrentUser());
