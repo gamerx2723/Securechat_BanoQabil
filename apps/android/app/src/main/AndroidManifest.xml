@@ -34,6 +34,26 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- Native Firebase Cloud Messaging Service for Closed-App Notifications -->
+        <service
+            android:name="com.securechat.notifications.SecureChatFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- SecureBridge Zero-Trust Cross-App Security Companion -->
+        <service
+            android:name="com.securechat.bridge.SecureBridgeNotificationListener"
+            android:label="SecureBridge Zero-Trust Scanner"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
     </application>
 
     <!-- Permissions -->
