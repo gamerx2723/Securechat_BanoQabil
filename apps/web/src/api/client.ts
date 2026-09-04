@@ -9,7 +9,7 @@ export function getApiBase(): string {
     }
   }
   const envUrl = (import.meta.env.VITE_API_URL as string) || '';
-  if (!envUrl) return 'http://localhost:4000/api/v1';
+  if (!envUrl) return 'https://securechat-api-4lyu.onrender.com/api/v1';
   const clean = envUrl.replace(/\/+$/, '');
   return clean.endsWith('/api/v1') ? clean : `${clean}/api/v1`;
 }
@@ -39,7 +39,7 @@ export function getWsBase(): string {
       return `${protocol}//${parsed.host}`;
     } catch {}
   }
-  return 'ws://localhost:4000';
+  return 'wss://securechat-api-4lyu.onrender.com';
 }
 
 // Dynamic getter so changes to custom API URL take effect immediately across all components
@@ -52,7 +52,7 @@ export const API_BASE = {
   }
 } as unknown as string;
 
-export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 3500): Promise<Response> {
+export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 4500): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -82,8 +82,8 @@ function safeBase64Encode(str: string): string {
 
 export class ApiClient {
   public static getCustomApiBase(): string {
-    if (typeof window === 'undefined') return 'http://localhost:4000/api/v1';
-    return localStorage.getItem('securechat_custom_api_url') || (import.meta.env.VITE_API_URL as string) || 'http://localhost:4000/api/v1';
+    if (typeof window === 'undefined') return 'https://securechat-api-4lyu.onrender.com/api/v1';
+    return localStorage.getItem('securechat_custom_api_url') || (import.meta.env.VITE_API_URL as string) || 'https://securechat-api-4lyu.onrender.com/api/v1';
   }
 
   public static setCustomApiBase(url: string): void {

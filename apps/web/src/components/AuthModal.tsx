@@ -46,7 +46,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
 
   const handleResetServerUrl = () => {
     ApiClient.setCustomApiBase('');
-    setServerUrlInput('http://localhost:4000/api/v1');
+    setServerUrlInput('https://securechat-api-4lyu.onrender.com/api/v1');
     setServerSaved(true);
     setTimeout(() => setServerSaved(false), 2500);
   };
