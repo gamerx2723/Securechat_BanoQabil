@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sync:android": "npm run build && node -e \"const fs=require('fs'); fs.cpSync('dist', '../android/app/src/main/assets/public', {recursive: true, force: true}); console.log('✓ Successfully synced dist to apps/android/app/src/main/assets/public');\""
   },
   "dependencies": {
     "@capacitor/core": "^8.5.1",

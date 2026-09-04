@@ -25,18 +25,19 @@ The Android APK is built to open and function smoothly **even without an active 
 
 ## 🛠️ Step-by-Step APK Build Instructions
 
-The Android native project is already **pre-scaffolded and synchronized** inside `apps/web/android`.
+The Android native project is built and maintained directly inside:
+📁 **`C:\Users\triad\OneDrive\Desktop\Bano Qabil\apps\android`**
 
 ### Option 1: Build via Android Studio (Recommended GUI)
 
 1. Open **Android Studio**.
 2. Select **Open Project** and navigate to:
-   📁 `c:\Users\triad\OneDrive\Desktop\Bano Qabil\apps\web\android`
+   📁 `c:\Users\triad\OneDrive\Desktop\Bano Qabil\apps\android`
 3. Wait for Gradle sync to complete.
 4. To build the installable `.apk`:
    - Click menu **Build** → **Build Bundle(s) / APK(s)** → **Build APK(s)**.
    - Android Studio will generate the APK at:
-     📁 **`apps/web/android/app/build/outputs/apk/debug/app-debug.apk`**
+     📁 **`apps/android/app/build/outputs/apk/debug/app-debug.apk`**
 5. Connect your Android phone with a USB cable (with USB Debugging enabled) and click **Run (▶️)** to install directly.
 
 ---
@@ -46,13 +47,13 @@ The Android native project is already **pre-scaffolded and synchronized** inside
 If you have Java JDK (17+) configured in your environment:
 
 ```powershell
-# From the apps/web/android directory:
-cd "apps/web/android"
+# From the apps/android directory:
+cd "apps/android"
 .\gradlew.bat assembleDebug
 ```
 
 The output APK will be saved at:
-📁 **`apps/web/android/app/build/outputs/apk/debug/app-debug.apk`**
+📁 **`apps/android/app/build/outputs/apk/debug/app-debug.apk`**
 
 ---
 
@@ -61,18 +62,20 @@ The output APK will be saved at:
 Whenever you modify any frontend code and want to sync it into the Android build:
 
 ```powershell
+# From the project root:
+npm run sync:android
+
+# Or from apps/web:
 cd "apps/web"
-npm run build
-npx cap sync android
+npm run sync:android
 ```
 
 ---
 
 ## 🛡️ Android Permissions Configured
 
-In `android/app/src/main/AndroidManifest.xml`:
+In `apps/android/app/src/main/AndroidManifest.xml`:
 - `android.permission.INTERNET`: For end-to-end encrypted message sync and WebSockets.
 - `android.permission.ACCESS_NETWORK_STATE`: For detecting online/offline network transitions.
 - `android.permission.POST_NOTIFICATIONS`: For background alerts and security alarms.
 - `android.permission.VIBRATE`: For tactile haptic chime notifications.
-
