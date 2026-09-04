@@ -6,6 +6,9 @@ from typing import Dict, Any, List
 
 # Ensure custom extractor is available for unpickling
 from .extractors import LexicalUrlFeatureExtractor, PROTECTED_BRANDS, SUSPICIOUS_TLDS
+import __main__
+if not hasattr(__main__, 'LexicalUrlFeatureExtractor'):
+    setattr(__main__, 'LexicalUrlFeatureExtractor', LexicalUrlFeatureExtractor)
 
 HOMOGLYPH_MAP = {
     'а': 'a', 'с': 'c', 'е': 'e', 'о': 'o', 'р': 'p', 'ѕ': 's', 'ԁ': 'd', 'ԛ': 'q', 'і': 'i', 'ј': 'j', 'у': 'y', 'ѵ': 'v', 'х': 'x', 'ԝ': 'w',
@@ -18,24 +21,37 @@ DYNAMIC_DNS_DOMAINS = {
     'pages.dev', 'workers.dev', 'netlify.app', 'glitch.me', 'vercel.app'
 }
 
-MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models_store", "phishing_model.joblib")
-_ml_model = None
+URL_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models_store", "url_model.joblib")
+TEXT_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models_store", "phishing_model.joblib")
 
-def get_ml_model():
-    global _ml_model
-    if _ml_model is None and os.path.exists(MODEL_PATH):
+_url_model = None
+_text_model = None
+
+def get_url_model():
+    global _url_model
+    if _url_model is None and os.path.exists(URL_MODEL_PATH):
         try:
-            _ml_model = joblib.load(MODEL_PATH)
+            _url_model = joblib.load(URL_MODEL_PATH)
         except Exception as e:
-            print(f"Warning: Failed to load trained phishing model: {e}")
-    return _ml_model
+            print(f"Warning: Failed to load URL model: {e}")
+    return _url_model
+
+def get_text_model():
+    global _text_model
+    if _text_model is None and os.path.exists(TEXT_MODEL_PATH):
+        try:
+            _text_model = joblib.load(TEXT_MODEL_PATH)
+        except Exception as e:
+            print(f"Warning: Failed to load text phishing model: {e}")
+    return _text_model
 
 class PhishingDetector:
     """
     Multilayer Phishing Classifier combining:
     1. Level 0 Deterministic Lexical & Typo Brand Inspection (Subdomains, Paths, Hashes)
     2. Level 1 Brand Spoofing & High-Risk TLD / Dynamic DNS heuristics
-    3. Level 2 Trained Machine Learning Model (Random Forest + Char N-Grams + Lexical Feature Union)
+    3. Level 2 Trained URL Classifier (Lexical Feature Union + StandardScaler + SGDClassifier)
+    4. Level 3 Trained Text Phishing Model (TF-IDF + SGDClassifier) learning semantic scam patterns
     """
 
     @classmethod
@@ -62,10 +78,12 @@ class PhishingDetector:
         except Exception:
             return {
                 "url": url,
+                "domain": "",
                 "phishing_detected": True,
                 "confidence": 0.95,
                 "signals": ["Malformed or deceptive URL structure"],
-                "suspicious_score": 95
+                "suspicious_score": 95,
+                "ml_model_active": False
             }
 
         full_url_lower = url.lower()
@@ -98,6 +116,7 @@ class PhishingDetector:
 
         clean_host = re.sub(r'[^a-z]', '', normalized_host)
         typo_brand = None
+
         for brand in PROTECTED_BRANDS:
             if brand in clean_host:
                 if not (hostname.endswith(f".{brand}.com") or hostname.endswith(f".{brand}.pk") or hostname == f"{brand}.com"):
@@ -106,17 +125,16 @@ class PhishingDetector:
                     signals.append(f"Brand lookalike typosquatting targeting '{brand}'")
                     break
 
-        # 5. Brand in Subdomain or Deep Path Check (e.g. nobell.it/.../login.SkyPe.com/... or .../paypal.co.uk/...)
+        # 5. Brand in Subdomain or Deep Path Check
         for brand in PROTECTED_BRANDS:
             if brand in full_url_lower and typo_brand is None:
-                # If the root domain is NOT official brand, this is deep spoofing
                 if not (hostname == f"{brand}.com" or hostname.endswith(f".{brand}.com") or hostname == f"{brand}.pk" or hostname.endswith(f".{brand}.pk")):
                     score += 55
                     typo_brand = brand
                     signals.append(f"Target brand '{brand}' embedded in non-official URL path or subdomain")
                     break
 
-        # 6. Hex / MD5 Hash in Path (phishing kit tracking identifier)
+        # 6. Hex / MD5 Hash in Path
         if re.search(r'[0-9a-fA-F]{16,}', path_lower):
             score += 30
             signals.append("Phishing kit session hash token detected in URL path")
@@ -131,8 +149,8 @@ class PhishingDetector:
             score += 25
             signals.append(f"Excessive subdomain nesting ({hostname.count('.')} subdomains)")
 
-        # 9. Trained Machine Learning Model Inference
-        ml_model = get_ml_model()
+        # 9. Trained Machine Learning URL Model Inference
+        ml_model = get_url_model()
         ml_confidence = 0.0
         if ml_model is not None:
             try:
@@ -140,11 +158,10 @@ class PhishingDetector:
                 ml_confidence = float(prob)
                 if ml_confidence >= 0.50:
                     score = max(score, ml_confidence * 100)
-                    signals.append(f"ML Classifier (Trained Random Forest): {ml_confidence * 100:.1f}% phishing probability")
+                    signals.append(f"ML Classifier (Trained URL SGD Model): {ml_confidence * 100:.1f}% phishing probability")
                 elif ml_confidence <= 0.15 and not signals:
-                    # Clear legitimate URL
                     score = min(score, 10)
-            except Exception as e:
+            except Exception:
                 pass
 
         final_score = min(100.0, max(0.0, score))
@@ -162,21 +179,67 @@ class PhishingDetector:
         }
 
     @classmethod
-    def analyze_text_and_urls(cls, text: str) -> Dict[str, Any]:
-        urls = cls.extract_urls(text)
-        if not urls:
+    def analyze_text(cls, text: str) -> Dict[str, Any]:
+        """Evaluates message text specifically using trained Phishing Model (phishing_model.joblib)."""
+        t_model = get_text_model()
+        if t_model is None or not text or len(text.strip()) < 5:
             return {
-                "phishing_detected": False,
-                "phishing_confidence": 0.0,
-                "analyzed_urls": []
+                "phishing_text_detected": False,
+                "confidence": 0.0,
+                "signals": []
             }
 
-        analyzed = [cls.analyze_url(u) for u in urls]
-        max_conf = max((a["confidence"] for a in analyzed), default=0.0)
-        detected = any(a["phishing_detected"] for a in analyzed)
+        try:
+            vec = t_model["vectorizer"]
+            clf = t_model["model"]
+            prob = float(clf.predict_proba(vec.transform([text]))[0][1])
+            detected = prob >= 0.50
+            signals = []
+            if detected:
+                signals.append(f"Phishing semantic pattern match ({prob * 100:.1f}% confidence)")
+            return {
+                "phishing_text_detected": detected,
+                "confidence": round(prob, 2),
+                "signals": signals
+            }
+        except Exception:
+            return {
+                "phishing_text_detected": False,
+                "confidence": 0.0,
+                "signals": []
+            }
+
+    @classmethod
+    def analyze_text_and_urls(cls, text: str) -> Dict[str, Any]:
+        urls = cls.extract_urls(text)
+        analyzed_urls = [cls.analyze_url(u) for u in urls]
+        url_detected = any(a["phishing_detected"] for a in analyzed_urls)
+        max_url_conf = max((a["confidence"] for a in analyzed_urls), default=0.0)
+
+        # Run text phishing detection
+        text_analysis = cls.analyze_text(text)
+        text_detected = text_analysis["phishing_text_detected"]
+        text_conf = text_analysis["confidence"]
+
+        # Combined detection
+        phishing_detected = url_detected or text_detected
+        
+        # Section 16: Compound risk if BOTH suspicious link and phishing text pattern are present
+        if url_detected and text_detected:
+            combined_conf = min(1.0, max(max_url_conf, text_conf) + 0.15)
+        else:
+            combined_conf = max(max_url_conf, text_conf)
+
+        signals = []
+        for a in analyzed_urls:
+            if a["phishing_detected"]:
+                signals.extend(a.get("signals", []))
+        signals.extend(text_analysis.get("signals", []))
 
         return {
-            "phishing_detected": detected,
-            "phishing_confidence": max_conf,
-            "analyzed_urls": analyzed
+            "phishing_detected": phishing_detected,
+            "phishing_confidence": round(combined_conf, 2),
+            "analyzed_urls": analyzed_urls,
+            "text_analysis": text_analysis,
+            "signals": signals
         }

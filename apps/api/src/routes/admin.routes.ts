@@ -52,7 +52,7 @@ adminRouter.get('/telemetry', async (req: AuthenticatedRequest, res: Response): 
     res.json({
       systemHealth: 'HEALTHY',
       uptimeSeconds: Math.round(process.uptime()),
-      database: 'Neon Serverless PostgreSQL (Zero-Trust Active)',
+      database: 'Supabase PostgreSQL (Zero-Trust Active)',
       metrics: {
         totalUsers,
         totalDevices,

@@ -1,21 +1,20 @@
 import { PrismaClient } from '@prisma/client';
 
-const NEON_DIRECT_URL = "postgresql://neondb_owner:npg_5ts1CrEKRASh@ep-wandering-breeze-ae8wdpd3.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&connect_timeout=30";
+const DEFAULT_DIRECT_URL = "postgresql://postgres:%3CAsad2723%403%3E@db.ljltqeiorczfxkclbltb.supabase.co:5432/postgres?sslmode=require&connect_timeout=30";
 
 function getStableDatabaseUrl(): string {
   const envUrl = process.env.DATABASE_URL;
   if (!envUrl || !envUrl.startsWith('postgresql')) {
-    return NEON_DIRECT_URL;
+    return DEFAULT_DIRECT_URL;
   }
   try {
     const parsed = new URL(envUrl);
-    parsed.hostname = parsed.hostname.replace('-pooler.', '.');
     parsed.searchParams.delete('channel_binding');
     parsed.searchParams.set('sslmode', 'require');
     parsed.searchParams.set('connect_timeout', '30');
     return parsed.toString();
   } catch {
-    return NEON_DIRECT_URL;
+    return envUrl;
   }
 }
 

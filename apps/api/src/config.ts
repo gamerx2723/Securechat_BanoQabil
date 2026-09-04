@@ -8,6 +8,6 @@ export const config = {
   jwtAccessExpiry: '15m',
   jwtRefreshExpiryDays: 7,
   aiServiceUrl: process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000',
-  databaseUrl: process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_5ts1CrEKRASh@ep-wandering-breeze-ae8wdpd3.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require',
+  databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:%3CAsad2723%403%3E@db.ljltqeiorczfxkclbltb.supabase.co:5432/postgres',
   corsOrigins: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['*'],
 };

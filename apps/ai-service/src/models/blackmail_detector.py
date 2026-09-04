@@ -34,7 +34,7 @@ class BlackmailDetector:
         r'(?:\b(?:i will|i\'ll)\s+(?:leak|expose|post|viral|share|publish)\s+(?:your\s+)?(?:nudes?|pics?|pictures?|private|photos?|videos?)\b)',
         r'(?:\b(?:send|bhejo|transfer)\s+.*?\b(?:money|paise|pics?|photos?|nudes?)\b.*?\b(?:warna|or else|otherwise)\b.*?\b(?:viral|leak|barbaad|ruin)\b)',
         r'(?:\b(?:saboot hai mere paas|barbaad kar dunga|sab ko dikhaunga|ruin your life|sab ko bhej dunga)\b)',
-        r'(?:تصویریں\s*وائرل|ویڈیو\s*لیک|فیس\s*بک\s*پر|والدین\s*کو\s*بھیج|برباد\s*کر\s*دوں\s*گا|بلیک\s*میل|سب\s*کو\s*دکھاؤں\s*گا)'
+        r'(?:تصویریں\s*وائرل|تصاویر\s*وائرل|تصاویر.*وائرل|ذاتی\s*تصاویر|ویڈیو\s*لیک|فیس\s*بک\s*پر|سوشل\s*میڈیا\s*پر\s*وائرل|والدین\s*کو\s*بھیج|برباد\s*کر\s*دوں\s*گا|بلیک\s*میل|سب\s*کو\s*دکھاؤں\s*گا)'
     ]
 
     COERCIVE_SOLICITATION_PATTERNS = [

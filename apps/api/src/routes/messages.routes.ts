@@ -235,7 +235,7 @@ messagesRouter.post('/', async (req: AuthenticatedRequest, res: Response): Promi
       });
 
       return created;
-    });
+    }, { timeout: 25000, maxWait: 15000 });
 
     // Broadcast message via WebSocket
     wsGateway.broadcastMessage(conversationId, message);
@@ -303,7 +303,7 @@ messagesRouter.post('/:messageId/reaction', async (req: AuthenticatedRequest, re
         },
         update: {},
       });
-    });
+    }, { timeout: 25000, maxWait: 15000 });
 
     // Broadcast reaction via WebSocket
     wsGateway.broadcastReaction(message.conversationId, {
@@ -384,7 +384,7 @@ messagesRouter.patch('/:messageId', async (req: AuthenticatedRequest, res: Respo
           securityEvents: true,
         },
       });
-    });
+    }, { timeout: 25000, maxWait: 15000 });
 
     // Broadcast update via WebSocket
     wsGateway.broadcastMessage(message.conversationId, updated);

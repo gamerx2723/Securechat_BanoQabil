@@ -4,14 +4,14 @@
   <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=0,2,10,20,30&height=260&section=header&text=SECURECHAT%20AI&fontSize=52&fontAlignY=38&animation=twinkling&desc=Zero-Trust%20End-to-End%20Encrypted%20Messaging%20with%20Cognitive%20Threat%20Intelligence&descFontSize=18&descAlignY=62&descAlign=50&fontColor=00f2fe" width="100%" alt="SecureChat Banner" />
 
   <p align="center">
-    <a href="https://github.com"><img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=700&size=20&duration=3000&pause=1000&color=06B6D4&center=true&vCenter=true&width=650&lines=Military-Grade+Signal+Double+Ratchet+E2EE;Real-Time+Cognitive+Threat+%26+Social+Engineering+Shield;Pre-Send+DLP+Advisory+for+Credentials+%26+PII;Native+Urdu+%26+Roman+Urdu+Phishing+Detection;Neon+Serverless+Postgres+%26+Strict+ACID+Guarantees" alt="Typing SVG" /></a>
+    <a href="https://github.com"><img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=700&size=20&duration=3000&pause=1000&color=06B6D4&center=true&vCenter=true&width=650&lines=Military-Grade+Signal+Double+Ratchet+E2EE;Real-Time+Cognitive+Threat+%26+Social+Engineering+Shield;Pre-Send+DLP+Advisory+for+Credentials+%26+PII;Native+Urdu+%26+Roman+Urdu+Phishing+Detection;Supabase+Postgres+%26+Strict+ACID+Guarantees" alt="Typing SVG" /></a>
   </p>
 
   <!-- Live Badges -->
   <p align="center">
     <img src="https://img.shields.io/badge/Security-Signal%20Protocol%20E2EE-00f2fe?style=for-the-badge&logo=signal&logoColor=white" alt="Signal Protocol" />
     <img src="https://img.shields.io/badge/AI%20Engine-FastAPI%20%2B%20ML%20Ensemble-10b981?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI AI" />
-    <img src="https://img.shields.io/badge/Database-Neon%20Serverless%20Postgres-00E599?style=for-the-badge&logo=postgresql&logoColor=white" alt="Neon Postgres" />
+    <img src="https://img.shields.io/badge/Database-Supabase%20Postgres-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase Postgres" />
     <img src="https://img.shields.io/badge/Realtime-WebSockets%20%2B%20Redis-f43f5e?style=for-the-badge&logo=redis&logoColor=white" alt="WebSockets" />
     <img src="https://img.shields.io/badge/Frontend-React%2018%20%2B%20Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React Vite" />
     <img src="https://img.shields.io/badge/License-MIT-a855f7?style=for-the-badge" alt="License" />
@@ -41,7 +41,7 @@ Unlike traditional chat systems that only encrypt data in transit, SecureChat en
                   ├───────────────────┬───────────────────┬─────────────────┤
                   │  🔒 Cryptography  │   🧠 AI Defense   │  ⚡ Performance │
                   │  Double Ratchet   │  Pre-Send DLP     │  WebSockets     │
-                  │  Curve25519 Keys  │  Social Eng Guard │  Neon Postgres  │
+                  │  Curve25519 Keys  │  Social Eng Guard │  Supabase DB    │
                   │  AES-256-GCM      │  Urdu/Roman ML    │  Redis Streams  │
                   └───────────────────┴───────────────────┴─────────────────┘
 ```
@@ -97,7 +97,7 @@ flowchart TB
     end
 
     subgraph Storage["🗄️ Persistence Layer"]
-        DB[(Neon Serverless Postgres)]
+        DB[(Supabase Postgres)]
         CACHE[(Redis Session & Pub/Sub)]
     end
 
@@ -169,7 +169,7 @@ Deploy globally in **under 10 minutes** at zero cost using modern PaaS providers
 |---|---|---|
 | **Frontend** | **Vercel / Cloudflare Pages** | Import repo $\rightarrow$ Root: `apps/web` $\rightarrow$ Set `VITE_API_URL` & `VITE_WS_URL` |
 | **API & AI Service** | **Render.com** | Deploy with 1-click using [`render.yaml`](render.yaml) blueprint |
-| **Database** | **Neon Serverless Postgres** | Provision free project on [neon.tech](https://neon.tech) |
+| **Database** | **Supabase Postgres** | Provision free project on [supabase.com](https://supabase.com) |
 | **Cache** | **Upstash Redis** | Serverless Redis instance on [upstash.com](https://upstash.com) |
 
 ---

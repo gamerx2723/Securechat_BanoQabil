@@ -124,6 +124,85 @@ async function main() {
     include: { devices: true },
   });
 
+  const asadKeyPair = Curve25519.generateKeyPair();
+  const sinnerKeyPair = Curve25519.generateKeyPair();
+
+  const asad = await prisma.user.upsert({
+    where: { username: '03210008941' },
+    update: { passwordHash: hashPassword('Password123!') },
+    create: {
+      username: '03210008941',
+      phone: '+923210008941',
+      displayName: 'Muhammad Asad',
+      passwordHash: hashPassword('Password123!'),
+      role: 'ADMIN',
+      status: 'ACTIVE',
+      userPreference: {
+        create: {
+          aiMode: 'GUARDIAN',
+          enableDlp: true,
+          enablePhishing: true,
+          enableSocialEng: true,
+        },
+      },
+      devices: {
+        create: {
+          deviceId: 'DEV-ASAD-WEB-001',
+          deviceType: 'WEB',
+          deviceName: 'Muhammad Asad Browser',
+          publicKey: asadKeyPair.publicKey,
+          identityKeys: {
+            create: {
+              publicKey: asadKeyPair.publicKey,
+              signedPreKey: asadKeyPair.publicKey,
+              signedPreKeyId: 1,
+              signedPreKeySignature: 'SIG_ASAD_PREKEY_001',
+            },
+          },
+        },
+      },
+    },
+    include: { devices: true },
+  });
+
+  const sinner = await prisma.user.upsert({
+    where: { username: 'sinner' },
+    update: { passwordHash: hashPassword('Password123!') },
+    create: {
+      username: 'sinner',
+      phone: '+923009998877',
+      displayName: 'GMX Sinner',
+      passwordHash: hashPassword('Password123!'),
+      role: 'ADMIN',
+      status: 'ACTIVE',
+      userPreference: {
+        create: {
+          aiMode: 'GUARDIAN',
+          enableDlp: true,
+          enablePhishing: true,
+          enableSocialEng: true,
+        },
+      },
+      devices: {
+        create: {
+          deviceId: 'DEV-SINNER-WEB-001',
+          deviceType: 'WEB',
+          deviceName: 'GMX Sinner Browser',
+          publicKey: sinnerKeyPair.publicKey,
+          identityKeys: {
+            create: {
+              publicKey: sinnerKeyPair.publicKey,
+              signedPreKey: sinnerKeyPair.publicKey,
+              signedPreKeyId: 1,
+              signedPreKeySignature: 'SIG_SINNER_PREKEY_001',
+            },
+          },
+        },
+      },
+    },
+    include: { devices: true },
+  });
+
   // 2. Create Contacts
   await prisma.contact.upsert({
     where: { ownerUserId_contactUserId: { ownerUserId: alice.id, contactUserId: bob.id } },
@@ -141,6 +220,26 @@ async function main() {
     create: {
       ownerUserId: bob.id,
       contactUserId: alice.id,
+      trustState: 'VERIFIED',
+    },
+  });
+
+  await prisma.contact.upsert({
+    where: { ownerUserId_contactUserId: { ownerUserId: asad.id, contactUserId: sinner.id } },
+    update: {},
+    create: {
+      ownerUserId: asad.id,
+      contactUserId: sinner.id,
+      trustState: 'VERIFIED',
+    },
+  });
+
+  await prisma.contact.upsert({
+    where: { ownerUserId_contactUserId: { ownerUserId: sinner.id, contactUserId: asad.id } },
+    update: {},
+    create: {
+      ownerUserId: sinner.id,
+      contactUserId: asad.id,
       trustState: 'VERIFIED',
     },
   });
