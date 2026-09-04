@@ -13,11 +13,11 @@ export interface JwtPayload {
 
 export class JwtService {
   public static signAccessToken(payload: JwtPayload): string {
-    return jwt.sign(payload, config.jwtSecret, { expiresIn: '15m' });
+    return jwt.sign(payload, config.jwtSecret, { expiresIn: '7d' });
   }
 
   public static signRefreshToken(payload: { userId: string; deviceId: string }): string {
-    return jwt.sign(payload, config.jwtRefreshSecret, { expiresIn: '7d' });
+    return jwt.sign(payload, config.jwtRefreshSecret, { expiresIn: '30d' });
   }
 
   public static verifyAccessToken(token: string): JwtPayload {

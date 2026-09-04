@@ -1,15 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ConversationItem, SecurityIndicatorColor } from '../types';
-import { Shield, ShieldAlert, ShieldCheck, MessageSquare, Activity, ShieldQuestion, Plus, Lock, Search, LogOut, Crown, CheckSquare, Square, Trash2, X, MoreVertical, User, Sparkles } from 'lucide-react';
+import {
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  MessageSquare,
+  Activity,
+  ShieldQuestion,
+  Plus,
+  Lock,
+  Search,
+  LogOut,
+  Crown,
+  CheckSquare,
+  Square,
+  Trash2,
+  X,
+  MoreVertical,
+  User,
+  Sparkles,
+  Smartphone,
+  KeyRound,
+  Users,
+} from 'lucide-react';
+
+export type SidebarTab = 'CHATS' | 'SECURE_BRIDGE' | 'SECRET_MAP' | 'GUARDIAN' | 'ADMIN';
 
 interface SidebarProps {
   conversations: ConversationItem[];
   activeId: string;
   onSelect: (id: string) => void;
-  activeTab: 'CHATS' | 'GUARDIAN' | 'ADMIN';
-  onTabChange: (tab: 'CHATS' | 'GUARDIAN' | 'ADMIN') => void;
+  activeTab: SidebarTab;
+  onTabChange: (tab: SidebarTab) => void;
   onOpenCopilot: () => void;
   onNewChat: () => void;
+  onCreateGroup?: () => void;
   onLogout: () => void;
   onOpenProfile?: () => void;
   onBulkDelete?: (ids: string[]) => void;
@@ -27,6 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTabChange,
   onOpenCopilot,
   onNewChat,
+  onCreateGroup,
   onLogout,
   onOpenProfile,
   onBulkDelete,
@@ -292,6 +318,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span>New Secure Chat</span>
             </button>
 
+            {onCreateGroup && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMenuOpen(false);
+                  onCreateGroup();
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '8px 10px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'transparent',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <Users size={15} style={{ color: 'var(--accent-cyan)' }} />
+                <span>New Secure Group</span>
+              </button>
+            )}
+
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -404,98 +458,152 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ display: 'flex', padding: '8px 10px', gap: '6px', background: 'rgba(0, 0, 0, 0.2)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)', padding: '6px 8px', gap: '4px', background: 'rgba(0, 0, 0, 0.25)', borderBottom: '1px solid var(--border-subtle)' }}>
         <button
           onClick={() => onTabChange('CHATS')}
+          title="Direct & Group Chats"
           style={{
-            flex: 1,
-            padding: '8px 0',
+            padding: '7px 2px',
             border: 'none',
             borderRadius: '6px',
-            background: activeTab === 'CHATS' ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+            background: activeTab === 'CHATS' ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
             color: activeTab === 'CHATS' ? 'var(--text-primary)' : 'var(--text-muted)',
-            fontWeight: 600,
-            fontSize: '12px',
+            fontWeight: 700,
+            fontSize: '11px',
             cursor: 'pointer',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '4px'
+            gap: '2px',
           }}
         >
-          <MessageSquare size={13} />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <MessageSquare size={14} />
+            {totalUnreadCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-8px',
+                  background: 'linear-gradient(135deg, #10b981, #06b6d4)',
+                  color: '#000',
+                  fontSize: '8px',
+                  fontWeight: 900,
+                  padding: '1px 4px',
+                  borderRadius: '6px',
+                }}
+              >
+                {totalUnreadCount}
+              </span>
+            )}
+          </div>
           <span>Chats</span>
-          {totalUnreadCount > 0 && (
-            <span style={{
-              background: 'linear-gradient(135deg, #10b981, #06b6d4)',
-              color: '#000',
-              fontSize: '9px',
-              fontWeight: 800,
-              padding: '1px 5px',
-              borderRadius: '8px',
-              boxShadow: '0 0 8px rgba(16, 185, 129, 0.5)',
-            }}>
-              {totalUnreadCount}
-            </span>
-          )}
+        </button>
+
+        <button
+          onClick={() => onTabChange('SECURE_BRIDGE')}
+          title="Product B: WhatsApp Companion & Deleted Message Vault"
+          style={{
+            padding: '7px 2px',
+            border: 'none',
+            borderRadius: '6px',
+            background: activeTab === 'SECURE_BRIDGE' ? 'rgba(6, 182, 212, 0.2)' : 'transparent',
+            color: activeTab === 'SECURE_BRIDGE' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+            fontWeight: 700,
+            fontSize: '11px',
+            cursor: 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '2px',
+          }}
+        >
+          <Smartphone size={14} />
+          <span>Bridge</span>
+        </button>
+
+        <button
+          onClick={() => onTabChange('SECRET_MAP')}
+          title="Secret & Credentials Exposure Map"
+          style={{
+            padding: '7px 2px',
+            border: 'none',
+            borderRadius: '6px',
+            background: activeTab === 'SECRET_MAP' ? 'rgba(236, 72, 153, 0.2)' : 'transparent',
+            color: activeTab === 'SECRET_MAP' ? '#f472b6' : 'var(--text-muted)',
+            fontWeight: 700,
+            fontSize: '11px',
+            cursor: 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '2px',
+          }}
+        >
+          <KeyRound size={14} />
+          <span>Secrets</span>
         </button>
 
         <button
           onClick={() => onTabChange('GUARDIAN')}
+          title="AI Guardian Threat Center & Behavioral Tracker"
           style={{
-            flex: 1,
-            padding: '8px 0',
+            padding: '7px 2px',
             border: 'none',
             borderRadius: '6px',
-            background: activeTab === 'GUARDIAN' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+            background: activeTab === 'GUARDIAN' ? 'rgba(16, 185, 129, 0.18)' : 'transparent',
             color: activeTab === 'GUARDIAN' ? 'var(--green-safe)' : 'var(--text-muted)',
-            fontWeight: 600,
-            fontSize: '12px',
+            fontWeight: 700,
+            fontSize: '11px',
             cursor: 'pointer',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '4px'
+            gap: '2px',
           }}
         >
-          <Shield size={13} />
-          <span>AI Guardian</span>
+          <Shield size={14} />
+          <span>Guardian</span>
         </button>
 
         {/* Combined SuperAdmin Command Center Tab */}
         {isAdmin && (
           <button
             onClick={() => onTabChange('ADMIN')}
+            title="SuperAdmin Command Center"
             style={{
-              flex: 1.1,
-              padding: '8px 0',
+              padding: '7px 2px',
               border: 'none',
               borderRadius: '6px',
               background: activeTab === 'ADMIN' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(245, 158, 11, 0.08)',
               color: activeTab === 'ADMIN' ? '#fcd34d' : '#fbbf24',
               fontWeight: 700,
-              fontSize: '12px',
+              fontSize: '11px',
               cursor: 'pointer',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '4px',
-              borderBottom: activeTab === 'ADMIN' ? '2px solid #f59e0b' : 'none'
+              gap: '2px',
             }}
           >
-            <Crown size={13} />
+            <Crown size={14} />
             <span>Admin</span>
           </button>
         )}
       </div>
 
-      {/* Search Bar & New Chat Button */}
-      <div style={{ padding: '10px 14px', display: 'flex', gap: '8px' }}>
+      {/* Search Bar & New Chat / Group Buttons */}
+      <div style={{ padding: '10px 12px', display: 'flex', gap: '6px' }}>
         <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
           <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)' }} />
           <input
             type="text"
-            placeholder="Search zero-trust chats..."
+            placeholder="Search chats..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
@@ -515,24 +623,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
             e.stopPropagation();
             onNewChat();
           }}
-          title="Start New Secure Chat"
+          title="Start New Direct Chat"
           style={{
             background: 'var(--green-safe)',
             color: '#000',
             border: 'none',
             borderRadius: '8px',
-            padding: '0 10px',
+            padding: '0 8px',
             cursor: 'pointer',
             fontWeight: 'bold',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '4px',
-            fontSize: '12px'
+            gap: '2px',
+            fontSize: '11px',
           }}
         >
-          <Plus size={16} /> New
+          <Plus size={14} /> Chat
         </button>
+        {onCreateGroup && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onCreateGroup();
+            }}
+            title="Create Encrypted Group"
+            style={{
+              background: 'rgba(6, 182, 212, 0.15)',
+              border: '1px solid rgba(6, 182, 212, 0.4)',
+              color: 'var(--accent-cyan)',
+              borderRadius: '8px',
+              padding: '0 8px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '3px',
+              fontSize: '11px',
+            }}
+          >
+            <Users size={13} /> Group
+          </button>
+        )}
       </div>
 
       {/* Conversation Header & Bulk Delete Controls */}

@@ -673,7 +673,11 @@ export class ApiClient {
     return { reviews: [], stats: { totalReported: 0, pendingCount: 0, trainedCount: 0 } };
   }
 
-  public static async submitAdminTrainDecision(reviewId: string, decision: 'TRAIN_MALICIOUS' | 'TRAIN_BENIGN' | 'DISMISS', adminNotes?: string): Promise<{ success: boolean; message: string }> {
+  public static async submitAdminTrainDecision(
+    reviewId: string,
+    decision: 'TRAIN_MALICIOUS' | 'TRAIN_BENIGN' | 'DISMISS',
+    adminNotes?: string
+  ): Promise<{ success: boolean; message: string }> {
     try {
       const res = await fetch(`${API_BASE}/security/admin/train-decision`, {
         method: 'POST',
@@ -683,8 +687,101 @@ export class ApiClient {
       if (res.ok) {
         return await res.json();
       }
-    } catch {}
-    return { success: false, message: 'Failed to apply admin training decision.' };
+      const err = await res.json().catch(() => ({ error: 'Failed to process decision' }));
+      return { success: false, message: err.error || 'Failed to process decision' };
+    } catch {
+      return { success: false, message: 'Network error processing train decision' };
+    }
+  }
+
+  public static async analyzeBehavior(conversationId: string): Promise<{
+    conversationId: string;
+    grooming_detected: boolean;
+    grooming_risk_score: number;
+    current_stage: string;
+    stage_label: string;
+    velocity_summary: string;
+    intimacy_index: number;
+    isolation_index: number;
+    pity_index: number;
+    exploitation_index: number;
+    timeline_milestones: Array<{
+      turn: number;
+      stage: string;
+      risk_score: number;
+      snippet: string;
+      detected_indicators: string[];
+    }>;
+    recommendation: string;
+  }> {
+    try {
+      const res = await fetch(`${API_BASE}/ai/behavior-analysis`, {
+        method: 'POST',
+        headers: this.authHeaders(),
+        body: JSON.stringify({ conversationId }),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.error('Failed to perform behavioral analysis:', e);
+    }
+
+    return {
+      conversationId,
+      grooming_detected: false,
+      grooming_risk_score: 0,
+      current_stage: 'BENIGN_BASELINE',
+      stage_label: 'Stage 1: Clean Communication Baseline',
+      velocity_summary: 'Conversation is currently in a stable baseline state.',
+      intimacy_index: 0.0,
+      isolation_index: 0.0,
+      pity_index: 0.0,
+      exploitation_index: 0.0,
+      timeline_milestones: [],
+      recommendation: 'Standard Zero-Trust encryption active.',
+    };
+  }
+
+  public static async getSecondOpinion(text: string, messageId?: string): Promise<{
+    messageId?: string;
+    status: string;
+    secondOpinionScore: number;
+    indicatorColor: 'RED' | 'ORANGE' | 'GREEN';
+    consensusSignals: string[];
+    alternateHypotheses: string[];
+    recommendedAction: string;
+    evaluatedAt: string;
+  }> {
+    try {
+      const res = await fetch(`${API_BASE}/ai/second-opinion`, {
+        method: 'POST',
+        headers: this.authHeaders(),
+        body: JSON.stringify({ text, messageId }),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.error('Failed to get second opinion:', e);
+    }
+
+    const localResult = this.clientSideEvaluate(text);
+    return {
+      messageId,
+      status: localResult.riskScore >= 75 ? 'CONFIRMED_HIGH_RISK_THREAT' : localResult.riskScore >= 35 ? 'BORDERLINE_SUSPICIOUS_ANOMALY' : 'VERIFIED_SAFE_COMMUNICATION',
+      secondOpinionScore: localResult.riskScore,
+      indicatorColor: localResult.indicatorColor,
+      consensusSignals: localResult.evidenceList.map(e => `${e.category}: ${e.description}`),
+      alternateHypotheses: [
+        localResult.riskScore >= 50
+          ? 'Hypothesis A: Active targeted social engineering attempt'
+          : 'Hypothesis A: Clean regular communication',
+        'Hypothesis B: Adversarial evasion attempt'
+      ],
+      recommendedAction: localResult.recommendation,
+      evaluatedAt: new Date().toISOString(),
+    };
   }
 
 

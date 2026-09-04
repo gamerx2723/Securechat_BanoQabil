@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ConversationItem, ChatMessage, SecurityAnalysis } from '../types';
 import { ApiClient } from '../api/client';
 import {
@@ -41,7 +41,7 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({
   const [isAnalyzingSandbox, setIsAnalyzingSandbox] = useState(false);
 
   // Compute messages based on selected channel (ALL or specific conversation)
-  const targetMessages: ChatMessage[] = React.useMemo(() => {
+  const targetMessages: ChatMessage[] = useMemo(() => {
     if (selectedChannelId === 'ALL') {
       const allMsgs: ChatMessage[] = [];
       for (const convId of Object.keys(messagesMap)) {
@@ -51,6 +51,41 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({
     }
     return messagesMap[selectedChannelId] || [];
   }, [selectedChannelId, messagesMap]);
+
+  // Behavioral Escalation & Grooming Tracker state
+  const [behaviorReport, setBehaviorReport] = useState<{
+    conversationId: string;
+    grooming_detected: boolean;
+    grooming_risk_score: number;
+    current_stage: string;
+    stage_label: string;
+    velocity_summary: string;
+    intimacy_index: number;
+    isolation_index: number;
+    pity_index: number;
+    exploitation_index: number;
+    timeline_milestones: Array<{
+      turn: number;
+      stage: string;
+      risk_score: number;
+      snippet: string;
+      detected_indicators: string[];
+    }>;
+    recommendation: string;
+  } | null>(null);
+  const [isLoadingBehavior, setIsLoadingBehavior] = useState(false);
+
+  useEffect(() => {
+    if (selectedChannelId && selectedChannelId !== 'ALL') {
+      setIsLoadingBehavior(true);
+      ApiClient.analyzeBehavior(selectedChannelId)
+        .then(setBehaviorReport)
+        .catch(() => setBehaviorReport(null))
+        .finally(() => setIsLoadingBehavior(false));
+    } else {
+      setBehaviorReport(null);
+    }
+  }, [selectedChannelId, targetMessages.length]);
 
   // Compute Live Metrics
   const totalMessages = targetMessages.length;
@@ -290,6 +325,123 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({
           </div>
           <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Real-time Edge Speed</div>
         </div>
+      </div>
+
+      {/* Multi-Turn Behavioral Escalation & Grooming / Romance Scam Tracker */}
+      <div className="glass-panel" style={{ padding: '20px', borderRadius: '16px', marginBottom: '20px', border: '1px solid rgba(244, 63, 94, 0.25)', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 27, 75, 0.4))' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: behaviorReport?.grooming_detected ? 'rgba(244, 63, 94, 0.2)' : 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: behaviorReport?.grooming_detected ? '#f43f5e' : 'var(--green-safe)' }}>
+              <ShieldAlert size={20} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                Multi-Turn Behavioral Escalation & Grooming / Romance Scam Tracker
+              </h3>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>
+                15–20 turn sliding-window conversational velocity & manipulation stage analysis
+              </p>
+            </div>
+          </div>
+
+          <span
+            style={{
+              fontSize: '12px',
+              fontWeight: 800,
+              padding: '4px 12px',
+              borderRadius: '8px',
+              background: behaviorReport?.grooming_detected
+                ? 'rgba(244, 63, 94, 0.2)'
+                : 'rgba(16, 185, 129, 0.15)',
+              color: behaviorReport?.grooming_detected ? '#f43f5e' : 'var(--green-safe)',
+              border: `1px solid ${behaviorReport?.grooming_detected ? 'rgba(244, 63, 94, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`,
+            }}
+          >
+            {behaviorReport?.stage_label || 'Stage 1: Clean Baseline'}
+          </span>
+        </div>
+
+        {/* Narrative & Stage Meter */}
+        <div style={{ background: 'rgba(0, 0, 0, 0.3)', padding: '12px 14px', borderRadius: '10px', marginBottom: '16px', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.5, marginBottom: '8px' }}>
+            {behaviorReport?.velocity_summary || (selectedChannelId === 'ALL' ? 'Select a specific channel above to view sliding-window behavioral escalation forensics.' : 'Conversation is currently maintaining a benign communication baseline.')}
+          </div>
+          {behaviorReport?.recommendation && (
+            <div style={{ fontSize: '11px', color: behaviorReport.grooming_detected ? '#fb7185' : 'var(--green-safe)', fontWeight: 600 }}>
+              🛡️ AI Guardian Guidance: {behaviorReport.recommendation}
+            </div>
+          )}
+        </div>
+
+        {/* 4 Velocity Metrics Gauges */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '16px' }}>
+          <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Intimacy Velocity</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#ec4899', fontFamily: 'var(--font-mono)' }}>
+              {Math.round((behaviorReport?.intimacy_index || 0) * 100)}%
+            </div>
+            <div style={{ height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', overflow: 'hidden', marginTop: '4px' }}>
+              <div style={{ width: `${Math.min(100, (behaviorReport?.intimacy_index || 0) * 100)}%`, height: '100%', background: '#ec4899' }} />
+            </div>
+          </div>
+
+          <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Isolation Velocity</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#a855f7', fontFamily: 'var(--font-mono)' }}>
+              {Math.round((behaviorReport?.isolation_index || 0) * 100)}%
+            </div>
+            <div style={{ height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', overflow: 'hidden', marginTop: '4px' }}>
+              <div style={{ width: `${Math.min(100, (behaviorReport?.isolation_index || 0) * 100)}%`, height: '100%', background: '#a855f7' }} />
+            </div>
+          </div>
+
+          <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Pity / Urgency Pressure</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#f59e0b', fontFamily: 'var(--font-mono)' }}>
+              {Math.round((behaviorReport?.pity_index || 0) * 100)}%
+            </div>
+            <div style={{ height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', overflow: 'hidden', marginTop: '4px' }}>
+              <div style={{ width: `${Math.min(100, (behaviorReport?.pity_index || 0) * 100)}%`, height: '100%', background: '#f59e0b' }} />
+            </div>
+          </div>
+
+          <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Exploitation Velocity</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#ef4444', fontFamily: 'var(--font-mono)' }}>
+              {Math.round((behaviorReport?.exploitation_index || 0) * 100)}%
+            </div>
+            <div style={{ height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', overflow: 'hidden', marginTop: '4px' }}>
+              <div style={{ width: `${Math.min(100, (behaviorReport?.exploitation_index || 0) * 100)}%`, height: '100%', background: '#ef4444' }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Behavioral Escalation Milestones Timeline */}
+        {behaviorReport && behaviorReport.timeline_milestones && behaviorReport.timeline_milestones.length > 0 && (
+          <div>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
+              Turn-by-Turn Escalation Milestones ({behaviorReport.timeline_milestones.length})
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
+              {behaviorReport.timeline_milestones.map((m, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border-subtle)', fontSize: '11px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                    <span style={{ fontWeight: 800, color: 'var(--accent-cyan)' }}>#{m.turn}</span>
+                    <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      "{m.snippet}"
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                    <span style={{ fontSize: '10px', color: m.risk_score >= 50 ? '#ef4444' : '#fbbf24', fontWeight: 700 }}>{m.stage}</span>
+                    <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', background: m.risk_score >= 50 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)', color: m.risk_score >= 50 ? '#ef4444' : '#fbbf24', fontWeight: 800 }}>
+                      {m.risk_score}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Threat Category Gauges & Sandbox */}

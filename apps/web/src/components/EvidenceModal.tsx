@@ -13,6 +13,15 @@ interface EvidenceModalProps {
 export const EvidenceModal: React.FC<EvidenceModalProps> = ({ message, onClose, onAskCopilot, userRole = 'USER' }) => {
   const [learningFeedback, setLearningFeedback] = useState<string | null>(null);
   const [isTeaching, setIsTeaching] = useState(false);
+  const [secondOpinion, setSecondOpinion] = useState<{
+    status: string;
+    secondOpinionScore: number;
+    indicatorColor: 'RED' | 'ORANGE' | 'GREEN';
+    consensusSignals: string[];
+    alternateHypotheses: string[];
+    recommendedAction: string;
+  } | null>(null);
+  const [isLoadingOpinion, setIsLoadingOpinion] = useState(false);
 
   if (!message) return null;
 
@@ -20,6 +29,18 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ message, onClose, 
   const isRed = analysis.indicatorColor === 'RED';
   const isOrange = analysis.indicatorColor === 'ORANGE';
   const isGreen = analysis.indicatorColor === 'GREEN';
+
+  const handleFetchSecondOpinion = async () => {
+    setIsLoadingOpinion(true);
+    try {
+      const res = await ApiClient.getSecondOpinion(message.plaintext, message.id);
+      setSecondOpinion(res);
+    } catch {
+      // Fallback
+    } finally {
+      setIsLoadingOpinion(false);
+    }
+  };
 
   const handleTeachAI = async (label: 'MALICIOUS' | 'BENIGN') => {
     setIsTeaching(true);
@@ -219,6 +240,84 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ message, onClose, 
             )}
           </div>
         )}
+
+        {/* AI Second Opinion Section */}
+        <div
+          style={{
+            background: 'rgba(6, 182, 212, 0.06)',
+            border: '1px solid rgba(6, 182, 212, 0.25)',
+            borderRadius: '12px',
+            padding: '14px',
+            marginBottom: '18px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: secondOpinion ? '10px' : '0' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <ShieldCheck size={16} /> Adversarial Cross-Model Second Opinion
+            </span>
+            <button
+              onClick={handleFetchSecondOpinion}
+              disabled={isLoadingOpinion}
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                background: 'rgba(6, 182, 212, 0.15)',
+                border: '1px solid rgba(6, 182, 212, 0.4)',
+                color: 'var(--accent-cyan)',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              {isLoadingOpinion ? 'Re-analyzing...' : 'Request Second Opinion'}
+            </button>
+          </div>
+
+          {secondOpinion && (
+            <div className="fade-in" style={{ fontSize: '12px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Multi-Model Consensus:</span>
+                <span
+                  style={{
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    background:
+                      secondOpinion.indicatorColor === 'RED'
+                        ? 'rgba(244, 63, 94, 0.2)'
+                        : secondOpinion.indicatorColor === 'ORANGE'
+                        ? 'rgba(245, 158, 11, 0.2)'
+                        : 'rgba(16, 185, 129, 0.2)',
+                    color:
+                      secondOpinion.indicatorColor === 'RED'
+                        ? 'var(--red-critical)'
+                        : secondOpinion.indicatorColor === 'ORANGE'
+                        ? 'var(--orange-warn)'
+                        : 'var(--green-safe)',
+                  }}
+                >
+                  {secondOpinion.status.replace(/_/g, ' ')} ({secondOpinion.secondOpinionScore}/100)
+                </span>
+              </div>
+
+              {secondOpinion.alternateHypotheses.length > 0 && (
+                <div style={{ background: 'rgba(0, 0, 0, 0.25)', padding: '8px 10px', borderRadius: '6px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>Hypothesis Verification:</div>
+                  {secondOpinion.alternateHypotheses.map((hyp, i) => (
+                    <div key={i} style={{ color: 'var(--text-secondary)', fontSize: '11px', marginBottom: '2px' }}>• {hyp}</div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                <strong>Recommendation:</strong> {secondOpinion.recommendedAction}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>

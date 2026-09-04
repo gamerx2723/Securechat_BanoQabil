@@ -245,7 +245,7 @@ html, body, #root {
 }
 
 /* Master Layout & Viewport Constraint Architecture */
-.app-layout {
+.app-container, .app-layout {
   display: flex;
   height: 100vh;
   height: 100dvh;
@@ -253,6 +253,46 @@ html, body, #root {
   overflow: hidden;
   background: var(--bg-primary);
   position: relative;
+}
+
+.aurora-glow-1 {
+  position: absolute;
+  top: -120px;
+  left: -120px;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.18) 0%, rgba(16, 185, 129, 0.08) 50%, transparent 70%);
+  filter: blur(60px);
+  pointer-events: none;
+  animation: floatAurora1 18s ease-in-out infinite alternate;
+  z-index: 0;
+}
+
+.aurora-glow-2 {
+  position: absolute;
+  bottom: -140px;
+  right: -140px;
+  width: 540px;
+  height: 540px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, rgba(244, 63, 94, 0.08) 50%, transparent 70%);
+  filter: blur(70px);
+  pointer-events: none;
+  animation: floatAurora2 22s ease-in-out infinite alternate;
+  z-index: 0;
+}
+
+@keyframes floatAurora1 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(100px, 70px) scale(1.15); }
+  100% { transform: translate(30px, 120px) scale(0.9); }
+}
+
+@keyframes floatAurora2 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-90px, -80px) scale(1.2); }
+  100% { transform: translate(-50px, -30px) scale(0.95); }
 }
 
 .sidebar-container {

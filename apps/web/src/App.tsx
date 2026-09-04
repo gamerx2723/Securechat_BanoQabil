@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ConversationItem, ChatMessage, SecurityAnalysis, UserProfile } from './types';
-import { Sidebar } from './components/Sidebar';
+import { Sidebar, SidebarTab } from './components/Sidebar';
 import { ChatArea } from './components/ChatArea';
 import { GuardianPanel } from './components/GuardianPanel';
 import { EvidenceModal } from './components/EvidenceModal';
@@ -8,23 +8,28 @@ import { CopilotDrawer } from './components/CopilotDrawer';
 import { ConversationTopicModal } from './components/ConversationTopicModal';
 import { AuthModal } from './components/AuthModal';
 import { NewChatModal } from './components/NewChatModal';
+import { CreateGroupModal } from './components/CreateGroupModal';
+import { SecureBridgeView } from './components/SecureBridgeView';
+import { SecretExposureMapView } from './components/SecretExposureMapView';
 import { AdminConsole } from './components/AdminConsole';
 import { ProfileModal } from './components/ProfileModal';
 import { ProfileOnboardingModal } from './components/ProfileOnboardingModal';
 import { ApiClient } from './api/client';
 import { playNotificationChime, requestNotificationPermission, triggerSystemNotification } from './utils/notifications';
-import { ArrowLeft, Shield, Crown, Plus, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Shield, Crown, Plus, ShieldCheck, Smartphone, KeyRound } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(ApiClient.getCurrentUser());
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [activeConvId, setActiveConvId] = useState<string>('');
   const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>({});
-  const [activeTab, setActiveTab] = useState<'CHATS' | 'GUARDIAN' | 'ADMIN'>('CHATS');
+  const [activeTab, setActiveTab] = useState<SidebarTab>('CHATS');
   const [inspectedMessage, setInspectedMessage] = useState<ChatMessage | null>(null);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+  const [directoryUsers, setDirectoryUsers] = useState<Array<{ id: string; username: string; displayName: string; avatarUrl?: string }>>([]);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [copilotInitialQuery, setCopilotInitialQuery] = useState('');
@@ -408,6 +413,42 @@ export const App: React.FC = () => {
     setIsCopilotOpen(true);
   };
 
+  // Load directory users for group creation
+  useEffect(() => {
+    if (currentUser) {
+      ApiClient.getDirectoryUsers()
+        .then((users) => {
+          setDirectoryUsers(users.filter((u) => u.id !== currentUser.id));
+        })
+        .catch(() => {});
+    }
+  }, [currentUser]);
+
+  // Create encrypted group conversation
+  const handleCreateGroup = async (title: string, participantUserIds: string[]) => {
+    try {
+      const group = await ApiClient.createConversation({
+        type: 'GROUP',
+        title,
+        participantUserIds,
+      });
+      await loadConversations();
+      setActiveConvId(group.id);
+      loadActiveMessages(group.id);
+    } catch (err) {
+      console.error('Failed to create group:', err);
+    }
+  };
+
+  // Flattened array of all loaded messages across conversations for exposure mapping
+  const allMessages = React.useMemo(() => {
+    const list: ChatMessage[] = [];
+    for (const id of Object.keys(messagesMap)) {
+      list.push(...(messagesMap[id] || []));
+    }
+    return list;
+  }, [messagesMap]);
+
   // If user is not authenticated, display login & registration modal
   if (!currentUser) {
     return (
@@ -422,25 +463,17 @@ export const App: React.FC = () => {
     );
   }
 
-  const currentConv = conversations.find((c) => c.id === activeConvId) || {
-    id: activeConvId || 'default',
-    title: 'Select or Start a Conversation',
-    type: 'DIRECT' as const,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    unreadCount: 0,
-    lastMessageText: '',
-    lastMessageTime: '',
-    securityState: 'GREEN' as const,
-    isExcluded: false,
-    isBlocked: false,
-  };
+  const currentConv = conversations.find((c) => c.id === activeConvId) || null;
   const currentMessages = activeConvId ? (messagesMap[activeConvId] || []) : [];
 
   return (
-    <div className="app-layout">
-      {/* Left Sidebar (Hidden on mobile if inside a conversation or viewing AI/Admin tabs) */}
+    <div className="app-container">
+      {/* Dynamic Aurora Ambient Background */}
+      <div className="aurora-glow-1" />
+      <div className="aurora-glow-2" />
+
+      {/* Sidebar with Navigation Tabs & Contacts */}
       <Sidebar
-        className={Boolean(activeConvId) || activeTab !== 'CHATS' ? 'sidebar-hidden-mobile' : ''}
         conversations={conversations}
         activeId={activeConvId}
         onSelect={(id) => {
@@ -459,6 +492,7 @@ export const App: React.FC = () => {
         }}
         onOpenCopilot={() => setIsCopilotOpen(true)}
         onNewChat={() => setIsNewChatOpen(true)}
+        onCreateGroup={() => setIsCreateGroupOpen(true)}
         onLogout={handleLogout}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onBulkDelete={handleBulkDeleteChats}
@@ -506,6 +540,8 @@ export const App: React.FC = () => {
               <span>Back to Chats</span>
             </button>
             <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {activeTab === 'SECURE_BRIDGE' && <><Smartphone size={16} /> WhatsApp Bridge</>}
+              {activeTab === 'SECRET_MAP' && <><KeyRound size={16} /> Secret Exposure Map</>}
               {activeTab === 'GUARDIAN' && <><Shield size={16} /> AI Guardian</>}
               {activeTab === 'ADMIN' && <><Crown size={16} style={{ color: '#fbbf24' }} /> Admin Console</>}
             </div>
@@ -516,7 +552,7 @@ export const App: React.FC = () => {
         {activeTab === 'CHATS' && (
           activeConvId ? (
             <ChatArea
-              conversation={currentConv}
+              conversation={currentConv!}
               messages={currentMessages}
               onSendMessage={handleSendMessage}
               onInspectSecurity={(msg) => setInspectedMessage(msg)}
@@ -552,19 +588,47 @@ export const App: React.FC = () => {
                   <Plus size={16} /> Start New Chat
                 </button>
                 <button
+                  onClick={() => setIsCreateGroupOpen(true)}
+                  className="btn-secondary"
+                  style={{ padding: '10px 18px', fontSize: '13px', border: '1px solid rgba(6, 182, 212, 0.4)', color: 'var(--accent-cyan)' }}
+                >
+                  <Plus size={16} /> Create Group
+                </button>
+                <button
+                  onClick={() => setActiveTab('SECURE_BRIDGE')}
+                  className="btn-ghost"
+                  style={{ padding: '10px 18px', fontSize: '13px' }}
+                >
+                  <Smartphone size={16} style={{ color: 'var(--accent-cyan)', marginRight: '6px' }} />
+                  SecureBridge (WhatsApp)
+                </button>
+                <button
                   onClick={() => setActiveTab('GUARDIAN')}
                   className="btn-ghost"
                   style={{ padding: '10px 18px', fontSize: '13px' }}
                 >
                   <Shield size={16} style={{ color: 'var(--green-safe)', marginRight: '6px' }} />
-                  Explore AI Guardian
+                  AI Guardian
                 </button>
               </div>
             </div>
           )
         )}
 
-        {/* 2. AI GUARDIAN TAB */}
+        {/* 2. PRODUCT B: SECURE BRIDGE COMPANION TAB */}
+        {activeTab === 'SECURE_BRIDGE' && (
+          <SecureBridgeView />
+        )}
+
+        {/* 3. SECRET & CREDENTIAL EXPOSURE MAP TAB */}
+        {activeTab === 'SECRET_MAP' && (
+          <SecretExposureMapView
+            messages={allMessages}
+            conversationTitle={currentConv?.title}
+          />
+        )}
+
+        {/* 4. AI GUARDIAN TAB */}
         {activeTab === 'GUARDIAN' && (
           <GuardianPanel
             conversations={conversations}
@@ -577,13 +641,13 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* 3. COMBINED SUPERADMIN CONSOLE TAB (ADMIN ONLY) */}
+        {/* 5. COMBINED SUPERADMIN CONSOLE TAB (ADMIN ONLY) */}
         {activeTab === 'ADMIN' && currentUser.role === 'ADMIN' && (
           <AdminConsole />
         )}
       </div>
 
-      {/* Global Modals & Drawers rendered at root level (Ensures instant opening on all mobile/desktop states) */}
+      {/* Global Modals & Drawers rendered at root level */}
       {isOnboardingOpen && currentUser && (
         <ProfileOnboardingModal
           user={currentUser}
@@ -623,7 +687,7 @@ export const App: React.FC = () => {
         isOpen={isTopicModalOpen}
         onClose={() => setIsTopicModalOpen(false)}
         conversationId={activeConvId}
-        conversationName={currentConv.title}
+        conversationName={currentConv?.title || 'Active Conversation'}
         onOpenCopilotWithQuery={handleOpenCopilotWithQuery}
       />
 
@@ -638,7 +702,7 @@ export const App: React.FC = () => {
         conversationId={activeConvId}
       />
 
-      {/* New Chat Modal */}
+      {/* New Direct Chat Modal */}
       {isNewChatOpen && (
         <NewChatModal
           onClose={() => setIsNewChatOpen(false)}
@@ -649,6 +713,14 @@ export const App: React.FC = () => {
           }}
         />
       )}
+
+      {/* Encrypted Group Creation Modal */}
+      <CreateGroupModal
+        isOpen={isCreateGroupOpen}
+        contacts={directoryUsers}
+        onClose={() => setIsCreateGroupOpen(false)}
+        onCreateGroup={handleCreateGroup}
+      />
     </div>
   );
 };

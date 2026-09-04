@@ -4,7 +4,11 @@ import { MessageItem } from './MessageItem';
 import { DlpPreSendWarningModal } from './DlpPreSendWarningModal';
 import { SextortionEmergencyModal } from './SextortionEmergencyModal';
 import { SensitiveMediaModal } from './SensitiveMediaModal';
+import { DangerousFileModal } from './DangerousFileModal';
+import { LegalDossierExportModal } from './LegalDossierExportModal';
 import { MediaAnalyzer } from '../utils/mediaAnalyzer';
+import { FileSecurityScanner, FileScanResult } from '../utils/fileSecurityScanner';
+import { TrustEngine, TrustLevel } from '../utils/trustEngine';
 import {
   Send,
   Paperclip,
@@ -23,6 +27,9 @@ import {
   CheckCircle,
   AlertTriangle,
   ArrowLeft,
+  FileText,
+  Users,
+  ShieldCheck,
 } from 'lucide-react';
 import { ApiClient } from '../api/client';
 
@@ -86,6 +93,16 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   });
 
   const [isSextortionModalOpen, setIsSextortionModalOpen] = useState(false);
+  const [isDossierModalOpen, setIsDossierModalOpen] = useState(false);
+  const [dangerousFileState, setDangerousFileState] = useState<{
+    isOpen: boolean;
+    file: File | null;
+    scanResult: FileScanResult | null;
+  }>({
+    isOpen: false,
+    file: null,
+    scanResult: null,
+  });
   const [sensitiveMediaState, setSensitiveMediaState] = useState<{
     isOpen: boolean;
     previewUrl: string | null;
@@ -123,6 +140,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     if (!file) return;
     e.target.value = '';
 
+    // 1. Scan for Dangerous Extensions & Malicious APKs
+    const fileScan = FileSecurityScanner.scanFile(file);
+    if (fileScan.isDangerous || fileScan.isExecutable || fileScan.threatLevel === 'CRITICAL' || fileScan.threatLevel === 'HIGH') {
+      setDangerousFileState({
+        isOpen: true,
+        file,
+        scanResult: fileScan,
+      });
+      return;
+    }
+
+    // 2. Scan for Sensitive Media
     if (file.type.startsWith('image/')) {
       const scan = await MediaAnalyzer.scanImage(file);
       if (scan.isSensitive) {
@@ -369,6 +398,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     );
   }
 
+  const trustInfo = TrustEngine.getContactTrust(conversation.id, messages);
+
   return (
     <main className="chat-container">
       {/* Header */}
@@ -397,10 +428,59 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
           />
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-primary)' }}>
                 {conversation.title}
               </span>
+              {conversation.type === 'GROUP' && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '9px',
+                    fontWeight: 800,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    background: 'rgba(6, 182, 212, 0.2)',
+                    color: 'var(--accent-cyan)',
+                    border: '1px solid rgba(6, 182, 212, 0.4)',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  <Users size={10} /> Group
+                </span>
+              )}
+              {/* Zero-Trust Lifecycle Trust Badge */}
+              <div
+                onClick={() => {
+                  alert(
+                    `🔐 Contact Zero-Trust Security Lifecycle:\n\n` +
+                    `• Contact: ${conversation.title}\n` +
+                    `• Trust Status: ${trustInfo.level} (${trustInfo.trustScore}/100)\n` +
+                    `• Verification Method: ${trustInfo.verificationMethod}\n` +
+                    `• Interaction History: ${trustInfo.messageCount} messages exchanged\n` +
+                    `• Trust Basis: ${trustInfo.badgeDescription}`
+                  );
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 7px',
+                  borderRadius: '6px',
+                  background: trustInfo.badgeColor.bg,
+                  color: trustInfo.badgeColor.text,
+                  border: `1px solid ${trustInfo.badgeColor.border}`,
+                  fontSize: '9px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+                title="Click to view Zero-Trust Cryptographic Contact Verification"
+              >
+                <ShieldCheck size={11} />
+                <span>{trustInfo.level}</span>
+              </div>
               {conversation.isBlocked && (
                 <span
                   style={{
@@ -687,6 +767,33 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               >
                 <ShieldAlert size={16} color="#ef4444" />
                 <span>Emergency Vault (FIA 1991)</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setIsDossierModalOpen(true);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--accent-cyan)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'background 0.15s ease',
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(6, 182, 212, 0.12)')}
+                onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                <FileText size={16} color="var(--accent-cyan)" />
+                <span>Export Legal Dossier (FIA/Police)</span>
               </button>
 
               <button
@@ -1143,6 +1250,29 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             sendAttachmentMessage(file, { viewOnce, watermark });
           }
         }}
+      />
+
+      {/* Dangerous File & Malicious APK Attachment Scanner Modal */}
+      <DangerousFileModal
+        isOpen={dangerousFileState.isOpen}
+        file={dangerousFileState.file}
+        scanResult={dangerousFileState.scanResult}
+        onCancel={() => setDangerousFileState({ isOpen: false, file: null, scanResult: null })}
+        onProceedAnyway={() => {
+          if (dangerousFileState.file) {
+            sendAttachmentMessage(dangerousFileState.file);
+          }
+          setDangerousFileState({ isOpen: false, file: null, scanResult: null });
+        }}
+      />
+
+      {/* Legal Cybercrime Evidence Dossier Exporter */}
+      <LegalDossierExportModal
+        isOpen={isDossierModalOpen}
+        conversation={conversation}
+        messages={messages}
+        currentUser={ApiClient.getCurrentUser()}
+        onClose={() => setIsDossierModalOpen(false)}
       />
     </main>
   );
