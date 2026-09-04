@@ -79,30 +79,34 @@ class SecureBridgeNotificationListener : NotificationListenerService() {
     }
 
     private fun triggerSecurityAlert(sender: String, messageText: String, analysis: NotificationSecurityResult) {
-        val channelId = "securebridge_alerts"
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        try {
+            val channelId = "securebridge_alerts"
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "SecureBridge Threat Alerts",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Proactive cross-app security warnings"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    channelId,
+                    "SecureBridge Threat Alerts",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Proactive cross-app security warnings"
+                }
+                notificationManager.createNotificationChannel(channel)
             }
-            notificationManager.createNotificationChannel(channel)
+
+            val alert = NotificationCompat.Builder(this, channelId)
+                .setSmallIcon(com.securechat.app.R.drawable.ic_threat_alert)
+                .setContentTitle("⚠️ SecureChat Security Alert ($sender)")
+                .setContentText("Potential Phishing or Scam Detected: ${analysis.reasons.joinToString(", ")}")
+                .setStyle(NotificationCompat.BigTextStyle().bigText("Message: \"$messageText\"\n\nRisk: ${analysis.riskScore}/100\nEvidence: ${analysis.reasons.joinToString("; ")}\nRecommendation: Do NOT open links or provide OTPs."))
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .build()
+
+            notificationManager.notify((System.currentTimeMillis() % 10000).toInt(), alert)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error triggering SecureBridge notification", e)
         }
-
-        val alert = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(android.R.drawable.stat_sys_warning)
-            .setContentTitle("⚠️ SecureChat Security Alert ($sender)")
-            .setContentText("Potential Phishing or Scam Detected: ${analysis.reasons.joinToString(", ")}")
-            .setStyle(NotificationCompat.BigTextStyle().bigText("Message: \"$messageText\"\n\nRisk: ${analysis.riskScore}/100\nEvidence: ${analysis.reasons.joinToString("; ")}\nRecommendation: Do NOT open links or provide OTPs."))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .build()
-
-        notificationManager.notify((System.currentTimeMillis() % 10000).toInt(), alert)
     }
 
     data class NotificationSecurityResult(

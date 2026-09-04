@@ -35,6 +35,14 @@
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
 
+        <!-- Default Notification Channel and Icon for Firebase Cloud Messaging -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="securechat_messages" />
+
         <!-- Native Firebase Cloud Messaging Service for Closed-App Notifications -->
         <service
             android:name="com.securechat.notifications.SecureChatFirebaseMessagingService"

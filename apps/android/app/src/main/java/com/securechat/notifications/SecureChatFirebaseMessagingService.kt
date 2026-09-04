@@ -24,77 +24,124 @@ class SecureChatFirebaseMessagingService : FirebaseMessagingService() {
     private val CHANNEL_ID_MESSAGES = "securechat_messages"
     private val CHANNEL_ID_THREATS = "securechat_threat_alerts"
 
+    override fun onCreate() {
+        super.onCreate()
+        try {
+            createNotificationChannels()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing notification channels in onCreate", e)
+        }
+    }
+
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d(TAG, "New FCM Registration Token: $token")
-        
-        // Store in SharedPreferences for seamless token retrieval
-        val prefs = getSharedPreferences("securechat_push_prefs", Context.MODE_PRIVATE)
-        prefs.edit().putString("fcm_token", token).apply()
+        try {
+            val prefs = getSharedPreferences("securechat_push_prefs", Context.MODE_PRIVATE)
+            prefs.edit().putString("fcm_token", token).apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving new token to SharedPreferences", e)
+        }
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
-        Log.d(TAG, "FCM Message received from: ${remoteMessage.from}")
+        try {
+            Log.d(TAG, "FCM Message received from: ${remoteMessage.from}")
 
-        val data = remoteMessage.data
-        val notification = remoteMessage.notification
+            val data = remoteMessage.data
+            val notification = remoteMessage.notification
 
-        val title = notification?.title ?: data["title"] ?: "🔒 SecureChat Message"
-        val body = notification?.body ?: data["body"] ?: "New encrypted zero-trust message received."
-        val conversationId = data["conversationId"] ?: ""
-        val isThreat = data["isThreat"] == "true" || title.contains("THREAT", ignoreCase = true)
+            val title = notification?.title ?: data["title"] ?: "🔒 SecureChat Message"
+            val body = notification?.body ?: data["body"] ?: "New encrypted zero-trust message received."
+            val conversationId = data["conversationId"] ?: ""
+            val isThreat = data["isThreat"] == "true" || title.contains("THREAT", ignoreCase = true)
 
-        displayNotification(title, body, conversationId, isThreat)
+            displayNotification(title, body, conversationId, isThreat)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Unhandled exception in onMessageReceived", e)
+        }
+    }
+
+    private fun createNotificationChannels() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+
+            // 1. Normal Messages Channel
+            val msgChannel = NotificationChannel(
+                CHANNEL_ID_MESSAGES,
+                "Encrypted Messages",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Incoming chat messages"
+                enableVibration(true)
+                setShowBadge(true)
+            }
+            notificationManager.createNotificationChannel(msgChannel)
+
+            // 2. High-Priority Threat Alerts Channel
+            val threatChannel = NotificationChannel(
+                CHANNEL_ID_THREATS,
+                "Zero-Trust Threat Alerts",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "High-priority security warnings & threat detection alerts"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 200, 100, 200, 100, 300)
+                setShowBadge(true)
+            }
+            notificationManager.createNotificationChannel(threatChannel)
+        }
     }
 
     private fun displayNotification(title: String, body: String, conversationId: String, isThreat: Boolean) {
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = if (isThreat) CHANNEL_ID_THREATS else CHANNEL_ID_MESSAGES
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+            createNotificationChannels()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = if (isThreat) "Zero-Trust Threat Alerts" else "Encrypted Messages"
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel(channelId, name, importance).apply {
-                description = if (isThreat) "High-priority security warnings" else "Incoming chat messages"
-                enableVibration(true)
-                if (isThreat) {
-                    vibrationPattern = longArrayOf(0, 200, 100, 200, 100, 300)
+            val channelId = if (isThreat) CHANNEL_ID_THREATS else CHANNEL_ID_MESSAGES
+
+            // Open MainActivity when notification is tapped
+            val intent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                if (conversationId.isNotEmpty()) {
+                    putExtra("conversationId", conversationId)
                 }
             }
-            notificationManager.createNotificationChannel(channel)
+
+            val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+
+            val requestCode = (System.currentTimeMillis() % 10000).toInt()
+            val pendingIntent = PendingIntent.getActivity(this, requestCode, intent, pendingIntentFlags)
+            val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
+            // Use valid vector drawables ic_threat_alert or ic_notification (prevents BadNotificationException)
+            val iconRes = if (isThreat) R.drawable.ic_threat_alert else R.drawable.ic_notification
+
+            val notificationBuilder = NotificationCompat.Builder(this, channelId)
+                .setSmallIcon(iconRes)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                .setAutoCancel(true)
+                .setSound(defaultSoundUri)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setContentIntent(pendingIntent)
+
+            if (isThreat) {
+                notificationBuilder.setCategory(NotificationCompat.CATEGORY_ALARM)
+                notificationBuilder.setVibrate(longArrayOf(0, 250, 150, 250, 150, 350))
+            }
+
+            val notificationId = (System.currentTimeMillis() % 100000).toInt()
+            notificationManager.notify(notificationId, notificationBuilder.build())
+            Log.d(TAG, "Successfully dispatched notification #$notificationId: $title")
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to build or notify system push notification", e)
         }
-
-        // Open MainActivity when notification is tapped
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("conversationId", conversationId)
-        }
-
-        val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        } else {
-            PendingIntent.FLAG_UPDATE_CURRENT
-        }
-
-        val pendingIntent = PendingIntent.getActivity(this, (System.currentTimeMillis() % 10000).toInt(), intent, pendingIntentFlags)
-        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-
-        val notificationBuilder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(if (isThreat) android.R.drawable.stat_sys_warning else R.mipmap.ic_launcher)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setAutoCancel(true)
-            .setSound(defaultSoundUri)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(pendingIntent)
-
-        if (isThreat) {
-            notificationBuilder.setCategory(NotificationCompat.CATEGORY_ALARM)
-            notificationBuilder.setVibrate(longArrayOf(0, 250, 150, 250, 150, 350))
-        }
-
-        notificationManager.notify((System.currentTimeMillis() % 100000).toInt(), notificationBuilder.build())
     }
 }
