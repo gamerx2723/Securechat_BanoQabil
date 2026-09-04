@@ -14,6 +14,7 @@ import { SecretExposureMapView } from './components/SecretExposureMapView';
 import { AdminConsole } from './components/AdminConsole';
 import { ProfileModal } from './components/ProfileModal';
 import { ProfileOnboardingModal } from './components/ProfileOnboardingModal';
+import { MobileBottomNavBar } from './components/MobileBottomNavBar';
 import { ApiClient, getWsBase } from './api/client';
 import {
   playNotificationChime,
@@ -997,6 +998,20 @@ export const App: React.FC = () => {
           <AdminConsole />
         )}
       </div>
+
+      {/* Mobile Bottom Navigation Bar (Visible on mobile when no active chat conversation is open) */}
+      <MobileBottomNavBar
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          if (tab !== 'CHATS') {
+            setActiveConvId('');
+          }
+        }}
+        unreadCount={conversations.reduce((s, c) => s + (c.unreadCount || 0), 0)}
+        isAdmin={currentUser.role === 'ADMIN'}
+        isVisible={!activeConvId || activeTab !== 'CHATS'}
+      />
 
       {/* Global Modals & Drawers rendered at root level */}
       {isOnboardingOpen && currentUser && (

@@ -159,7 +159,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside className={`sidebar-container ${(Boolean(activeId) && activeTab === 'CHATS') || activeTab !== 'CHATS' ? 'sidebar-hidden-mobile' : ''} ${className}`}>
       {/* User Profile Header */}
-      <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
+      <div className="sidebar-header" style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
         <div
           onClick={(e) => {
             e.stopPropagation();
@@ -559,8 +559,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Navigation Tabs */}
-      <div style={{ display: 'grid', gridTemplateColumns: isAdmin ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)', padding: '6px 8px', gap: '4px', background: 'rgba(0, 0, 0, 0.25)', borderBottom: '1px solid var(--border-subtle)' }}>
+      {/* Navigation Tabs (Desktop / Tablet top bar, hidden on mobile in favor of bottom nav bar) */}
+      <div className="sidebar-top-tabs" style={{ display: 'grid', gridTemplateColumns: isAdmin ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)', padding: '6px 8px', gap: '4px', background: 'rgba(0, 0, 0, 0.25)', borderBottom: '1px solid var(--border-subtle)' }}>
         <button
           onClick={() => onTabChange('CHATS')}
           title="Direct & Group Chats"
@@ -818,7 +818,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Conversation List (Always sorted with newest chat on top) */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
+      <div className="conversation-list-scroll" style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
         {sorted.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--text-muted)', fontSize: '12px' }}>
             No conversations found. Click <strong>+ New</strong> to start a chat!

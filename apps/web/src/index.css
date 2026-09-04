@@ -380,6 +380,86 @@ html, body, #root {
   padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
 }
 
+/* Safe-area Inset Handling for Mobile Status / Notification Bar & Navigation Bar */
+.sidebar-header {
+  padding-top: calc(14px + env(safe-area-inset-top, 0px)) !important;
+}
+
+.chat-header {
+  padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+}
+
+.mobile-tab-header {
+  padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+}
+
+.threat-alert-banner {
+  padding-top: calc(10px + env(safe-area-inset-top, 0px)) !important;
+}
+
+/* Mobile Bottom Navigation Bar */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 70;
+  background: rgba(11, 17, 32, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid var(--border-subtle);
+  padding: 6px 12px calc(6px + env(safe-area-inset-bottom, 0px)) 12px;
+  box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.5);
+}
+
+.mobile-bottom-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  max-width: 600px;
+  margin: 0 auto;
+  gap: 6px;
+}
+
+.mobile-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 4px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.mobile-nav-item.active {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-nav-label {
+  font-size: 10px;
+  letter-spacing: 0.2px;
+}
+
+.mobile-nav-badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  background: linear-gradient(135deg, #10b981, #06b6d4);
+  color: #000;
+  font-size: 8px;
+  font-weight: 900;
+  padding: 1px 4px;
+  border-radius: 6px;
+  box-shadow: 0 0 8px var(--green-glow);
+}
+
 /* Mobile & Tablet Responsive Media Queries */
 @media (max-width: 900px) {
   .app-container, .app-layout {
@@ -396,6 +476,18 @@ html, body, #root {
 
   .sidebar-hidden-mobile {
     display: none !important;
+  }
+
+  .sidebar-top-tabs {
+    display: none !important;
+  }
+
+  .mobile-bottom-nav {
+    display: block !important;
+  }
+
+  .conversation-list-scroll {
+    padding-bottom: calc(75px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .main-viewport {
@@ -415,7 +507,7 @@ html, body, #root {
   }
 
   .chat-header {
-    padding: 10px 14px;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px 14px !important;
   }
 
   .messages-stream {
@@ -434,7 +526,6 @@ html, body, #root {
     max-width: 95vw !important;
   }
 }
-
 
 /* Desktop Wide Enhancements */
 @media (min-width: 1200px) {
