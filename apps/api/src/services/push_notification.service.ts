@@ -1,6 +1,8 @@
 import { prisma } from '@securechat/database';
 import { initializeApp, getApps, cert, applicationDefault, App } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 export interface PushPayload {
   title: string;
@@ -44,6 +46,25 @@ function initFirebaseAdmin(): boolean {
       });
       console.log('[PushService] Firebase Admin SDK initialized from GOOGLE_APPLICATION_CREDENTIALS.');
       return true;
+    }
+
+    // Auto-check for local service-account.json
+    const possiblePaths = [
+      path.resolve(process.cwd(), 'service-account.json'),
+      path.resolve(process.cwd(), 'apps', 'api', 'service-account.json'),
+      path.resolve(process.cwd(), '..', 'service-account.json'),
+    ];
+
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, 'utf8');
+        const parsed = JSON.parse(raw);
+        firebaseApp = initializeApp({
+          credential: cert(parsed),
+        });
+        console.log(`[PushService] Firebase Admin SDK initialized from local file: ${p}`);
+        return true;
+      }
     }
   } catch (error) {
     console.warn('[PushService] Firebase Admin initialization error:', error);

@@ -87,29 +87,33 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({
     }
   }, [selectedChannelId, targetMessages.length]);
 
-  // Compute Live Metrics
-  const totalMessages = targetMessages.length;
-  const threatMessages = targetMessages.filter(
+  // Compute Live Metrics (OpSec: only incoming messages evaluated)
+  const incomingMessages = useMemo(() => {
+    return targetMessages.filter((m) => !m?.isSelf);
+  }, [targetMessages]);
+
+  const totalMessages = incomingMessages.length;
+  const threatMessages = incomingMessages.filter(
     (m) => m?.securityAnalysis?.indicatorColor === 'RED'
   );
-  const warnMessages = targetMessages.filter(
+  const warnMessages = incomingMessages.filter(
     (m) => m?.securityAnalysis?.indicatorColor === 'ORANGE'
   );
-  const safeMessages = targetMessages.filter(
+  const safeMessages = incomingMessages.filter(
     (m) => m?.securityAnalysis?.indicatorColor === 'GREEN' || !m?.securityAnalysis?.indicatorColor
   );
-  const peakRiskScore = targetMessages.reduce(
+  const peakRiskScore = incomingMessages.reduce(
     (max, m) => Math.max(max, m?.securityAnalysis?.riskScore || 0),
     0
   );
 
-  const phishingCount = targetMessages.filter(
+  const phishingCount = incomingMessages.filter(
     (m) =>
       m?.securityAnalysis?.primaryThreat === 'PHISHING' ||
       m?.securityAnalysis?.evidenceList?.some((e) => e.category === 'PHISHING')
   ).length;
 
-  const socialEngCount = targetMessages.filter(
+  const socialEngCount = incomingMessages.filter(
     (m) =>
       m?.securityAnalysis?.primaryThreat === 'SOCIAL_ENGINEERING' ||
       m?.securityAnalysis?.evidenceList?.some(
@@ -117,14 +121,14 @@ export const GuardianPanel: React.FC<GuardianPanelProps> = ({
       )
   ).length;
 
-  const dlpCount = targetMessages.filter(
+  const dlpCount = incomingMessages.filter(
     (m) =>
       m?.securityAnalysis?.primaryThreat === 'DLP_SECRET_EXPOSURE' ||
       m?.securityAnalysis?.evidenceList?.some((e) => e.category === 'DLP_SECRET_EXPOSURE')
   ).length;
 
   // Compute Timeline
-  const timeline = targetMessages.map((m) => ({
+  const timeline = incomingMessages.map((m) => ({
     id: m?.id || Math.random().toString(),
     time: m?.sentAt || 'Now',
     sender: m?.senderName || 'Participant',

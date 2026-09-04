@@ -22,6 +22,7 @@ messagesRouter.get('/:conversationId', async (req: AuthenticatedRequest, res: Re
   try {
     const conversationId = String(req.params.conversationId);
     const userId = req.user!.userId;
+    const markAsRead = req.query.markAsRead === 'true';
 
     const messages = await prisma.message.findMany({
       where: {
@@ -69,23 +70,65 @@ messagesRouter.get('/:conversationId', async (req: AuthenticatedRequest, res: Re
       },
     });
 
-    // Mark unread incoming messages as READ (Double Blue Ticks)
-    const unreadIncomingIds = messages
-      .filter((m: any) => m.senderId !== userId && m.status !== 'READ')
-      .map((m: any) => m.id);
+    // Only mark unread incoming messages as READ when explicitly requested by an actively focused user
+    if (markAsRead) {
+      const unreadIncomingIds = messages
+        .filter((m: any) => m.senderId !== userId && m.status !== 'READ')
+        .map((m: any) => m.id);
 
-    if (unreadIncomingIds.length > 0) {
-      await prisma.message.updateMany({
-        where: { id: { in: unreadIncomingIds } },
-        data: { status: 'READ' },
-      });
-      // Broadcast read receipt update
-      wsGateway.broadcastReadReceipt(conversationId, userId, unreadIncomingIds);
+      if (unreadIncomingIds.length > 0) {
+        await prisma.message.updateMany({
+          where: { id: { in: unreadIncomingIds } },
+          data: { status: 'READ' },
+        });
+        // Broadcast read receipt update
+        wsGateway.broadcastReadReceipt(conversationId, userId, unreadIncomingIds);
+      }
     }
 
-    res.json(messages);
+    // Asymmetric Zero-Trust Security: Senders must never see security evaluations of their own messages
+    const sanitizedMessages = messages.map((m: any) => {
+      if (m.senderId === userId) {
+        return {
+          ...m,
+          securityEvents: [],
+        };
+      }
+      return m;
+    });
+
+    res.json(sanitizedMessages);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
+messagesRouter.post('/:conversationId/read', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const conversationId = String(req.params.conversationId);
+    const userId = req.user!.userId;
+
+    const unreadIncoming = await prisma.message.findMany({
+      where: {
+        conversationId,
+        senderId: { not: userId },
+        status: { not: 'READ' },
+      },
+      select: { id: true },
+    });
+
+    const unreadIds = unreadIncoming.map((m: any) => m.id);
+    if (unreadIds.length > 0) {
+      await prisma.message.updateMany({
+        where: { id: { in: unreadIds } },
+        data: { status: 'READ' },
+      });
+      wsGateway.broadcastReadReceipt(conversationId, userId, unreadIds);
+    }
+
+    res.json({ success: true, count: unreadIds.length });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to mark messages as read' });
   }
 });
 
@@ -272,7 +315,13 @@ messagesRouter.post('/', async (req: AuthenticatedRequest, res: Response): Promi
       }
     }).catch((err: any) => console.error('Failed to query conversation recipients for push:', err));
 
-    res.status(201).json(message);
+    // Asymmetric Zero-Trust Security: Senders must never receive security evaluations of their own sent messages
+    const sanitizedForSender = {
+      ...message,
+      securityEvents: [],
+    };
+
+    res.status(201).json(sanitizedForSender);
   } catch (error) {
     console.error('Send message error:', error);
     res.status(500).json({ error: 'Failed to send message' });

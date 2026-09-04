@@ -34,9 +34,11 @@ export const LegalDossierExportModal: React.FC<LegalDossierExportModalProps> = (
 
   const threatMessages = messages.filter(
     (m) =>
-      m.securityAnalysis?.indicatorColor === 'RED' ||
-      m.securityAnalysis?.indicatorColor === 'ORANGE' ||
-      m.securityAnalysis?.primaryThreat === 'BLACKMAIL_SEXTORTION'
+      !m.isSelf && (
+        m.securityAnalysis?.indicatorColor === 'RED' ||
+        m.securityAnalysis?.indicatorColor === 'ORANGE' ||
+        m.securityAnalysis?.primaryThreat === 'BLACKMAIL_SEXTORTION'
+      )
   );
 
   const handlePrint = () => {

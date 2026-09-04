@@ -612,9 +612,10 @@ export class ApiClient {
     return await res.json();
   }
 
-  public static async getMessages(conversationId: string): Promise<ChatMessage[]> {
+  public static async getMessages(conversationId: string, markAsRead = false): Promise<ChatMessage[]> {
     try {
-      const res = await fetchWithTimeout(`${API_BASE}/messages/${conversationId}`, {
+      const url = `${API_BASE}/messages/${conversationId}${markAsRead ? '?markAsRead=true' : ''}`;
+      const res = await fetchWithTimeout(url, {
         headers: this.authHeaders(),
       }, 15000);
       if (res.ok) {
@@ -632,20 +633,37 @@ export class ApiClient {
             text = m.encryptedPayload;
           }
 
-          // Evaluate with local AI rule analyzer to get full threat signals and evidence (Runs completely offline!)
-          const evaluated = this.clientSideEvaluate(text);
-          const secEvent = m.securityEvents?.[0];
+          const isSelf = m.senderId === currentUser?.id;
 
-          const analysis: SecurityAnalysis = {
-            riskScore: secEvent?.riskScore !== undefined ? secEvent.riskScore : evaluated.riskScore,
-            indicatorColor: secEvent?.indicatorColor || evaluated.indicatorColor,
-            primaryThreat: secEvent?.type || evaluated.primaryThreat,
-            confidence: secEvent?.confidence ? Math.round(secEvent.confidence * 100) : evaluated.confidence,
-            evidenceList: evaluated.evidenceList,
-            explanation: secEvent?.explanation || evaluated.explanation,
-            recommendation: secEvent?.recommendation || evaluated.recommendation,
-            suggestedActions: evaluated.suggestedActions,
-          };
+          // Asymmetric Zero-Trust Security: Senders must NEVER see security evaluations of their own sent messages
+          let analysis: SecurityAnalysis;
+          if (isSelf) {
+            analysis = {
+              riskScore: 0,
+              indicatorColor: 'GREEN',
+              primaryThreat: 'NONE',
+              confidence: 1,
+              evidenceList: [],
+              explanation: 'Secure message transmission.',
+              recommendation: 'Safe to send',
+              suggestedActions: [],
+            };
+          } else {
+            // Evaluate incoming message with local AI rule analyzer & server security events
+            const evaluated = this.clientSideEvaluate(text);
+            const secEvent = m.securityEvents?.[0];
+
+            analysis = {
+              riskScore: secEvent?.riskScore !== undefined ? secEvent.riskScore : evaluated.riskScore,
+              indicatorColor: secEvent?.indicatorColor || evaluated.indicatorColor,
+              primaryThreat: secEvent?.type || evaluated.primaryThreat,
+              confidence: secEvent?.confidence ? Math.round(secEvent.confidence * 100) : evaluated.confidence,
+              evidenceList: evaluated.evidenceList,
+              explanation: secEvent?.explanation || evaluated.explanation,
+              recommendation: secEvent?.recommendation || evaluated.recommendation,
+              suggestedActions: evaluated.suggestedActions,
+            };
+          }
 
           return {
             id: m.id,
@@ -656,7 +674,7 @@ export class ApiClient {
             isEdited,
             sentAt: new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             status: m.status || 'SENT',
-            isSelf: m.senderId === currentUser?.id,
+            isSelf,
             reactions: m.reactions || [],
             securityAnalysis: analysis,
           };
@@ -678,6 +696,32 @@ export class ApiClient {
     return this.getCachedMessages(conversationId);
   }
 
+  public static async markConversationAsRead(conversationId: string): Promise<boolean> {
+    try {
+      const res = await fetchWithTimeout(`${API_BASE}/messages/${conversationId}/read`, {
+        method: 'POST',
+        headers: this.authHeaders(),
+      }, 5000);
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  public static async registerFcmToken(fcmToken: string, deviceId?: string): Promise<boolean> {
+    try {
+      const res = await fetchWithTimeout(`${API_BASE}/auth/fcm-token`, {
+        method: 'POST',
+        headers: this.authHeaders(),
+        body: JSON.stringify({ fcmToken, deviceId: deviceId || this.getDevice().deviceId }),
+      }, 10000);
+      return res.ok;
+    } catch (e) {
+      console.debug('FCM Token registration error:', e);
+      return false;
+    }
+  }
+
   public static async editMessage(messageId: string, newText: string): Promise<ChatMessage> {
     const res = await fetch(`${API_BASE}/messages/${messageId}`, {
       method: 'PATCH',
@@ -691,7 +735,20 @@ export class ApiClient {
 
     const updated = await res.json();
     const currentUser = this.getCurrentUser();
-    const evaluated = this.clientSideEvaluate(newText);
+    const isSelf = updated.senderId === currentUser?.id;
+
+    const analysis: SecurityAnalysis = isSelf
+      ? {
+          riskScore: 0,
+          indicatorColor: 'GREEN',
+          primaryThreat: 'NONE',
+          confidence: 1,
+          evidenceList: [],
+          explanation: 'Secure message transmission.',
+          recommendation: 'Safe to send',
+          suggestedActions: [],
+        }
+      : this.clientSideEvaluate(newText);
 
     return {
       id: updated.id,
@@ -702,9 +759,9 @@ export class ApiClient {
       isEdited: true,
       sentAt: new Date(updated.sentAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       status: updated.status || 'SENT',
-      isSelf: updated.senderId === currentUser?.id,
+      isSelf,
       reactions: updated.reactions || [],
-      securityAnalysis: evaluated,
+      securityAnalysis: analysis,
     };
   }
 
@@ -798,7 +855,16 @@ export class ApiClient {
       status: 'SENT',
       isSelf: true,
       reactions: [],
-      securityAnalysis: analysis,
+      securityAnalysis: {
+        riskScore: 0,
+        indicatorColor: 'GREEN',
+        primaryThreat: 'NONE',
+        confidence: 1,
+        evidenceList: [],
+        explanation: 'Secure message transmission.',
+        recommendation: 'Safe to send',
+        suggestedActions: [],
+      },
     };
   }
 

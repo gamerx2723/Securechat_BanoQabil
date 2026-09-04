@@ -63,11 +63,11 @@ export const App: React.FC = () => {
   const isSyncingRef = useRef<boolean>(false);
   const prevTotalUnreadRef = useRef<number>(0);
 
-  // Prefetch and persist all messages across all conversations into local memory
+  // Prefetch and persist all messages across all conversations into local memory (NEVER marks as read)
   const prefetchAllMessages = useCallback(async (convs: ConversationItem[]) => {
     if (!currentUser || !convs || convs.length === 0) return;
     try {
-      const results = await Promise.allSettled(convs.map((c) => ApiClient.getMessages(c.id)));
+      const results = await Promise.allSettled(convs.map((c) => ApiClient.getMessages(c.id, false)));
       const incomingMap: Record<string, ChatMessage[]> = {};
       results.forEach((res, idx) => {
         if (res.status === 'fulfilled' && res.value) {
@@ -82,6 +82,18 @@ export const App: React.FC = () => {
     } catch (e) {
       console.warn('Background full message prefetch deferred:', e);
     }
+  }, [currentUser]);
+
+  // Explicitly mark active conversation as READ only when user is actively looking at screen
+  const markActiveConversationRead = useCallback(async (convId: string) => {
+    if (!currentUser || !convId) return;
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+    try {
+      await ApiClient.markConversationAsRead(convId);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === convId ? { ...c, unreadCount: 0 } : c))
+      );
+    } catch {}
   }, [currentUser]);
 
   // Load conversations (DO NOT auto-select the first chat on login)
@@ -100,10 +112,10 @@ export const App: React.FC = () => {
   }, [currentUser, prefetchAllMessages]);
 
   // Load messages for active conversation
-  const loadActiveMessages = useCallback(async (convId: string) => {
+  const loadActiveMessages = useCallback(async (convId: string, markRead = false) => {
     if (!currentUser || !convId) return;
     try {
-      const msgs = await ApiClient.getMessages(convId);
+      const msgs = await ApiClient.getMessages(convId, markRead);
       setMessagesMap((prev) => {
         const updated = {
           ...prev,
@@ -112,6 +124,11 @@ export const App: React.FC = () => {
         ApiClient.saveAllCachedMessages(updated);
         return updated;
       });
+      if (markRead) {
+        setConversations((prev) =>
+          prev.map((c) => (c.id === convId ? { ...c, unreadCount: 0 } : c))
+        );
+      }
     } catch (e) {
       console.error('Failed to load messages:', e);
     }
@@ -129,9 +146,34 @@ export const App: React.FC = () => {
   // Load messages when conversation switches
   useEffect(() => {
     if (currentUser && activeConvId) {
-      loadActiveMessages(activeConvId);
+      const isVisible = typeof document === 'undefined' || document.visibilityState === 'visible';
+      loadActiveMessages(activeConvId, isVisible);
+      if (isVisible) {
+        markActiveConversationRead(activeConvId);
+      }
     }
-  }, [currentUser, activeConvId, loadActiveMessages]);
+  }, [currentUser, activeConvId, loadActiveMessages, markActiveConversationRead]);
+
+  // Handle visibility changes (e.g. app minimized vs restored to foreground)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        const currentActive = activeConvIdRef.current;
+        if (currentActive) {
+          markActiveConversationRead(currentActive);
+          loadActiveMessages(currentActive, true);
+        }
+        loadConversations();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
+  }, [markActiveConversationRead, loadActiveMessages, loadConversations]);
 
   // Online / Offline Connectivity Monitor & Auto-Sync
   useEffect(() => {
@@ -196,18 +238,20 @@ export const App: React.FC = () => {
     };
   }, [isProfileModalOpen, isNewChatOpen, isCreateGroupOpen, isCopilotOpen, inspectedMessage, activeTab]);
 
-  // Optimized Background Auto-Sync (Prevents backloops & overlapping requests)
+  // Optimized Background Auto-Sync (Prevents backloops & overlapping requests, respects app minimize state)
   useEffect(() => {
     if (!currentUser) return;
 
     const interval = setInterval(async () => {
       if (isSyncingRef.current) return;
+      // Skip background polling if document is hidden to conserve battery & prevent spurious state mutations
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       isSyncingRef.current = true;
 
       try {
         const currentActiveId = activeConvIdRef.current;
         if (currentActiveId) {
-          const latestMsgs = await ApiClient.getMessages(currentActiveId);
+          const latestMsgs = await ApiClient.getMessages(currentActiveId, false);
           setMessagesMap((prev) => {
             const currentMsgs = prev[currentActiveId] || [];
             if (latestMsgs.length !== currentMsgs.length || JSON.stringify(latestMsgs) !== JSON.stringify(currentMsgs)) {
@@ -375,6 +419,20 @@ export const App: React.FC = () => {
                 }
               }
 
+              const isSelf = senderId === currentUser.id;
+              const msgSecurityAnalysis: SecurityAnalysis = isSelf
+                ? {
+                    riskScore: 0,
+                    indicatorColor: 'GREEN',
+                    primaryThreat: 'NONE',
+                    confidence: 1,
+                    evidenceList: [],
+                    explanation: 'Secure message transmission.',
+                    recommendation: 'Safe to send',
+                    suggestedActions: [],
+                  }
+                : analysis;
+
               // Create incoming ChatMessage object
               const incomingMsg: ChatMessage = {
                 id: messageObj.id || `msg-${Date.now()}`,
@@ -384,9 +442,9 @@ export const App: React.FC = () => {
                 plaintext: previewText,
                 sentAt: new Date(messageObj.sentAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 status: 'DELIVERED',
-                isSelf: senderId === currentUser.id,
+                isSelf,
                 reactions: [],
-                securityAnalysis: analysis,
+                securityAnalysis: msgSecurityAnalysis,
               };
 
               // Immediately persist incoming message in local memory
@@ -402,7 +460,11 @@ export const App: React.FC = () => {
               });
 
               if (convId === activeConvIdRef.current) {
-                loadActiveMessages(activeConvIdRef.current);
+                const isVisible = typeof document === 'undefined' || document.visibilityState === 'visible';
+                loadActiveMessages(activeConvIdRef.current, isVisible);
+                if (isVisible && !isSelf) {
+                  markActiveConversationRead(activeConvIdRef.current);
+                }
               }
               loadConversations();
             }
@@ -418,7 +480,7 @@ export const App: React.FC = () => {
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (wsRef.current) wsRef.current.close();
     };
-  }, [currentUser, reconnectTrigger, loadActiveMessages, loadConversations]);
+  }, [currentUser, reconnectTrigger, loadActiveMessages, loadConversations, markActiveConversationRead]);
 
   // Toggle Notification Listener & Real-time AI Threat Shield
   const handleToggleNotifications = async () => {
@@ -455,7 +517,7 @@ export const App: React.FC = () => {
       status: 'SENDING', // 🕒 Clock timer spinning in message bubble immediately!
       sentAt: currentTimeStr,
       reactions: [],
-      securityAnalysis: _analysis || {
+      securityAnalysis: {
         riskScore: 0,
         indicatorColor: 'GREEN',
         primaryThreat: 'NONE',

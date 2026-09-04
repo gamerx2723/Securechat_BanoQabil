@@ -193,7 +193,10 @@ export const triggerThreatPushNotification = (
 export const registerDevicePushToken = async (apiUrl: string, authToken: string, fcmToken: string, deviceId?: string) => {
   try {
     const base = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
-    const res = await fetch(`${base}/api/auth/fcm-token`, {
+    const targetUrl = base.includes('/api/v1') ? `${base}/auth/fcm-token` : `${base}/api/v1/auth/fcm-token`;
+
+    console.log(`[PushService] Registering FCM token with ${targetUrl}...`);
+    const res = await fetch(targetUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -201,7 +204,13 @@ export const registerDevicePushToken = async (apiUrl: string, authToken: string,
       },
       body: JSON.stringify({ fcmToken, deviceId }),
     });
-    return res.ok;
+    const ok = res.ok;
+    if (ok) {
+      console.log('[PushService] FCM Push Token registered successfully with backend!');
+    } else {
+      console.warn('[PushService] FCM Push Token registration response status:', res.status);
+    }
+    return ok;
   } catch (e) {
     console.debug('FCM Token registration omitted/offline:', e);
     return false;

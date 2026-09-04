@@ -42,3 +42,8 @@ Thumbs.db
 *.sqlite-journal
 *.db
 .neon
+
+# Firebase & Cloud Credentials
+*service-account*.json
+*-firebase-adminsdk-*.json
+service-account.json
