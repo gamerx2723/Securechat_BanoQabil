@@ -52,7 +52,7 @@ export const API_BASE = {
   }
 } as unknown as string;
 
-export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 4500): Promise<Response> {
+export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 15000): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -286,7 +286,7 @@ export class ApiClient {
           deviceType: 'WEB',
           deviceName: 'SecureChat Client',
         }),
-      }, 3500);
+      }, 15000);
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Authentication failed' }));
@@ -326,7 +326,7 @@ export class ApiClient {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ target }),
-      }, 2500);
+      }, 15000);
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Quick admin login failed' }));
@@ -469,11 +469,30 @@ export class ApiClient {
     return [];
   }
 
+  public static getAllCachedMessages(): Record<string, ChatMessage[]> {
+    if (typeof window === 'undefined') return {};
+    try {
+      const saved = localStorage.getItem('securechat_all_cached_messages');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {};
+  }
+
+  public static saveAllCachedMessages(map: Record<string, ChatMessage[]>): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('securechat_all_cached_messages', JSON.stringify(map));
+      for (const [convId, msgs] of Object.entries(map)) {
+        localStorage.setItem(`securechat_cached_msgs_${convId}`, JSON.stringify(msgs));
+      }
+    } catch {}
+  }
+
   public static async getConversations(): Promise<ConversationItem[]> {
     try {
       const res = await fetchWithTimeout(`${API_BASE}/conversations`, {
         headers: this.authHeaders(),
-      }, 3000);
+      }, 15000);
       if (res.ok) {
         const rawList = await res.json();
         let currentUserId = '';
@@ -496,7 +515,11 @@ export class ApiClient {
             }
           }
 
-          const secState = c.securitySummary?.securityState || (c.lastMessage?.securityEvents?.[0]?.indicatorColor) || 'GREEN';
+          // Calculate receiver-only security status based on incoming messages from contact
+          let secState: 'GREEN' | 'ORANGE' | 'RED' = 'GREEN';
+          if (c.lastMessage && c.lastMessage.senderId !== currentUserId) {
+            secState = c.lastMessage?.securityEvents?.[0]?.indicatorColor || c.securitySummary?.securityState || 'GREEN';
+          }
 
           // OpSec Display: Show ONLY recipient name for direct conversations
           let title = c.title;
@@ -593,7 +616,7 @@ export class ApiClient {
     try {
       const res = await fetchWithTimeout(`${API_BASE}/messages/${conversationId}`, {
         headers: this.authHeaders(),
-      }, 3000);
+      }, 15000);
       if (res.ok) {
         const rawList = await res.json();
         const currentUser = this.getCurrentUser();
@@ -738,7 +761,7 @@ export class ApiClient {
   public static async sendMessage(conversationId: string, content: string): Promise<ChatMessage> {
     const currentUser = this.getCurrentUser();
 
-    // Analyze text with Python AI microservice first
+    // Analyze text with Python AI microservice first (with fast 3s fallback)
     const analysis = await this.analyzePreSend(content);
 
     // Create browser-safe encrypted payload envelope
@@ -749,7 +772,7 @@ export class ApiClient {
       timestamp: Date.now(),
     });
 
-    const res = await fetch(`${API_BASE}/messages`, {
+    const res = await fetchWithTimeout(`${API_BASE}/messages`, {
       method: 'POST',
       headers: this.authHeaders(),
       body: JSON.stringify({
@@ -757,7 +780,7 @@ export class ApiClient {
         recipientDeviceId: 'BROADCAST_ALL',
         encryptedPayload,
       }),
-    });
+    }, 15000);
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Failed to send message' }));
@@ -781,11 +804,11 @@ export class ApiClient {
 
   public static async analyzePreSend(text: string): Promise<SecurityAnalysis> {
     try {
-      const res = await fetch(`${API_BASE}/security/analyze`, {
+      const res = await fetchWithTimeout(`${API_BASE}/security/analyze`, {
         method: 'POST',
         headers: this.authHeaders(),
         body: JSON.stringify({ text }),
-      });
+      }, 3000);
       if (res.ok) {
         return await res.json();
       }

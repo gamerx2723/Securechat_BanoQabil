@@ -120,15 +120,46 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
+  const [isVaultWarningDismissed, setIsVaultWarningDismissed] = useState(false);
+
+  useEffect(() => {
+    setIsVaultWarningDismissed(false);
+  }, [conversation?.id]);
+
+  // Cyber-Blackmail threats targeting the receiver from contact
   const blackmailMessages = messages.filter(
     (m) =>
-      m.securityAnalysis?.primaryThreat === 'BLACKMAIL_SEXTORTION' ||
-      m.securityAnalysis?.primaryThreat === 'COERCIVE_INTIMATE_SOLICITATION' ||
-      m.securityAnalysis?.evidenceList?.some(
-        (e) => e.category === 'BLACKMAIL_SEXTORTION' || e.category === 'COERCIVE_INTIMATE_SOLICITATION'
+      !m.isSelf && (
+        m.securityAnalysis?.primaryThreat === 'BLACKMAIL_SEXTORTION' ||
+        m.securityAnalysis?.primaryThreat === 'COERCIVE_INTIMATE_SOLICITATION' ||
+        m.securityAnalysis?.evidenceList?.some(
+          (e) => e.category === 'BLACKMAIL_SEXTORTION' || e.category === 'COERCIVE_INTIMATE_SOLICITATION'
+        )
       )
   );
   const hasBlackmailThreat = blackmailMessages.length > 0;
+
+  // Threat evaluation for receiver only (only evaluate incoming messages from contact)
+  const incomingThreatMessages = messages.filter(
+    (m) =>
+      !m.isSelf &&
+      (m.securityAnalysis?.indicatorColor === 'RED' ||
+        m.securityAnalysis?.indicatorColor === 'ORANGE' ||
+        (m.securityAnalysis?.riskScore || 0) >= 40)
+  );
+
+  const hasCriticalIncomingThreat = incomingThreatMessages.some(
+    (m) => m.securityAnalysis?.indicatorColor === 'RED' || (m.securityAnalysis?.riskScore || 0) >= 70
+  );
+  const hasElevatedIncomingThreat = incomingThreatMessages.some(
+    (m) => m.securityAnalysis?.indicatorColor === 'ORANGE' || (m.securityAnalysis?.riskScore || 0) >= 40
+  );
+
+  const receiverSecurityState: 'GREEN' | 'ORANGE' | 'RED' = hasCriticalIncomingThreat
+    ? 'RED'
+    : hasElevatedIncomingThreat
+    ? 'ORANGE'
+    : 'GREEN';
 
   const handleAttachmentClick = () => {
     if (conversation?.isBlocked) return;
@@ -527,11 +558,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
         {/* Header Right Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Security Status Indicator */}
+          {/* Security Status Indicator (Evaluated for Receiver Only) */}
           <div
             className="security-badge"
             onClick={() => {
-              if (hasBlackmailThreat || conversation.securityState === 'RED') {
+              if (hasBlackmailThreat || receiverSecurityState === 'RED') {
                 setIsSextortionModalOpen(true);
               }
             }}
@@ -541,28 +572,28 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              cursor: hasBlackmailThreat || conversation.securityState === 'RED' ? 'pointer' : 'default',
+              cursor: hasBlackmailThreat || receiverSecurityState === 'RED' ? 'pointer' : 'default',
               background: conversation.isBlocked
                 ? 'rgba(239, 68, 68, 0.15)'
                 : conversation.isExcluded
                   ? 'rgba(245, 158, 11, 0.15)'
-                  : conversation.securityState === 'RED'
+                  : receiverSecurityState === 'RED'
                     ? 'rgba(239, 68, 68, 0.15)'
-                    : conversation.securityState === 'ORANGE'
+                    : receiverSecurityState === 'ORANGE'
                       ? 'rgba(245, 158, 11, 0.15)'
                       : 'rgba(16, 185, 129, 0.15)',
               border: `1px solid ${conversation.isBlocked
                   ? 'rgba(239, 68, 68, 0.4)'
                   : conversation.isExcluded
                     ? 'rgba(245, 158, 11, 0.4)'
-                    : conversation.securityState === 'RED'
+                    : receiverSecurityState === 'RED'
                       ? 'rgba(239, 68, 68, 0.4)'
-                      : conversation.securityState === 'ORANGE'
+                      : receiverSecurityState === 'ORANGE'
                         ? 'rgba(245, 158, 11, 0.4)'
                         : 'rgba(16, 185, 129, 0.4)'
                 }`,
             }}
-            title={hasBlackmailThreat || conversation.securityState === 'RED' ? 'Click to open Anti-Sextortion & Emergency Vault' : undefined}
+            title={hasBlackmailThreat || receiverSecurityState === 'RED' ? 'Click to open Anti-Sextortion & Emergency Vault' : undefined}
           >
             {conversation.isBlocked ? (
               <>
@@ -583,9 +614,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 <Shield
                   size={14}
                   color={
-                    conversation.securityState === 'RED'
+                    receiverSecurityState === 'RED'
                       ? 'var(--red-critical)'
-                      : conversation.securityState === 'ORANGE'
+                      : receiverSecurityState === 'ORANGE'
                         ? 'var(--orange-warn)'
                         : 'var(--green-safe)'
                   }
@@ -595,16 +626,16 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                     fontSize: '11px',
                     fontWeight: 600,
                     color:
-                      conversation.securityState === 'RED'
+                      receiverSecurityState === 'RED'
                         ? 'var(--red-critical)'
-                        : conversation.securityState === 'ORANGE'
+                        : receiverSecurityState === 'ORANGE'
                           ? 'var(--orange-warn)'
                           : 'var(--green-safe)',
                   }}
                 >
-                  {conversation.securityState === 'RED'
+                  {receiverSecurityState === 'RED'
                     ? 'CRITICAL THREAT'
-                    : conversation.securityState === 'ORANGE'
+                    : receiverSecurityState === 'ORANGE'
                       ? 'ELEVATED RISK'
                       : 'CHANNEL SECURE'}
                 </span>
@@ -976,7 +1007,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       )}
 
       {/* Critical Cyber-Blackmail & Sextortion Threat Alert Banner */}
-      {hasBlackmailThreat && !conversation.isBlocked && (
+      {hasBlackmailThreat && !conversation.isBlocked && !isVaultWarningDismissed && (
         <div
           style={{
             margin: '0 20px 10px 20px',
@@ -1003,24 +1034,42 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               </div>
             </div>
           </div>
-          <button
-            onClick={() => setIsSextortionModalOpen(true)}
-            style={{
-              background: '#ef4444',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '7px 14px',
-              fontSize: '11px',
-              fontWeight: 800,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              boxShadow: '0 2px 10px rgba(239, 68, 68, 0.4)',
-            }}
-          >
-            Emergency Vault (FIA 1991)
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <button
+              onClick={() => setIsSextortionModalOpen(true)}
+              style={{
+                background: '#ef4444',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '7px 14px',
+                fontSize: '11px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 2px 10px rgba(239, 68, 68, 0.4)',
+              }}
+            >
+              Emergency Vault (FIA 1991)
+            </button>
+            <button
+              onClick={() => setIsVaultWarningDismissed(true)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.12)',
+                color: '#f8fafc',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+                borderRadius: '8px',
+                padding: '7px 12px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+              title="Dismiss warning banner"
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
       )}
 

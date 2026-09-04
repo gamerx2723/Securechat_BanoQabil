@@ -30,7 +30,7 @@ export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(ApiClient.getCurrentUser());
   const [conversations, setConversations] = useState<ConversationItem[]>(() => ApiClient.getCachedConversations());
   const [activeConvId, setActiveConvId] = useState<string>('');
-  const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>({});
+  const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>(() => ApiClient.getAllCachedMessages());
   const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [isWsConnected, setIsWsConnected] = useState<boolean>(false);
   const [reconnectTrigger, setReconnectTrigger] = useState<number>(0);
@@ -61,6 +61,27 @@ export const App: React.FC = () => {
   const isSyncingRef = useRef<boolean>(false);
   const prevTotalUnreadRef = useRef<number>(0);
 
+  // Prefetch and persist all messages across all conversations into local memory
+  const prefetchAllMessages = useCallback(async (convs: ConversationItem[]) => {
+    if (!currentUser || !convs || convs.length === 0) return;
+    try {
+      const results = await Promise.allSettled(convs.map((c) => ApiClient.getMessages(c.id)));
+      const incomingMap: Record<string, ChatMessage[]> = {};
+      results.forEach((res, idx) => {
+        if (res.status === 'fulfilled' && res.value) {
+          incomingMap[convs[idx].id] = res.value;
+        }
+      });
+      setMessagesMap((prev) => {
+        const merged = { ...prev, ...incomingMap };
+        ApiClient.saveAllCachedMessages(merged);
+        return merged;
+      });
+    } catch (e) {
+      console.warn('Background full message prefetch deferred:', e);
+    }
+  }, [currentUser]);
+
   // Load conversations (DO NOT auto-select the first chat on login)
   const loadConversations = useCallback(async () => {
     if (!currentUser) return;
@@ -69,20 +90,26 @@ export const App: React.FC = () => {
       setConversations(convs);
       const totalUnread = convs.reduce((s, c) => s + (c.unreadCount || 0), 0);
       prevTotalUnreadRef.current = totalUnread;
+      // Auto-prefetch all conversation message histories on login
+      prefetchAllMessages(convs);
     } catch (e) {
       console.error('Failed to load conversations:', e);
     }
-  }, [currentUser]);
+  }, [currentUser, prefetchAllMessages]);
 
   // Load messages for active conversation
   const loadActiveMessages = useCallback(async (convId: string) => {
     if (!currentUser || !convId) return;
     try {
       const msgs = await ApiClient.getMessages(convId);
-      setMessagesMap((prev) => ({
-        ...prev,
-        [convId]: msgs,
-      }));
+      setMessagesMap((prev) => {
+        const updated = {
+          ...prev,
+          [convId]: msgs,
+        };
+        ApiClient.saveAllCachedMessages(updated);
+        return updated;
+      });
     } catch (e) {
       console.error('Failed to load messages:', e);
     }
@@ -345,6 +372,32 @@ export const App: React.FC = () => {
                 }
               }
 
+              // Create incoming ChatMessage object
+              const incomingMsg: ChatMessage = {
+                id: messageObj.id || `msg-${Date.now()}`,
+                conversationId: convId,
+                senderId: senderId,
+                senderName: senderName,
+                plaintext: previewText,
+                sentAt: new Date(messageObj.sentAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                status: 'DELIVERED',
+                isSelf: senderId === currentUser.id,
+                reactions: [],
+                securityAnalysis: analysis,
+              };
+
+              // Immediately persist incoming message in local memory
+              setMessagesMap((prev) => {
+                const currentList = prev[convId] || [];
+                if (currentList.some((m) => m.id === incomingMsg.id)) {
+                  return prev;
+                }
+                const updatedList = [...currentList, incomingMsg];
+                const updatedMap = { ...prev, [convId]: updatedList };
+                ApiClient.saveAllCachedMessages(updatedMap);
+                return updatedMap;
+              });
+
               if (convId === activeConvIdRef.current) {
                 loadActiveMessages(activeConvIdRef.current);
               }
@@ -411,13 +464,17 @@ export const App: React.FC = () => {
       },
     };
 
-    // Immediately render in active conversation stream
-    setMessagesMap((prev) => ({
-      ...prev,
-      [activeConvId]: [...(prev[activeConvId] || []), optimisticMsg],
-    }));
+    // Immediately render in active conversation stream & save to local memory
+    setMessagesMap((prev) => {
+      const updatedMap = {
+        ...prev,
+        [activeConvId]: [...(prev[activeConvId] || []), optimisticMsg],
+      };
+      ApiClient.saveAllCachedMessages(updatedMap);
+      return updatedMap;
+    });
 
-    // Immediately update sidebar preview and bring to top
+    // Immediately update sidebar preview and bring to top (preserve receiver-only security status)
     setConversations((prev) =>
       prev.map((c) =>
         c.id === activeConvId
@@ -426,7 +483,7 @@ export const App: React.FC = () => {
               lastMessageText: text,
               lastMessageTime: currentTimeStr,
               lastMessageTimestamp: new Date().toISOString(),
-              securityState: optimisticMsg.securityAnalysis.indicatorColor,
+              securityState: c.securityState || 'GREEN',
             }
           : c
       )
@@ -440,15 +497,19 @@ export const App: React.FC = () => {
       setMessagesMap((prev) => {
         const list = prev[activeConvId] || [];
         const index = list.findIndex((m) => m.id === tempId);
+        let updatedList: ChatMessage[] = [];
         if (index !== -1) {
-          const updated = [...list];
-          updated[index] = {
+          updatedList = [...list];
+          updatedList[index] = {
             ...sent,
-            status: sent.status || 'SENT',
+            status: (sent.status || 'SENT') as 'SENDING' | 'SENT' | 'DELIVERED' | 'READ',
           };
-          return { ...prev, [activeConvId]: updated };
+        } else {
+          updatedList = [...list, sent];
         }
-        return { ...prev, [activeConvId]: [...list, sent] };
+        const updatedMap: Record<string, ChatMessage[]> = { ...prev, [activeConvId]: updatedList };
+        ApiClient.saveAllCachedMessages(updatedMap);
+        return updatedMap;
       });
 
       // Background re-sync
@@ -458,12 +519,14 @@ export const App: React.FC = () => {
       // If error occurs, leave as sent or failed
       setMessagesMap((prev) => {
         const list = prev[activeConvId] || [];
-        return {
+        const updatedMap: Record<string, ChatMessage[]> = {
           ...prev,
-          [activeConvId]: list.map((m) =>
-            m.id === tempId ? { ...m, status: 'SENT' } : m
+          [activeConvId]: list.map((m): ChatMessage =>
+            m.id === tempId ? { ...m, status: 'SENT' as const } : m
           ),
         };
+        ApiClient.saveAllCachedMessages(updatedMap);
+        return updatedMap;
       });
     }
   };
