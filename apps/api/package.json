@@ -9,14 +9,15 @@
     "clean": "rimraf dist *.tsbuildinfo"
   },
   "dependencies": {
-    "@securechat/types": "*",
     "@securechat/crypto": "*",
     "@securechat/database": "*",
     "@securechat/security": "*",
+    "@securechat/types": "*",
     "@securechat/validation": "*",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "firebase-admin": "^14.3.0",
     "jsonwebtoken": "^9.0.2",
     "ws": "^8.18.0",
     "zod": "^3.24.2"
@@ -27,8 +28,8 @@
     "@types/jsonwebtoken": "^9.0.8",
     "@types/node": "^22.13.4",
     "@types/ws": "^8.5.14",
+    "rimraf": "^6.0.1",
     "tsx": "^4.19.3",
-    "typescript": "^5.7.3",
-    "rimraf": "^6.0.1"
+    "typescript": "^5.7.3"
   }
 }
