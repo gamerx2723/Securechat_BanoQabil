@@ -527,3 +527,42 @@ authRouter.patch('/profile', authMiddleware, async (req: AuthenticatedRequest, r
     res.status(500).json({ error: error.message || 'Failed to update profile' });
   }
 });
+
+authRouter.post('/fcm-token', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.userId;
+    const { fcmToken, deviceId } = req.body;
+
+    if (!fcmToken) {
+      res.status(400).json({ error: 'fcmToken is required' });
+      return;
+    }
+
+    // Update the device with the push token
+    if (deviceId) {
+      await prisma.device.updateMany({
+        where: { userId, deviceId },
+        data: { fcmToken, lastSeenAt: new Date() },
+      });
+    } else {
+      // Update the user's primary/latest device
+      const latestDevice = await prisma.device.findFirst({
+        where: { userId, isRevoked: false },
+        orderBy: { lastSeenAt: 'desc' },
+      });
+
+      if (latestDevice) {
+        await prisma.device.update({
+          where: { id: latestDevice.id },
+          data: { fcmToken, lastSeenAt: new Date() },
+        });
+      }
+    }
+
+    res.json({ success: true, message: 'FCM push token registered successfully' });
+  } catch (error: any) {
+    console.error('FCM Token registration error:', error);
+    res.status(500).json({ error: error.message || 'Failed to register push token' });
+  }
+});
+

@@ -20,6 +20,7 @@ import {
   playNotificationChime,
   playThreatWarningSound,
   requestNotificationPermission,
+  initMobilePushNotifications,
   triggerSystemNotification,
   triggerThreatPushNotification,
   getNotificationListenerState,
@@ -121,6 +122,7 @@ export const App: React.FC = () => {
     if (currentUser) {
       loadConversations();
       requestNotificationPermission();
+      initMobilePushNotifications(ApiClient.getCustomApiBase(), ApiClient.getToken() || '');
     }
   }, [currentUser, loadConversations]);
 

@@ -3,6 +3,7 @@ import { prisma } from '@securechat/database';
 import { AuthenticatedRequest, authMiddleware } from '../auth/jwt.service.js';
 import { z } from 'zod';
 import { ThreatEvaluationService } from '../services/threat_evaluation.service.js';
+import { PushNotificationService } from '../services/push_notification.service.js';
 import { wsGateway } from '../websocket/ws_gateway.js';
 
 export const messagesRouter = Router();
@@ -239,6 +240,37 @@ messagesRouter.post('/', async (req: AuthenticatedRequest, res: Response): Promi
 
     // Broadcast message via WebSocket
     wsGateway.broadcastMessage(conversationId, message);
+
+    // Asynchronously dispatch background/closed-app Push Notification (FCM) to all other conversation members
+    const senderName = message.sender?.displayName || message.sender?.username || 'SecureChat Contact';
+    const isThreat = analysis.riskScore >= 60;
+    const notifTitle = isThreat ? `🚨 THREAT DETECTED: ${analysis.primaryThreat || 'Suspicious Activity'}` : `🔒 ${senderName}`;
+    const notifBody = isThreat
+      ? `From ${senderName}: Potential phishing/threat flagged by Zero-Trust AI.`
+      : (plaintext.length > 80 ? plaintext.slice(0, 80) + '...' : plaintext || 'New encrypted zero-trust message received.');
+
+    // Find all recipients in conversation
+    prisma.conversationMember.findMany({
+      where: {
+        conversationId,
+        userId: { not: senderId },
+        isExcluded: false,
+      },
+      select: { userId: true },
+    }).then((recipients: any[]) => {
+      for (const rec of recipients) {
+        PushNotificationService.sendPushToUser(rec.userId, {
+          title: notifTitle,
+          body: notifBody,
+          isThreat,
+          data: {
+            conversationId,
+            senderId,
+            messageId: message.id,
+          },
+        }).catch((err: any) => console.error('Push dispatch error:', err));
+      }
+    }).catch((err: any) => console.error('Failed to query conversation recipients for push:', err));
 
     res.status(201).json(message);
   } catch (error) {

@@ -186,3 +186,57 @@ export const triggerThreatPushNotification = (
     }
   }
 };
+
+/**
+ * Registers device FCM push token with backend API for background/closed app notification delivery.
+ */
+export const registerDevicePushToken = async (apiUrl: string, authToken: string, fcmToken: string, deviceId?: string) => {
+  try {
+    const base = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+    const res = await fetch(`${base}/api/auth/fcm-token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ fcmToken, deviceId }),
+    });
+    return res.ok;
+  } catch (e) {
+    console.debug('FCM Token registration omitted/offline:', e);
+    return false;
+  }
+};
+
+/**
+ * Initializes mobile push notifications on Android & Web platforms.
+ */
+export const initMobilePushNotifications = async (apiUrl: string, authToken: string) => {
+  if (typeof window === 'undefined') return;
+
+  // 1. Request Browser / WebView notification permission
+  await requestNotificationPermission();
+
+  // 2. Check for Capacitor Push Plugin if running in Android container
+  const cap = (window as any).Capacitor;
+  if (cap && cap.isNativePlatform && cap.isNativePlatform()) {
+    try {
+      const PushNotifications = (window as any).Capacitor?.Plugins?.PushNotifications;
+      if (PushNotifications) {
+        const permStatus = await PushNotifications.requestPermissions();
+        if (permStatus.receive === 'granted') {
+          await PushNotifications.register();
+          PushNotifications.addListener('registration', (token: any) => {
+            const tokenValue = token?.value || String(token);
+            if (tokenValue) {
+              registerDevicePushToken(apiUrl, authToken, tokenValue);
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.debug('Capacitor push notification initialization omitted:', e);
+    }
+  }
+};
+
