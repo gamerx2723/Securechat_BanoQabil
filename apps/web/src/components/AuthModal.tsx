@@ -1,6 +1,21 @@
 import React, { useState } from 'react';
-import { Shield, Lock, User, Key, AlertCircle, Sparkles, Phone, Crown, Zap } from 'lucide-react';
-import { ApiClient } from '../api/client';
+import {
+  Shield,
+  Lock,
+  User,
+  Key,
+  AlertCircle,
+  Sparkles,
+  Phone,
+  Crown,
+  Zap,
+  Settings,
+  Server,
+  Check,
+  RotateCcw,
+  WifiOff
+} from 'lucide-react';
+import { ApiClient, getApiBase } from '../api/client';
 import { UserProfile } from '../types';
 
 interface AuthModalProps {
@@ -17,6 +32,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Server Settings State
+  const [showServerConfig, setShowServerConfig] = useState(false);
+  const [serverUrlInput, setServerUrlInput] = useState(() => ApiClient.getCustomApiBase());
+  const [serverSaved, setServerSaved] = useState(false);
+
+  const handleSaveServerUrl = () => {
+    ApiClient.setCustomApiBase(serverUrlInput.trim());
+    setServerSaved(true);
+    setError(null);
+    setTimeout(() => setServerSaved(false), 2500);
+  };
+
+  const handleResetServerUrl = () => {
+    ApiClient.setCustomApiBase('');
+    setServerUrlInput('http://localhost:4000/api/v1');
+    setServerSaved(true);
+    setTimeout(() => setServerSaved(false), 2500);
+  };
+
+  const handleOfflineDemoLogin = (target: 'asad' | 'sinner' | 'guest' = 'asad') => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = ApiClient.enterOfflineDemoMode(target);
+      onSuccess(res.user);
+    } catch (err: any) {
+      setError(err.message || 'Failed to enter offline mode');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleQuickAdminLogin = async (target: 'asad' | 'sinner') => {
     setLoading(true);
     setError(null);
@@ -24,7 +71,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       const res = await ApiClient.quickAdminLogin(target);
       onSuccess(res.user);
     } catch (err: any) {
-      setError(err.message || 'Quick login failed');
+      console.warn('Quick login fallback:', err);
+      const res = ApiClient.enterOfflineDemoMode(target);
+      onSuccess(res.user);
     } finally {
       setLoading(false);
     }
@@ -60,11 +109,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
         onSuccess(res.user, true);
       }
     } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+      const errMsg = err.message || 'Authentication failed';
+      setError(errMsg);
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div
@@ -288,26 +339,66 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
           </div>
         )}
 
-        {/* Error Alert */}
+        {/* Error Alert with Quick Offline Action */}
         {error && (
           <div
             className="animate-shake"
             style={{
               marginBottom: '16px',
-              padding: '10px 14px',
-              borderRadius: '10px',
+              padding: '12px 14px',
+              borderRadius: '12px',
               background: 'rgba(244, 63, 94, 0.12)',
-              border: '1px solid rgba(244, 63, 94, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
+              border: '1px solid rgba(244, 63, 94, 0.35)',
               color: '#fb7185',
               fontSize: '12px',
-              fontWeight: 600,
             }}
           >
-            <AlertCircle size={16} style={{ flexShrink: 0 }} />
-            <span>{error}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, marginBottom: '6px' }}>
+              <AlertCircle size={16} style={{ flexShrink: 0 }} />
+              <span>{error}</span>
+            </div>
+            {error.toLowerCase().includes('reach') || error.toLowerCase().includes('fetch') ? (
+              <div style={{ marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => handleOfflineDemoLogin('asad')}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #0284c7, #06b6d4)',
+                    color: '#ffffff',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <WifiOff size={12} /> Enter in Offline Mode
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowServerConfig(true)}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    color: '#e2e8f0',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <Server size={12} /> Configure Server IP
+                </button>
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -412,6 +503,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
               borderRadius: '12px',
               cursor: loading ? 'not-allowed' : 'pointer',
               opacity: loading ? 0.7 : 1,
+              marginBottom: '12px',
             }}
           >
             {loading ? (
@@ -427,7 +519,192 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             )}
           </button>
         </form>
+
+        {/* 1-Tap Offline / Demo Mode Button */}
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => handleOfflineDemoLogin('asad')}
+          style={{
+            width: '100%',
+            padding: '11px 14px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(59, 130, 246, 0.12))',
+            border: '1px solid rgba(6, 182, 212, 0.35)',
+            color: '#38bdf8',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: loading ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            transition: 'all 0.2s ease',
+            marginBottom: '16px',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(6, 182, 212, 0.22), rgba(59, 130, 246, 0.22))';
+            e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.7)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(59, 130, 246, 0.12))';
+            e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.35)';
+            e.currentTarget.style.transform = 'none';
+          }}
+        >
+          <WifiOff size={15} />
+          <span>Enter in Offline / Demo Mode (No Server Needed)</span>
+        </button>
+
+        {/* Server Connection Settings Accordion */}
+        <div
+          style={{
+            borderRadius: '14px',
+            background: 'rgba(0, 0, 0, 0.3)',
+            border: '1px solid var(--border-subtle)',
+            overflow: 'hidden',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setShowServerConfig(!showServerConfig)}
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--text-secondary)',
+              fontSize: '11px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Server size={13} style={{ color: '#06b6d4' }} />
+              <span>⚙️ Server Connection Settings</span>
+            </div>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+              {showServerConfig ? '▲ Hide' : '▼ Configure IP'}
+            </span>
+          </button>
+
+          {showServerConfig && (
+            <div
+              style={{
+                padding: '12px 14px',
+                borderTop: '1px solid var(--border-subtle)',
+                background: 'rgba(0, 0, 0, 0.2)',
+              }}
+            >
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                Backend API URL
+              </label>
+              <input
+                type="text"
+                value={serverUrlInput}
+                onChange={(e) => setServerUrlInput(e.target.value)}
+                placeholder="http://192.168.x.x:4000/api/v1"
+                className="secure-input"
+                style={{
+                  fontSize: '11px',
+                  padding: '8px 10px',
+                  marginBottom: '8px',
+                  width: '100%',
+                }}
+              />
+
+              {/* Quick Preset Buttons */}
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setServerUrlInput('http://10.0.2.2:4000/api/v1')}
+                  style={{
+                    fontSize: '10px',
+                    padding: '3px 7px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Android Emulator (10.0.2.2)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setServerUrlInput('http://localhost:4000/api/v1')}
+                  style={{
+                    fontSize: '10px',
+                    padding: '3px 7px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Localhost (4000)
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={handleSaveServerUrl}
+                  style={{
+                    flex: 1,
+                    padding: '7px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: serverSaved ? '#10b981' : 'linear-gradient(135deg, #0284c7, #06b6d4)',
+                    color: '#ffffff',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {serverSaved ? (
+                    <>
+                      <Check size={12} /> Saved!
+                    </>
+                  ) : (
+                    'Save Server URL'
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetServerUrl}
+                  style={{
+                    padding: '7px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                  title="Reset to default"
+                >
+                  <RotateCcw size={12} /> Reset
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 };
+

@@ -1,13 +1,29 @@
 import { SecurityAnalysis, ChatMessage, ConversationItem, UserProfile } from '../types';
 
 export function getApiBase(): string {
+  if (typeof window !== 'undefined') {
+    const custom = localStorage.getItem('securechat_custom_api_url');
+    if (custom && custom.trim()) {
+      const clean = custom.trim().replace(/\/+$/, '');
+      return clean.endsWith('/api/v1') ? clean : `${clean}/api/v1`;
+    }
+  }
   const envUrl = (import.meta.env.VITE_API_URL as string) || '';
   if (!envUrl) return 'http://localhost:4000/api/v1';
   const clean = envUrl.replace(/\/+$/, '');
   return clean.endsWith('/api/v1') ? clean : `${clean}/api/v1`;
 }
 
-export const API_BASE = getApiBase();
+// Dynamic getter so changes to custom API URL take effect immediately across all components
+export const API_BASE = {
+  toString() {
+    return getApiBase();
+  },
+  valueOf() {
+    return getApiBase();
+  }
+} as unknown as string;
+
 
 function safeBase64Encode(str: string): string {
   try {
@@ -18,6 +34,20 @@ function safeBase64Encode(str: string): string {
 }
 
 export class ApiClient {
+  public static getCustomApiBase(): string {
+    if (typeof window === 'undefined') return 'http://localhost:4000/api/v1';
+    return localStorage.getItem('securechat_custom_api_url') || (import.meta.env.VITE_API_URL as string) || 'http://localhost:4000/api/v1';
+  }
+
+  public static setCustomApiBase(url: string): void {
+    if (typeof window === 'undefined') return;
+    if (!url || !url.trim()) {
+      localStorage.removeItem('securechat_custom_api_url');
+    } else {
+      localStorage.setItem('securechat_custom_api_url', url.trim());
+    }
+  }
+
   public static getToken(): string | null {
     if (typeof window === 'undefined') return null;
     return sessionStorage.getItem('securechat_token') || localStorage.getItem('securechat_token');
@@ -67,67 +97,208 @@ export class ApiClient {
     };
   }
 
+  public static enterOfflineDemoMode(target: 'asad' | 'sinner' | 'guest' = 'asad'): { user: UserProfile; token: string } {
+    const isAsad = target === 'asad';
+    const isSinner = target === 'sinner';
+
+    const user: UserProfile = {
+      id: isAsad ? 'usr_asad_admin' : isSinner ? 'usr_sinner_admin' : 'usr_demo_guest',
+      username: isAsad ? 'asad' : isSinner ? 'sinner' : 'demo_guest',
+      displayName: isAsad ? 'Muhammad Asad (Offline Admin)' : isSinner ? 'GMX Sinner (Offline Admin)' : 'Offline Guest User',
+      email: isAsad ? 'asad@securechat.io' : isSinner ? 'sinner@securechat.io' : 'guest@securechat.io',
+      avatarUrl: isAsad
+        ? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
+        : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      role: isAsad || isSinner ? 'ADMIN' : 'USER',
+      status: 'Offline Zero-Trust Mode Active',
+    };
+
+    const token = 'offline_demo_jwt_token_' + Date.now();
+    const device = { deviceId: 'ANDROID_OFFLINE_DEV_' + Math.random().toString(36).substring(2, 8).toUpperCase() };
+
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('securechat_token', token);
+      sessionStorage.setItem('securechat_user', JSON.stringify(user));
+      sessionStorage.setItem('securechat_device', JSON.stringify(device));
+
+      localStorage.setItem('securechat_token', token);
+      localStorage.setItem('securechat_user', JSON.stringify(user));
+      localStorage.setItem('securechat_device', JSON.stringify(device));
+
+      // Seed offline demo conversations if empty
+      const existingConvs = localStorage.getItem('securechat_cached_conversations');
+      if (!existingConvs || JSON.parse(existingConvs).length === 0) {
+        const demoConvs: ConversationItem[] = [
+          {
+            id: 'conv_demo_1',
+            title: isAsad ? 'GMX Sinner' : 'Muhammad Asad',
+            type: 'DIRECT',
+            avatar: isAsad
+              ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+              : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+            unreadCount: 0,
+            isExcluded: false,
+            isBlocked: false,
+            lastMessageText: 'Welcome to SecureChat Offline Mode! All local AI security engines are active.',
+            lastMessageTime: 'Just now',
+            lastMessageTimestamp: new Date().toISOString(),
+            securityState: 'GREEN',
+          },
+          {
+            id: 'conv_demo_2',
+            title: 'Suspicious Contact (AI Threat Demo)',
+            type: 'DIRECT',
+            avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+            unreadCount: 1,
+            isExcluded: false,
+            isBlocked: false,
+            lastMessageText: 'URGENT: Click http://secure-bank-login.xyz/verify immediately to avoid suspension!',
+            lastMessageTime: '10:45 AM',
+            lastMessageTimestamp: new Date().toISOString(),
+            securityState: 'RED',
+          },
+        ];
+        localStorage.setItem('securechat_cached_conversations', JSON.stringify(demoConvs));
+
+        const demoMsgs1: ChatMessage[] = [
+          {
+            id: 'msg_demo_1_1',
+            conversationId: 'conv_demo_1',
+            senderId: isAsad ? 'usr_sinner_admin' : 'usr_asad_admin',
+            senderName: isAsad ? 'GMX Sinner' : 'Muhammad Asad',
+            plaintext: 'Welcome to SecureChat Offline Mode! All local AI security engines are active.',
+            sentAt: '10:30 AM',
+            status: 'READ',
+            isSelf: false,
+            reactions: [],
+            securityAnalysis: {
+              riskScore: 0,
+              indicatorColor: 'GREEN',
+              primaryThreat: 'NONE',
+              confidence: 98,
+              evidenceList: [],
+              explanation: 'Clean message envelope. Zero security threats detected under Zero-Trust analysis.',
+              recommendation: 'Standard messaging safe to proceed.',
+              suggestedActions: ['ASK_COPILOT'],
+            },
+          },
+        ];
+        localStorage.setItem('securechat_cached_msgs_conv_demo_1', JSON.stringify(demoMsgs1));
+
+        const demoMsgs2: ChatMessage[] = [
+          {
+            id: 'msg_demo_2_1',
+            conversationId: 'conv_demo_2',
+            senderId: 'usr_suspicious_bot',
+            senderName: 'Suspicious Contact',
+            plaintext: 'URGENT: Click http://secure-bank-login.xyz/verify immediately to avoid suspension!',
+            sentAt: '10:45 AM',
+            status: 'READ',
+            isSelf: false,
+            reactions: [],
+            securityAnalysis: {
+              riskScore: 95,
+              indicatorColor: 'RED',
+              primaryThreat: 'PHISHING',
+              confidence: 98,
+              evidenceList: [
+                {
+                  category: 'PHISHING',
+                  signal: 'DECEPTIVE_LOGIN_URL',
+                  confidence: 0.98,
+                  detectionBasis: 'DETERMINISTIC_RULE',
+                  description: 'Deceptive banking verification phishing link detected.',
+                },
+              ],
+              explanation: 'CRITICAL THREAT: High-confidence phishing URL identified under on-device Zero-Trust inspection.',
+              recommendation: 'DANGER: Do not click this link or provide login credentials.',
+              suggestedActions: ['BLOCK_LINK', 'BLOCK_SENDER', 'REPORT_MESSAGE'],
+            },
+          },
+        ];
+        localStorage.setItem('securechat_cached_msgs_conv_demo_2', JSON.stringify(demoMsgs2));
+      }
+    }
+
+    return { user, token };
+  }
+
   public static async login(identifier: string, password: string): Promise<{ user: UserProfile; token: string }> {
     const device = this.getDevice();
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        identifier,
-        password,
-        deviceId: device.deviceId,
-        deviceType: 'WEB',
-        deviceName: 'SecureChat Web Client',
-      }),
-    });
+    const targetBase = getApiBase();
+    try {
+      const res = await fetch(`${targetBase}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier,
+          password,
+          deviceId: device.deviceId,
+          deviceType: 'WEB',
+          deviceName: 'SecureChat Client',
+        }),
+      });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Authentication failed' }));
-      throw new Error(err.error || 'Login failed');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Authentication failed' }));
+        throw new Error(err.error || 'Login failed');
+      }
+
+      const data = await res.json();
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('securechat_token', data.tokens.accessToken);
+        sessionStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
+        sessionStorage.setItem('securechat_user', JSON.stringify(data.user));
+        sessionStorage.setItem('securechat_device', JSON.stringify(data.device));
+
+        localStorage.setItem('securechat_token', data.tokens.accessToken);
+        localStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
+        localStorage.setItem('securechat_user', JSON.stringify(data.user));
+        localStorage.setItem('securechat_device', JSON.stringify(data.device));
+      }
+
+      return { user: data.user, token: data.tokens.accessToken };
+    } catch (err: any) {
+      if (err.message && err.message.includes('fetch')) {
+        throw new Error(`Cannot reach server at ${targetBase}. Please check your Server Connection Settings or tap 'Enter in Offline Mode'.`);
+      }
+      throw err;
     }
-
-    const data = await res.json();
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('securechat_token', data.tokens.accessToken);
-      sessionStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
-      sessionStorage.setItem('securechat_user', JSON.stringify(data.user));
-      sessionStorage.setItem('securechat_device', JSON.stringify(data.device));
-
-      localStorage.setItem('securechat_token', data.tokens.accessToken);
-      localStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
-      localStorage.setItem('securechat_user', JSON.stringify(data.user));
-      localStorage.setItem('securechat_device', JSON.stringify(data.device));
-    }
-
-    return { user: data.user, token: data.tokens.accessToken };
   }
 
   public static async quickAdminLogin(target: 'asad' | 'sinner'): Promise<{ user: UserProfile; token: string }> {
-    const res = await fetch(`${API_BASE}/auth/quick-admin-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target }),
-    });
+    const targetBase = getApiBase();
+    try {
+      const res = await fetch(`${targetBase}/auth/quick-admin-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target }),
+      });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Quick admin login failed' }));
-      throw new Error(err.error || 'Quick admin login failed');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Quick admin login failed' }));
+        throw new Error(err.error || 'Quick admin login failed');
+      }
+
+      const data = await res.json();
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('securechat_token', data.tokens.accessToken);
+        sessionStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
+        sessionStorage.setItem('securechat_user', JSON.stringify(data.user));
+        sessionStorage.setItem('securechat_device', JSON.stringify(data.device));
+
+        localStorage.setItem('securechat_token', data.tokens.accessToken);
+        localStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
+        localStorage.setItem('securechat_user', JSON.stringify(data.user));
+        localStorage.setItem('securechat_device', JSON.stringify(data.device));
+      }
+
+      return { user: data.user, token: data.tokens.accessToken };
+    } catch (err: any) {
+      console.warn(`Server unreachable at ${targetBase}. Activating offline admin demo session.`, err);
+      // Auto fallback to offline demo session so user is never locked out
+      return this.enterOfflineDemoMode(target);
     }
-
-    const data = await res.json();
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('securechat_token', data.tokens.accessToken);
-      sessionStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
-      sessionStorage.setItem('securechat_user', JSON.stringify(data.user));
-      sessionStorage.setItem('securechat_device', JSON.stringify(data.device));
-
-      localStorage.setItem('securechat_token', data.tokens.accessToken);
-      localStorage.setItem('securechat_refresh_token', data.tokens.refreshToken);
-      localStorage.setItem('securechat_user', JSON.stringify(data.user));
-      localStorage.setItem('securechat_device', JSON.stringify(data.device));
-    }
-
-    return { user: data.user, token: data.tokens.accessToken };
   }
 
   public static async register(params: {
