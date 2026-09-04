@@ -14,6 +14,34 @@ export function getApiBase(): string {
   return clean.endsWith('/api/v1') ? clean : `${clean}/api/v1`;
 }
 
+export function getWsBase(): string {
+  if (typeof window !== 'undefined') {
+    const custom = localStorage.getItem('securechat_custom_api_url');
+    if (custom && custom.trim()) {
+      try {
+        const parsed = new URL(custom.trim());
+        const protocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${protocol}//${parsed.host}`;
+      } catch {
+        const clean = custom.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+        const isHttps = custom.trim().startsWith('https');
+        return `${isHttps ? 'wss' : 'ws'}://${clean}`;
+      }
+    }
+  }
+  const envWs = (import.meta.env.VITE_WS_URL as string) || '';
+  if (envWs) return envWs.replace(/\/+$/, '');
+  const envApi = (import.meta.env.VITE_API_URL as string) || '';
+  if (envApi) {
+    try {
+      const parsed = new URL(envApi);
+      const protocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${protocol}//${parsed.host}`;
+    } catch {}
+  }
+  return 'ws://localhost:4000';
+}
+
 // Dynamic getter so changes to custom API URL take effect immediately across all components
 export const API_BASE = {
   toString() {
@@ -23,6 +51,7 @@ export const API_BASE = {
     return getApiBase();
   }
 } as unknown as string;
+
 
 
 function safeBase64Encode(str: string): string {

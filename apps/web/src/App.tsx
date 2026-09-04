@@ -14,7 +14,7 @@ import { SecretExposureMapView } from './components/SecretExposureMapView';
 import { AdminConsole } from './components/AdminConsole';
 import { ProfileModal } from './components/ProfileModal';
 import { ProfileOnboardingModal } from './components/ProfileOnboardingModal';
-import { ApiClient } from './api/client';
+import { ApiClient, getWsBase } from './api/client';
 import { playNotificationChime, requestNotificationPermission, triggerSystemNotification } from './utils/notifications';
 import { ArrowLeft, Shield, Crown, Plus, ShieldCheck, Smartphone, KeyRound } from 'lucide-react';
 
@@ -174,7 +174,7 @@ export const App: React.FC = () => {
 
     const token = ApiClient.getToken();
     const device = ApiClient.getDevice();
-    const wsBase = (import.meta.env.VITE_WS_URL as string) || 'ws://localhost:4000';
+    const wsBase = getWsBase();
     const wsUrl = `${wsBase.replace(/\/$/, '')}/ws/v1?token=${token}&deviceId=${device.deviceId}`;
 
     try {
