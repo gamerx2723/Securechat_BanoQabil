@@ -226,6 +226,24 @@ export class ApiClient {
     return [];
   }
 
+  public static getCachedConversations(): ConversationItem[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem('securechat_cached_conversations');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  }
+
+  public static getCachedMessages(conversationId: string): ChatMessage[] {
+    if (typeof window === 'undefined' || !conversationId) return [];
+    try {
+      const saved = localStorage.getItem(`securechat_cached_msgs_${conversationId}`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  }
+
   public static async getConversations(): Promise<ConversationItem[]> {
     try {
       const res = await fetch(`${API_BASE}/conversations`, {
@@ -242,7 +260,7 @@ export class ApiClient {
           )?.id || '';
         } catch {}
 
-        return rawList.map((c: any) => {
+        const mapped: ConversationItem[] = rawList.map((c: any) => {
           let text = '';
           if (c.lastMessage?.encryptedPayload) {
             try {
@@ -288,11 +306,21 @@ export class ApiClient {
             securityState: secState,
           };
         });
+
+        // Persist offline cache
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('securechat_cached_conversations', JSON.stringify(mapped));
+          } catch {}
+        }
+
+        return mapped;
       }
     } catch (error) {
-      console.error('Failed to fetch conversations:', error);
+      console.warn('Network offline or unreachable. Loading cached conversations:', error);
     }
-    return [];
+    // Offline fallback
+    return this.getCachedConversations();
   }
 
   public static async blockConversation(conversationId: string): Promise<any> {
@@ -345,7 +373,7 @@ export class ApiClient {
         const rawList = await res.json();
         const currentUser = this.getCurrentUser();
 
-        return rawList.map((m: any) => {
+        const mapped: ChatMessage[] = rawList.map((m: any) => {
           let text = '';
           let isEdited = false;
           try {
@@ -356,7 +384,7 @@ export class ApiClient {
             text = m.encryptedPayload;
           }
 
-          // Evaluate with local AI rule analyzer to get full threat signals and evidence
+          // Evaluate with local AI rule analyzer to get full threat signals and evidence (Runs completely offline!)
           const evaluated = this.clientSideEvaluate(text);
           const secEvent = m.securityEvents?.[0];
 
@@ -385,11 +413,21 @@ export class ApiClient {
             securityAnalysis: analysis,
           };
         });
+
+        // Persist offline cache per conversation
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(`securechat_cached_msgs_${conversationId}`, JSON.stringify(mapped));
+          } catch {}
+        }
+
+        return mapped;
       }
     } catch (error) {
-      console.error('Failed to fetch messages:', error);
+      console.warn(`Network offline or unreachable. Loading cached messages for ${conversationId}:`, error);
     }
-    return [];
+    // Offline fallback
+    return this.getCachedMessages(conversationId);
   }
 
   public static async editMessage(messageId: string, newText: string): Promise<ChatMessage> {

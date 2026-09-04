@@ -20,9 +20,10 @@ import { ArrowLeft, Shield, Crown, Plus, ShieldCheck, Smartphone, KeyRound } fro
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(ApiClient.getCurrentUser());
-  const [conversations, setConversations] = useState<ConversationItem[]>([]);
+  const [conversations, setConversations] = useState<ConversationItem[]>(() => ApiClient.getCachedConversations());
   const [activeConvId, setActiveConvId] = useState<string>('');
   const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>({});
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [activeTab, setActiveTab] = useState<SidebarTab>('CHATS');
   const [inspectedMessage, setInspectedMessage] = useState<ChatMessage | null>(null);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
@@ -81,6 +82,28 @@ export const App: React.FC = () => {
       loadActiveMessages(activeConvId);
     }
   }, [currentUser, activeConvId, loadActiveMessages]);
+
+  // Online / Offline Connectivity Monitor
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      loadConversations();
+      if (activeConvIdRef.current) {
+        loadActiveMessages(activeConvIdRef.current);
+      }
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [loadConversations, loadActiveMessages]);
 
   // Optimized Background Auto-Sync (Prevents backloops & overlapping requests)
   useEffect(() => {
@@ -503,6 +526,28 @@ export const App: React.FC = () => {
 
       {/* Main Viewport Content (Hidden on mobile if viewing conversation list on CHATS tab) */}
       <div className={`main-viewport ${!activeConvId && activeTab === 'CHATS' ? 'main-hidden-mobile' : ''}`}>
+        {/* Offline Banner when device is disconnected */}
+        {!isOnline && (
+          <div
+            style={{
+              background: 'rgba(245, 158, 11, 0.15)',
+              borderBottom: '1px solid rgba(245, 158, 11, 0.3)',
+              color: '#fbbf24',
+              padding: '7px 16px',
+              fontSize: '12px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              zIndex: 70,
+            }}
+          >
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
+            <span>Offline Mode Active — Browsing locally cached messages with on-device Zero-Trust AI engines.</span>
+          </div>
+        )}
+
         {/* Mobile Header Bar for non-chat tabs */}
         {activeTab !== 'CHATS' && (
           <div

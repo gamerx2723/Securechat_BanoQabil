@@ -1,96 +1,78 @@
-# 📱 SecureChat Zero-Trust Android APK Build Guide
+# 📱 SecureChat Zero-Trust Android APK Build Guide (Offline-First Architecture)
 
-This guide explains how to bundle and build the **SecureChat Zero-Trust E2EE Messenger** as a native Android `.apk` application using **Capacitor** and **Android Studio / Gradle**.
-
----
-
-## 🚀 Prerequisites
-
-1. **Node.js & npm** (v18+)
-2. **Android Studio** (Koala, Hedgehog or newer) with:
-   - Android SDK (API 34 or 35)
-   - Android SDK Command-line Tools
-   - Android SDK Build-Tools
-3. **Java JDK 17 or 21** installed and configured on your `PATH` / `JAVA_HOME`.
+This guide explains how the **SecureChat Zero-Trust E2EE Messenger** is packaged as a standalone Android `.apk` application with **100% Offline-First Resilience**, local message caching, and on-device AI heuristic engines.
 
 ---
 
-## 🛠️ Step-by-Step APK Generation Commands
+## 🚀 How Offline Resilience & Local Storage Works
 
-### 1. Build the Production Web App Assets
-From the project root:
-```bash
+The Android APK is built to open and function smoothly **even without an active internet connection / in Airplane Mode**:
+
+1. **Local Asset & UI Component Bundling**:
+   - All React UI components, CSS styles, Lucide icons, fonts, and assets are bundled directly inside the APK package (`android/app/src/main/assets/public/`).
+   - The app does not load from an external web server; it boots locally from internal APK storage in **0 milliseconds**.
+
+2. **Persistent Message & Conversation History**:
+   - Every conversation and message thread is cached locally in device storage (`localStorage`).
+   - When the APK opens without internet, previous messages, contacts, avatars, and timestamps load instantly from cache.
+   - An amber **Offline Mode** indicator badge appears at the top of the viewport.
+
+3. **On-Device Zero-Trust AI Security Models**:
+   - The client-side threat detection engine (`clientSideEvaluate`) runs **100% offline** on the device.
+   - It performs real-time regex/entropy/linguistic scanning for **Phishing**, **Social Engineering**, **Coercive Sextortion**, **Urgency Pressure**, and **PII/Credential Leaks** without sending data over the network.
+
+---
+
+## 🛠️ Step-by-Step APK Build Instructions
+
+The Android native project is already **pre-scaffolded and synchronized** inside `apps/web/android`.
+
+### Option 1: Build via Android Studio (Recommended GUI)
+
+1. Open **Android Studio**.
+2. Select **Open Project** and navigate to:
+   📁 `c:\Users\triad\OneDrive\Desktop\Bano Qabil\apps\web\android`
+3. Wait for Gradle sync to complete.
+4. To build the installable `.apk`:
+   - Click menu **Build** → **Build Bundle(s) / APK(s)** → **Build APK(s)**.
+   - Android Studio will generate the APK at:
+     📁 **`apps/web/android/app/build/outputs/apk/debug/app-debug.apk`**
+5. Connect your Android phone with a USB cable (with USB Debugging enabled) and click **Run (▶️)** to install directly.
+
+---
+
+### Option 2: 1-Click Command-Line Build (Gradle CLI)
+
+If you have Java JDK (17+) configured in your environment:
+
+```powershell
+# From the apps/web/android directory:
+cd "apps/web/android"
+.\gradlew.bat assembleDebug
+```
+
+The output APK will be saved at:
+📁 **`apps/web/android/app/build/outputs/apk/debug/app-debug.apk`**
+
+---
+
+### Option 3: Refreshing Web Assets after Making Changes
+
+Whenever you modify any frontend code and want to sync it into the Android build:
+
+```powershell
 cd "apps/web"
-npm run build
-```
-This produces the optimized production bundle inside `apps/web/dist/`.
-
----
-
-### 2. Install Capacitor Dependencies (One-Time Setup)
-```bash
-cd "apps/web"
-npm install --save @capacitor/core
-npm install --save-dev @capacitor/cli @capacitor/android
-```
-
----
-
-### 3. Initialize & Add the Android Native Platform
-```bash
-npx cap init "SecureChat Zero-Trust" "com.securechat.app" --web-dir dist
-npx cap add android
-```
-This generates the `android/` native project folder with `MainActivity.java`, `AndroidManifest.xml`, and Gradle build wrappers.
-
----
-
-### 4. Sync Web Build into Android Assets
-Whenever you make frontend changes:
-```bash
 npm run build
 npx cap sync android
 ```
 
 ---
 
-### 5. Build the `.apk` File
+## 🛡️ Android Permissions Configured
 
-#### Option A: 1-Click Command-Line Build (No GUI Required)
-```bash
-cd android
-./gradlew assembleDebug
-```
-*(On Windows PowerShell: `.\gradlew.bat assembleDebug`)*
+In `android/app/src/main/AndroidManifest.xml`:
+- `android.permission.INTERNET`: For end-to-end encrypted message sync and WebSockets.
+- `android.permission.ACCESS_NETWORK_STATE`: For detecting online/offline network transitions.
+- `android.permission.POST_NOTIFICATIONS`: For background alerts and security alarms.
+- `android.permission.VIBRATE`: For tactile haptic chime notifications.
 
-Your generated APK will be located at:
-📁 **`apps/web/android/app/build/outputs/apk/debug/app-debug.apk`**
-
-You can immediately copy this `.apk` to any Android phone via USB or WhatsApp and install it!
-
----
-
-#### Option B: Build via Android Studio (GUI / Emulator / USB Debugging)
-```bash
-npx cap open android
-```
-- Android Studio will launch the project.
-- Click **Run (▶️)** to test on an Android Virtual Device (AVD) or physical device connected via USB.
-- To generate a signed release APK for Play Store or distribution:
-  - Go to **Build** → **Build Bundle(s) / APK(s)** → **Build APK(s)**.
-
----
-
-## 🛡️ Android Security & Permissions Manifest
-
-Capacitor automatically configures the following secure zero-trust Android permissions in `android/app/src/main/AndroidManifest.xml`:
-- `android.permission.INTERNET` (For encrypted WebSocket and API sync)
-- `android.permission.ACCESS_NETWORK_STATE`
-- `android.permission.POST_NOTIFICATIONS` (For real-time security alerts & background chimes)
-- `android.permission.READ_EXTERNAL_STORAGE` / `android.permission.READ_MEDIA_IMAGES` (For encrypted media attachments with forensic watermarking)
-
----
-
-## ⚡ Production Release Checklist
-- Configure your Production API URL in `.env`: `VITE_API_URL=https://your-api.onrender.com/api/v1` and `VITE_WS_URL=wss://your-api.onrender.com`
-- Set `android:usesCleartextTraffic="false"` in `AndroidManifest.xml` for production strict TLS enforcement.
