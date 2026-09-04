@@ -22,6 +22,10 @@ import {
   Smartphone,
   KeyRound,
   Users,
+  Bell,
+  BellOff,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 
 export type SidebarTab = 'CHATS' | 'SECURE_BRIDGE' | 'SECRET_MAP' | 'GUARDIAN' | 'ADMIN';
@@ -42,6 +46,11 @@ interface SidebarProps {
   userAvatarUrl?: string;
   userRole?: string;
   className?: string;
+  isOnline?: boolean;
+  isWsConnected?: boolean;
+  onReconnect?: () => void;
+  isNotificationsEnabled?: boolean;
+  onToggleNotifications?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -60,6 +69,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   userAvatarUrl,
   userRole = 'USER',
   className = '',
+  isOnline = true,
+  isWsConnected = true,
+  onReconnect,
+  isNotificationsEnabled = true,
+  onToggleNotifications,
 }) => {
   const [search, setSearch] = useState('');
   const [isSelecting, setIsSelecting] = useState(false);
@@ -454,6 +468,94 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span>Sign Out</span>
             </button>
           </div>
+        )}
+      </div>
+
+      {/* Live Backend Connection & Notification Listener AI Bar */}
+      <div
+        style={{
+          padding: '7px 12px',
+          background: 'rgba(6, 9, 17, 0.75)',
+          borderBottom: '1px solid var(--border-subtle)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          fontSize: '11px',
+        }}
+      >
+        {/* Connection status indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: isOnline && isWsConnected ? '#10b981' : isOnline ? '#06b6d4' : '#ef4444',
+              boxShadow: isOnline && isWsConnected ? '0 0 8px #10b981' : isOnline ? '0 0 6px #06b6d4' : '0 0 6px #ef4444',
+              display: 'inline-block',
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              fontWeight: 700,
+              fontSize: '11px',
+              color: isOnline && isWsConnected ? 'var(--green-safe)' : isOnline ? 'var(--accent-cyan)' : 'var(--red-critical)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {isOnline && isWsConnected
+              ? 'ONLINE • LIVE CLOUD'
+              : isOnline
+                ? 'CONNECTING CLOUD...'
+                : 'OFFLINE • NO INTERNET'}
+          </span>
+          {!isOnline && onReconnect && (
+            <button
+              onClick={onReconnect}
+              style={{
+                background: 'rgba(239, 68, 68, 0.2)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                color: '#f87171',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontSize: '9px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Retry
+            </button>
+          )}
+        </div>
+
+        {/* Notification Listener & AI Threat Shield Toggle Button */}
+        {onToggleNotifications && (
+          <button
+            onClick={onToggleNotifications}
+            title={isNotificationsEnabled ? 'AI Notification Listener & Shield Active — Click to Disable' : 'AI Notification Listener Disabled — Click to Enable'}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              border: isNotificationsEnabled ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255, 255, 255, 0.15)',
+              background: isNotificationsEnabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+              color: isNotificationsEnabled ? 'var(--green-safe)' : 'var(--text-muted)',
+              fontSize: '10px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              flexShrink: 0,
+            }}
+          >
+            {isNotificationsEnabled ? <Bell size={12} /> : <BellOff size={12} />}
+            <span>{isNotificationsEnabled ? 'AI Shield ON' : 'AI Shield OFF'}</span>
+          </button>
         )}
       </div>
 

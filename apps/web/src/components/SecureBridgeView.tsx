@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { ApiClient } from '../api/client';
 import { SecurityAnalysis } from '../types';
+import { triggerThreatPushNotification, triggerSystemNotification, playNotificationChime } from '../utils/notifications';
 
 interface CapturedNotification {
   id: string;
@@ -99,6 +100,22 @@ export const SecureBridgeView: React.FC = () => {
 
     setCaptures([newCapture, ...captures]);
     setSimText('');
+
+    // Trigger AI Threat Flag Notification or Standard Notification
+    if (analysis.indicatorColor === 'RED' || analysis.indicatorColor === 'ORANGE' || analysis.riskScore >= 40) {
+      triggerThreatPushNotification(
+        `${simSender} (${simApp})`,
+        analysis.primaryThreat,
+        analysis.explanation,
+        simText
+      );
+    } else {
+      playNotificationChime();
+      triggerSystemNotification(
+        `${simSender} (${simApp})`,
+        simText.slice(0, 80)
+      );
+    }
   };
 
   const filteredCaptures = captures.filter((c) => {

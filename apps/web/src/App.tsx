@@ -15,8 +15,16 @@ import { AdminConsole } from './components/AdminConsole';
 import { ProfileModal } from './components/ProfileModal';
 import { ProfileOnboardingModal } from './components/ProfileOnboardingModal';
 import { ApiClient, getWsBase } from './api/client';
-import { playNotificationChime, requestNotificationPermission, triggerSystemNotification } from './utils/notifications';
-import { ArrowLeft, Shield, Crown, Plus, ShieldCheck, Smartphone, KeyRound } from 'lucide-react';
+import {
+  playNotificationChime,
+  playThreatWarningSound,
+  requestNotificationPermission,
+  triggerSystemNotification,
+  triggerThreatPushNotification,
+  getNotificationListenerState,
+  setNotificationListenerState,
+} from './utils/notifications';
+import { ArrowLeft, Shield, Crown, Plus, ShieldCheck, Smartphone, KeyRound, AlertTriangle, X, Bell } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(ApiClient.getCurrentUser());
@@ -24,6 +32,18 @@ export const App: React.FC = () => {
   const [activeConvId, setActiveConvId] = useState<string>('');
   const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>({});
   const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isWsConnected, setIsWsConnected] = useState<boolean>(false);
+  const [reconnectTrigger, setReconnectTrigger] = useState<number>(0);
+  const [isNotificationsEnabled, setIsNotificationsEnabled] = useState<boolean>(getNotificationListenerState());
+  const [threatAlertBanner, setThreatAlertBanner] = useState<{
+    id: string;
+    senderName: string;
+    threatType: string;
+    explanation: string;
+    conversationId: string;
+    snippet: string;
+    messageObj?: ChatMessage;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState<SidebarTab>('CHATS');
   const [inspectedMessage, setInspectedMessage] = useState<ChatMessage | null>(null);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
@@ -83,10 +103,11 @@ export const App: React.FC = () => {
     }
   }, [currentUser, activeConvId, loadActiveMessages]);
 
-  // Online / Offline Connectivity Monitor
+  // Online / Offline Connectivity Monitor & Auto-Sync
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
+      setReconnectTrigger((prev) => prev + 1);
       loadConversations();
       if (activeConvIdRef.current) {
         loadActiveMessages(activeConvIdRef.current);
@@ -94,6 +115,7 @@ export const App: React.FC = () => {
     };
     const handleOffline = () => {
       setIsOnline(false);
+      setIsWsConnected(false);
     };
 
     window.addEventListener('online', handleOnline);
@@ -207,58 +229,157 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Real-time Single WebSocket Connection with Audio & Native Notifications
+  // Real-time Single WebSocket Connection with AI Threat Evaluation & Push Notifications
   useEffect(() => {
     if (!currentUser) return;
 
-    const token = ApiClient.getToken();
-    const device = ApiClient.getDevice();
-    const wsBase = getWsBase();
-    const wsUrl = `${wsBase.replace(/\/$/, '')}/ws/v1?token=${token}&deviceId=${device.deviceId}`;
+    let isCancelled = false;
+    let reconnectTimeout: any = null;
 
-    try {
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+    const connectWebSocket = () => {
+      try {
+        const token = ApiClient.getToken();
+        const device = ApiClient.getDevice();
+        const wsBase = getWsBase();
+        const wsUrl = `${wsBase.replace(/\/$/, '')}/ws/v1?token=${token}&deviceId=${device.deviceId}`;
 
-      ws.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.event === 'message:receive') {
-            const raw = payload.data;
-            const messageObj = raw?.message || raw;
-            const convId = raw?.conversationId || messageObj?.conversationId;
-            const senderId = messageObj?.senderId;
-            const senderName = messageObj?.sender?.displayName || messageObj?.sender?.username || 'Encrypted Message';
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
 
-            let previewText = '';
-            if (messageObj?.encryptedPayload) {
-              try {
-                const parsed = JSON.parse(messageObj.encryptedPayload);
-                previewText = parsed.plaintext || messageObj.encryptedPayload;
-              } catch {
-                previewText = messageObj.encryptedPayload;
-              }
-            }
-
-            // Incoming message from another user -> Play chime and trigger notification
-            if (senderId && senderId !== currentUser.id) {
-              playNotificationChime();
-              triggerSystemNotification(senderName, previewText.slice(0, 80) || 'New message received');
-            }
-
-            if (convId === activeConvIdRef.current) {
-              loadActiveMessages(activeConvIdRef.current);
-            }
-            loadConversations();
+        ws.onopen = () => {
+          if (!isCancelled) {
+            setIsWsConnected(true);
+            setIsOnline(true);
           }
-        } catch {}
-      };
+        };
 
-      return () => {
-        ws.close();
-      };
-    } catch {}
-  }, [currentUser, loadActiveMessages, loadConversations]);
+        ws.onclose = () => {
+          if (!isCancelled) {
+            setIsWsConnected(false);
+            // Automatic reconnection loop
+            if (navigator.onLine) {
+              reconnectTimeout = setTimeout(connectWebSocket, 3000);
+            }
+          }
+        };
+
+        ws.onerror = () => {
+          if (!isCancelled) {
+            setIsWsConnected(false);
+          }
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            if (payload.event === 'message:receive') {
+              const raw = payload.data;
+              const messageObj = raw?.message || raw;
+              const convId = raw?.conversationId || messageObj?.conversationId;
+              const senderId = messageObj?.senderId;
+              const senderName = messageObj?.sender?.displayName || messageObj?.sender?.username || 'Encrypted Channel';
+
+              let previewText = '';
+              if (messageObj?.encryptedPayload) {
+                try {
+                  const parsed = JSON.parse(messageObj.encryptedPayload);
+                  previewText = parsed.plaintext || messageObj.encryptedPayload;
+                } catch {
+                  previewText = messageObj.encryptedPayload;
+                }
+              }
+
+              // Run on-device Zero-Trust AI model threat evaluation
+              const analysis = ApiClient.clientSideEvaluate(previewText);
+              const isThreat = analysis.indicatorColor === 'RED' || analysis.indicatorColor === 'ORANGE' || analysis.riskScore >= 40;
+
+              // Incoming message from another user
+              if (senderId && senderId !== currentUser.id) {
+                if (isThreat) {
+                  // Malicious threat detected by AI model -> Dispatch urgent flag notification & siren
+                  triggerThreatPushNotification(
+                    senderName,
+                    analysis.primaryThreat,
+                    analysis.explanation,
+                    previewText,
+                    undefined,
+                    () => {
+                      setActiveConvId(convId);
+                      setActiveTab('CHATS');
+                    }
+                  );
+
+                  // Set in-app proactive threat alert banner
+                  setThreatAlertBanner({
+                    id: messageObj.id || Date.now().toString(),
+                    senderName,
+                    threatType: analysis.primaryThreat,
+                    explanation: analysis.explanation,
+                    conversationId: convId,
+                    snippet: previewText,
+                    messageObj: {
+                      id: messageObj.id || `msg-${Date.now()}`,
+                      conversationId: convId,
+                      senderId: senderId,
+                      senderName: senderName,
+                      isSelf: false,
+                      plaintext: previewText,
+                      status: 'DELIVERED',
+                      sentAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                      reactions: [],
+                      securityAnalysis: analysis,
+                    },
+                  });
+                } else {
+                  // Safe message -> pleasant harmonic chime & push notification
+                  playNotificationChime();
+                  triggerSystemNotification(
+                    senderName,
+                    previewText.slice(0, 80) || 'New encrypted zero-trust message',
+                    undefined,
+                    () => {
+                      setActiveConvId(convId);
+                      setActiveTab('CHATS');
+                    }
+                  );
+                }
+              }
+
+              if (convId === activeConvIdRef.current) {
+                loadActiveMessages(activeConvIdRef.current);
+              }
+              loadConversations();
+            }
+          } catch {}
+        };
+      } catch {}
+    };
+
+    connectWebSocket();
+
+    return () => {
+      isCancelled = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, [currentUser, reconnectTrigger, loadActiveMessages, loadConversations]);
+
+  // Toggle Notification Listener & Real-time AI Threat Shield
+  const handleToggleNotifications = async () => {
+    const next = !isNotificationsEnabled;
+    setIsNotificationsEnabled(next);
+    setNotificationListenerState(next);
+    if (next) {
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        playNotificationChime();
+        triggerSystemNotification(
+          'AI Threat Shield Active',
+          'Real-time message threat detection & push notifications are enabled.'
+        );
+      }
+    }
+  };
 
   // Zero-Lag Immediate Optimistic Message Response
   const handleSendMessage = async (text: string, _analysis: SecurityAnalysis) => {
@@ -565,29 +686,104 @@ export const App: React.FC = () => {
         currentUsername={currentUser.displayName || currentUser.username}
         userAvatarUrl={currentUser.avatarUrl}
         userRole={currentUser.role}
+        isOnline={isOnline}
+        isWsConnected={isWsConnected}
+        onReconnect={() => setReconnectTrigger((p) => p + 1)}
+        isNotificationsEnabled={isNotificationsEnabled}
+        onToggleNotifications={handleToggleNotifications}
       />
 
       {/* Main Viewport Content (Hidden on mobile if viewing conversation list on CHATS tab) */}
       <div className={`main-viewport ${!activeConvId && activeTab === 'CHATS' ? 'main-hidden-mobile' : ''}`}>
-        {/* Offline Banner when device is disconnected */}
-        {!isOnline && (
+        {/* Proactive In-App Threat Flag Alert Banner */}
+        {threatAlertBanner && (
           <div
+            className="fade-in animate-shake"
             style={{
-              background: 'rgba(245, 158, 11, 0.15)',
-              borderBottom: '1px solid rgba(245, 158, 11, 0.3)',
-              color: '#fbbf24',
-              padding: '7px 16px',
-              fontSize: '12px',
-              fontWeight: 700,
+              background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.25), rgba(225, 29, 72, 0.35))',
+              borderBottom: '2px solid var(--red-critical)',
+              padding: '10px 16px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              zIndex: 70,
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '10px',
+              zIndex: 80,
+              boxShadow: '0 4px 20px rgba(244, 63, 94, 0.3)',
             }}
           >
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
-            <span>Offline Mode Active — Browsing locally cached messages with on-device Zero-Trust AI engines.</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: 'rgba(244, 63, 94, 0.3)',
+                  border: '1px solid var(--red-critical)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--red-critical)',
+                  flexShrink: 0,
+                }}
+              >
+                <AlertTriangle size={18} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>🚨 MALICIOUS THREAT FLAGGED</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'rgba(0, 0, 0, 0.4)', color: '#fca5a5' }}>
+                    {threatAlertBanner.threatType}
+                  </span>
+                </div>
+                <div style={{ fontSize: '11px', color: '#fecdd3', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  From <strong>{threatAlertBanner.senderName}</strong>: {threatAlertBanner.explanation}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              {threatAlertBanner.messageObj && (
+                <button
+                  onClick={() => {
+                    setInspectedMessage(threatAlertBanner.messageObj!);
+                    setActiveConvId(threatAlertBanner.conversationId);
+                    setActiveTab('CHATS');
+                  }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.15)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    color: '#fff',
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <Shield size={13} />
+                  <span>Inspect Evidence</span>
+                </button>
+              )}
+              <button
+                onClick={() => setThreatAlertBanner(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title="Dismiss Alert"
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
         )}
 
