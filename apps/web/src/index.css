@@ -381,7 +381,12 @@ html, body, #root {
 }
 
 /* Mobile & Tablet Responsive Media Queries */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
+  .app-container, .app-layout {
+    width: 100vw;
+    max-width: 100vw;
+  }
+
   .sidebar-container {
     width: 100vw;
     min-width: 100vw;
@@ -393,8 +398,20 @@ html, body, #root {
     display: none !important;
   }
 
+  .main-viewport {
+    width: 100vw;
+    min-width: 100vw;
+    max-width: 100vw;
+  }
+
   .main-hidden-mobile {
     display: none !important;
+  }
+
+  .chat-container {
+    width: 100vw;
+    min-width: 100vw;
+    max-width: 100vw;
   }
 
   .chat-header {
@@ -402,8 +419,8 @@ html, body, #root {
   }
 
   .messages-stream {
-    padding: 14px 12px;
-    gap: 10px;
+    padding: 12px 10px;
+    gap: 8px;
   }
 
   .chat-footer {
@@ -412,11 +429,12 @@ html, body, #root {
   }
 
   .glass-modal {
-    padding: 20px !important;
+    padding: 20px 16px !important;
     border-radius: 16px !important;
     max-width: 95vw !important;
   }
 }
+
 
 /* Desktop Wide Enhancements */
 @media (min-width: 1200px) {

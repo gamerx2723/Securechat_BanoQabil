@@ -411,12 +411,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               className="btn-ghost"
               title="Back to conversations"
               style={{
-                padding: '6px 8px',
-                borderRadius: '8px',
+                padding: '8px 10px',
+                borderRadius: '10px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginRight: '2px',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                marginRight: '4px',
+                flexShrink: 0,
               }}
             >
               <ArrowLeft size={18} />

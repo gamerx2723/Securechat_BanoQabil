@@ -143,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <aside className={`sidebar-container ${className}`}>
+    <aside className={`sidebar-container ${(Boolean(activeId) && activeTab === 'CHATS') || activeTab !== 'CHATS' ? 'sidebar-hidden-mobile' : ''} ${className}`}>
       {/* User Profile Header */}
       <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
         <div

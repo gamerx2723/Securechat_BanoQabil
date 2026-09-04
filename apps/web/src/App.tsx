@@ -105,6 +105,45 @@ export const App: React.FC = () => {
     };
   }, [loadConversations, loadActiveMessages]);
 
+  // Native Mobile & Android Back Button / Gesture Navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      if (isProfileModalOpen) {
+        setIsProfileModalOpen(false);
+        return;
+      }
+      if (isNewChatOpen) {
+        setIsNewChatOpen(false);
+        return;
+      }
+      if (isCreateGroupOpen) {
+        setIsCreateGroupOpen(false);
+        return;
+      }
+      if (isCopilotOpen) {
+        setIsCopilotOpen(false);
+        return;
+      }
+      if (inspectedMessage) {
+        setInspectedMessage(null);
+        return;
+      }
+      if (activeConvIdRef.current) {
+        setActiveConvId('');
+        return;
+      }
+      if (activeTab !== 'CHATS') {
+        setActiveTab('CHATS');
+        return;
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isProfileModalOpen, isNewChatOpen, isCreateGroupOpen, isCopilotOpen, inspectedMessage, activeTab]);
+
   // Optimized Background Auto-Sync (Prevents backloops & overlapping requests)
   useEffect(() => {
     if (!currentUser) return;
@@ -495,13 +534,17 @@ export const App: React.FC = () => {
       <div className="aurora-glow-1" />
       <div className="aurora-glow-2" />
 
-      {/* Sidebar with Navigation Tabs & Contacts */}
+      {/* Sidebar with Navigation Tabs & Contacts (Hidden on mobile when chat is active) */}
       <Sidebar
+        className={(activeConvId && activeTab === 'CHATS') || activeTab !== 'CHATS' ? 'sidebar-hidden-mobile' : ''}
         conversations={conversations}
         activeId={activeConvId}
         onSelect={(id) => {
           setActiveConvId(id);
           setActiveTab('CHATS');
+          try {
+            window.history.pushState({ activeConvId: id }, '');
+          } catch {}
           // Optimistically clear unread count for opened conversation
           setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)));
           loadActiveMessages(id);
@@ -681,6 +724,10 @@ export const App: React.FC = () => {
             activeConvId={activeConvId}
             onSelectConversation={(id) => {
               setActiveConvId(id);
+              setActiveTab('CHATS');
+              try {
+                window.history.pushState({ activeConvId: id }, '');
+              } catch {}
               loadActiveMessages(id);
             }}
           />
