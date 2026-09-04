@@ -91,9 +91,7 @@ async def analyze_message(req: AnalyzeRequest):
     elif dlp["has_sensitive_data"]:
         primary_threat = "DLP_SECRET_EXPOSURE"
 
-    explanation = ExplainabilityEngine.generate_explanation(final_score, color, phishing, social, dlp, urdu_scam)
-    if blackmail["blackmail_detected"] and color == "RED":
-        explanation = "CRITICAL ALERT: Non-consensual image leak extortion or coercive blackmail threat detected. Protect your private media and access legal assistance immediately."
+    explanation = ExplainabilityEngine.generate_explanation(final_score, color, phishing, social, dlp, urdu_scam, blackmail)
 
     return {
         "risk_score": final_score,

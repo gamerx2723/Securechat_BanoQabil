@@ -70,6 +70,57 @@ export class ThreatEvaluationService {
           }
         }
 
+        if (aiData.blackmail_analysis?.blackmail_detected) {
+          for (const ev of aiData.blackmail_analysis.evidence || []) {
+            evidenceList.push({
+              category: (ev.category as ThreatCategory) || 'BLACKMAIL_SEXTORTION',
+              signal: ev.signal || 'IMAGE_LEAK_EXTORTION',
+              confidence: ev.confidence || 0.98,
+              detectionBasis: (ev.detectionBasis as any) || 'LOCAL_AI_MODEL',
+              description: ev.description || 'Sextortion, private image leak extortion, or coercive blackmail threat detected.',
+            });
+          }
+        }
+
+        if (aiData.urdu_scam_analysis?.scam_detected) {
+          for (const sig of aiData.urdu_scam_analysis.signals || []) {
+            evidenceList.push({
+              category: 'SOCIAL_ENGINEERING',
+              signal: 'ROMAN_URDU_SCAM_PATTERN',
+              confidence: 0.95,
+              detectionBasis: 'LOCAL_AI_MODEL',
+              description: sig,
+            });
+          }
+        }
+
+        if (aiData.zero_day_analysis?.zero_day_threat_detected) {
+          for (const sig of aiData.zero_day_analysis.signals || []) {
+            evidenceList.push({
+              category: 'SOCIAL_ENGINEERING',
+              signal: 'ZERO_DAY_COGNITIVE_INTENT',
+              confidence: 0.95,
+              detectionBasis: 'LOCAL_AI_MODEL',
+              description: sig,
+            });
+          }
+        }
+
+        if (aiData.dlp_analysis?.has_sensitive_data) {
+          for (const sec of aiData.dlp_analysis.detected_secrets || []) {
+            const alreadyPresent = evidenceList.some((e) => e.signal === sec.type);
+            if (!alreadyPresent) {
+              evidenceList.push({
+                category: 'DLP_SECRET_EXPOSURE',
+                signal: sec.type || 'SENSITIVE_DATA_EXPOSURE',
+                confidence: 0.99,
+                detectionBasis: 'DETERMINISTIC_RULE',
+                description: `Sensitive ${sec.type || 'credential'} detected (${sec.snippet || sec.masked_value || '***'}).`,
+              });
+            }
+          }
+        }
+
         const maxScore = Math.max(localResult.riskScore, aiData.risk_score || 0);
         let color: SecurityIndicatorColor = 'GREEN';
         if (maxScore >= 75) {
@@ -85,14 +136,21 @@ export class ThreatEvaluationService {
           primaryThreat = localResult.primaryThreat;
         }
 
+        const rawExplanation = typeof aiData.explanation === 'string'
+          ? aiData.explanation
+          : aiData.explanation?.why_flagged || localResult.explanation;
+        const rawRecommendation = typeof aiData.explanation === 'object'
+          ? (aiData.explanation?.recommendation || localResult.recommendation)
+          : localResult.recommendation;
+
         return {
           riskScore: maxScore,
           indicatorColor: color,
           primaryThreat,
           confidence: Math.max(localResult.confidence, aiData.confidence || 0),
           evidenceList,
-          explanation: aiData.explanation?.why_flagged || localResult.explanation,
-          recommendation: aiData.explanation?.recommendation || localResult.recommendation,
+          explanation: rawExplanation,
+          recommendation: rawRecommendation,
           suggestedActions: color === 'RED'
             ? ['BLOCK_LINK', 'BLOCK_SENDER', 'REPORT_MESSAGE', 'ASK_COPILOT']
             : color === 'ORANGE'

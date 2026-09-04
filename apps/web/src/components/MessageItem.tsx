@@ -29,36 +29,36 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const isGreen = analysis.indicatorColor === 'GREEN';
   const isDlp = analysis.primaryThreat === 'DLP_SECRET_EXPOSURE';
 
-  // OpSec Principle:
-  // - Sender ONLY sees warnings for their OWN sensitive data leaks (DLP) to prevent self-harm.
-  // - Sender is NOT given threat scores on phishing/social engineering attacks to prevent evasion crafting.
-  // - Receiver gets FULL prominent protection warnings & threat scores for incoming attacks.
-  const showWarningBanner = isSelf ? isDlp : (isRed || isOrange);
+  const showWarningBanner = isRed || isOrange || isDlp;
 
-  const bubbleBorder = isSelf
-    ? isDlp
-      ? '1px solid rgba(245, 158, 11, 0.7)'
-      : '1px solid rgba(16, 185, 129, 0.2)'
-    : isRed
-      ? '1px solid rgba(239, 68, 68, 0.6)'
-      : isOrange
-        ? '1px solid rgba(245, 158, 11, 0.5)'
+  const bubbleBorder = isRed
+    ? '1px solid rgba(239, 68, 68, 0.6)'
+    : isOrange || isDlp
+      ? '1px solid rgba(245, 158, 11, 0.6)'
+      : isSelf
+        ? '1px solid rgba(16, 185, 129, 0.2)'
         : '1px solid var(--border-subtle)';
 
-  const bubbleShadow = isSelf
-    ? isDlp
+  const bubbleShadow = isRed
+    ? '0 4px 20px rgba(239, 68, 68, 0.2)'
+    : isOrange || isDlp
       ? '0 4px 16px rgba(245, 158, 11, 0.2)'
-      : '0 4px 12px rgba(0, 0, 0, 0.15)'
-    : isRed
-      ? '0 4px 20px rgba(239, 68, 68, 0.2)'
-      : isOrange
-        ? '0 4px 16px rgba(245, 158, 11, 0.15)'
-        : '0 4px 12px rgba(0, 0, 0, 0.15)';
+      : '0 4px 12px rgba(0, 0, 0, 0.15)';
 
   const getThreatTitle = () => {
     if (isDlp) return 'SENSITIVE SECRET / DATA LEAK DETECTED';
+    if (analysis.primaryThreat === 'BLACKMAIL_SEXTORTION') return 'CRITICAL SEXTORTION / IMAGE LEAK BLACKMAIL DETECTED';
+    if (analysis.primaryThreat === 'COERCIVE_INTIMATE_SOLICITATION') return 'COERCIVE INTIMATE SOLICITATION DETECTED';
     if (analysis.primaryThreat === 'PHISHING') return 'DECEPTIVE PHISHING LINK DETECTED';
-    if (analysis.primaryThreat === 'SOCIAL_ENGINEERING') return 'PSYCHOLOGICAL SCAM / MANIPULATION DETECTED';
+    if (
+      analysis.primaryThreat === 'SOCIAL_ENGINEERING' ||
+      analysis.primaryThreat === 'URGENCY_MANIPULATION' ||
+      analysis.primaryThreat === 'FEAR_COERCION' ||
+      analysis.primaryThreat === 'AUTHORITY_IMPERSONATION' ||
+      analysis.primaryThreat === 'SECRECY_PRESSURE'
+    ) return 'PSYCHOLOGICAL SCAM / SOCIAL ENGINEERING DETECTED';
+    if (analysis.primaryThreat === 'CREDENTIAL_HARVESTING') return 'CREDENTIAL HARVESTING ATTEMPT DETECTED';
+    if (analysis.primaryThreat === 'FINANCIAL_FRAUD') return 'FINANCIAL FRAUD / PAYMENT HIJACKING DETECTED';
     return 'CRITICAL THREAT DETECTED';
   };
 
@@ -303,70 +303,33 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           )}
 
           {/* Interactive Security Badge */}
-          {isSelf ? (
-            // Sender Badge
-            isDlp ? (
-              <button
-                onClick={() => onInspectSecurity(message)}
-                className="badge-orange"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '2px 8px',
-                  borderRadius: '9999px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  border: 'none',
-                  outline: 'none',
-                  fontFamily: 'var(--font-mono)',
-                }}
-                title="Click to view leaked secret inspection"
-              >
-                <ShieldAlert size={12} />
-                <span>LEAK WARNING</span>
-              </button>
-            ) : (
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '2px 6px',
-                  fontSize: '10px',
-                  color: 'var(--text-muted)',
-                  fontFamily: 'var(--font-mono)',
-                }}
-              >
-                <Lock size={10} style={{ color: 'var(--green-safe)' }} />
-                <span>E2EE</span>
-              </span>
-            )
-          ) : (
-            // Receiver Badge
-            <button
-              onClick={() => onInspectSecurity(message)}
-              className={isRed ? 'badge-red' : isOrange ? 'badge-orange' : 'badge-green'}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '2px 8px',
-                borderRadius: '9999px',
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                border: 'none',
-                outline: 'none',
-                fontFamily: 'var(--font-mono)',
-              }}
-              title="Click to inspect evidence, teach AI, or vote on threat"
-            >
-              {isGreen ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
-              <span>{analysis.indicatorColor === 'GREEN' ? 'SAFE' : `${analysis.riskScore}% RISK`}</span>
-            </button>
-          )}
+          <button
+            onClick={() => onInspectSecurity(message)}
+            className={isRed ? 'badge-red' : (isOrange || isDlp) ? 'badge-orange' : 'badge-green'}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              fontSize: '11px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              border: 'none',
+              outline: 'none',
+              fontFamily: 'var(--font-mono)',
+            }}
+            title="Click to inspect evidence, teach AI, or vote on threat"
+          >
+            {isGreen && !isDlp ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
+            <span>
+              {isDlp
+                ? 'LEAK WARNING'
+                : isGreen
+                ? 'SAFE'
+                : `${analysis.riskScore}% RISK`}
+            </span>
+          </button>
         </div>
       </div>
     </div>

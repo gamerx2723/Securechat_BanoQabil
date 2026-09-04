@@ -12,7 +12,7 @@ class DlpDetector:
         ("JWT", r'\b(eyJ[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*)\b', "JSON Web Token"),
         ("PRIVATE_KEY", r'-----BEGIN (?:RSA|EC|OPENSSH|DSA|PGP|ENCRYPTED)? ?PRIVATE KEY-----', "Private Cryptographic Key"),
         ("DATABASE_URL", r'\b(?:postgres|postgresql|mysql|mongodb(?:\+srv)?|redis)://[a-zA-Z0-9_\-\.]+:[^@\s]+@[a-zA-Z0-9_\-\.]+', "Database URL with credentials"),
-        ("PASSWORD", r'(?:password|pass|pwd|secret|passcode|creds)\s*[:=]\s*["\']?([^\s"\';,]{4,})["\']?|(?:my\s+(?:password|pin|passcode)\s+is\s+([^\s"\';,]{4,}))', "Plaintext Password / Passcode"),
+        ("PASSWORD", r'(?:password|pass|pwd|secret|passcode|creds|pin)\s*(?:is|[:=])\s*[:=]?\s*["\']?([^\s"\';,]{3,})["\']?|(?:my\s+(?:password|pin|passcode|secret)\s+(?:is|[:=])\s*[:=]?\s*([^\s"\';,]{3,}))', "Plaintext Password / Passcode"),
         ("OTP", r'(?:otp|verification\s*code|security\s*code|passcode|login\s*code|code\s*is|tasdeeqi\s*code)\s*[:=]?\s*(\b\d{4,8}\b)', "One-Time Password / 2FA Code"),
         ("CNIC_PII", r'\b(\d{5}-\d{7}-\d|\d{13})\b', "National Identity Card (CNIC / PII)"),
         ("BANK_ACCOUNT", r'\b(PK\d{2}[A-Z]{4}\d{16}|(?:account|acc|ac|khata)\s*#?\s*[:=]?\s*\d{10,16})\b', "Bank Account / IBAN Number"),

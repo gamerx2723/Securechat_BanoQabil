@@ -735,7 +735,7 @@ export class ApiClient {
       });
     }
 
-    if (/(?:password|pass|pwd|secret|passcode|creds)\s*[:=]\s*["']?([^\s"';,]{4,})["']?|(?:my\s+(?:password|pin|passcode)\s+is\s+([^\s"';,]{4,}))/i.test(text)) {
+    if (/(?:password|pass|pwd|secret|passcode|creds|pin)\s*(?:is|[:=])\s*[:=]?\s*["']?([^\s"';,]{3,})["']?|(?:my\s+(?:password|pin|passcode|secret)\s+(?:is|[:=])\s*[:=]?\s*([^\s"';,]{3,}))/i.test(text)) {
       score += 85;
       evidence.push({
         category: 'DLP_SECRET_EXPOSURE',
@@ -743,6 +743,17 @@ export class ApiClient {
         confidence: 0.98,
         detectionBasis: 'DETERMINISTIC_RULE',
         description: 'Plaintext account password or access passcode identified in outgoing message.',
+      });
+    }
+
+    if (/\b(?:\d{4}[-\s]?){3}\d{4}\b|\b\d{15,16}\b/.test(text)) {
+      score += 85;
+      evidence.push({
+        category: 'DLP_SECRET_EXPOSURE',
+        signal: 'CREDIT_DEBIT_CARD_NUMBER',
+        confidence: 0.99,
+        detectionBasis: 'DETERMINISTIC_RULE',
+        description: 'Credit or debit card number detected in message.',
       });
     }
 
@@ -1022,12 +1033,19 @@ export class ApiClient {
     const finalScore = Math.min(100, score);
     const color = finalScore >= 75 ? 'RED' : finalScore >= 25 ? 'ORANGE' : 'GREEN';
 
+    const blackmailEv = evidence.find(e => e.category === 'BLACKMAIL_SEXTORTION' || e.category === 'COERCIVE_INTIMATE_SOLICITATION');
     const phishingEv = evidence.find(e => e.category === 'PHISHING');
+    const dlpEv = evidence.find(e => e.category === 'DLP_SECRET_EXPOSURE');
     const credEv = evidence.find(e => e.category === 'CREDENTIAL_HARVESTING');
-    const primaryThreat = phishingEv && finalScore >= 50
+
+    const primaryThreat = blackmailEv && finalScore >= 50
+      ? blackmailEv.category
+      : phishingEv && finalScore >= 50
       ? 'PHISHING'
       : credEv && finalScore >= 50
       ? 'CREDENTIAL_HARVESTING'
+      : dlpEv && finalScore >= 40
+      ? 'DLP_SECRET_EXPOSURE'
       : (evidence.length > 0 ? evidence[0].category : 'SAFE');
 
     return {

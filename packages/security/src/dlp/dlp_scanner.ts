@@ -29,7 +29,7 @@ export class DlpScanner {
     },
     {
       type: 'PASSWORD' as const,
-      regex: /(?:password|pass|pwd|secret|passcode|creds)\s*[:=]\s*["']?([^\s"';,]{4,})["']?|(?:my\s+(?:password|pin|passcode)\s+is\s+([^\s"';,]{4,}))/gi,
+      regex: /(?:password|pass|pwd|secret|passcode|creds|pin)\s*(?:is|[:=])\s*[:=]?\s*["']?([^\s"';,]{3,})["']?|(?:my\s+(?:password|pin|passcode|secret)\s+(?:is|[:=])\s*[:=]?\s*([^\s"';,]{3,}))/gi,
       warning: 'Plaintext password or passcode detected. Never share account passwords in cleartext.',
     },
     {
@@ -39,18 +39,18 @@ export class DlpScanner {
     },
     {
       type: 'CREDIT_CARD' as const,
-      regex: /\b(\d{5}-\d{7}-\d|\d{13})\b/g,
-      warning: 'National Identity Number (CNIC / PII) detected.',
-    },
-    {
-      type: 'DATABASE_URL' as const,
-      regex: /\b(PK\d{2}[A-Z]{4}\d{16}|(?:account|acc|ac|khata)\s*#?\s*[:=]?\s*\d{10,16})\b/gi,
-      warning: 'Bank Account or IBAN number detected.',
+      regex: /\b(?:\d{4}[-\s]?){3}\d{4}\b|\b\d{15,16}\b/g,
+      warning: 'Credit / Debit Card number detected.',
     },
     {
       type: 'CREDIT_CARD' as const,
       regex: /(?:cvv|cvc|card\s*pin)\s*[:=]?\s*(\b\d{3,4}\b)/gi,
       warning: 'Card Security Code (CVV/CVC) detected.',
+    },
+    {
+      type: 'DATABASE_URL' as const,
+      regex: /\b(PK\d{2}[A-Z]{4}\d{16}|(?:account|acc|ac|khata)\s*#?\s*[:=]?\s*\d{10,16})\b/gi,
+      warning: 'Bank Account or IBAN number detected.',
     }
   ];
 
@@ -69,21 +69,6 @@ export class DlpScanner {
             type: pattern.type,
             maskedSnippet: masked,
             warning: pattern.warning,
-          });
-        }
-      }
-    }
-
-    // Check Credit Card Numbers with Luhn Algorithm
-    const ccMatches = text.match(/\b(?:\d{4}[-\s]?){3}\d{4}\b|\b\d{15,16}\b/g);
-    if (ccMatches) {
-      for (const rawCc of ccMatches) {
-        const cleaned = rawCc.replace(/[-\s]/g, '');
-        if (this.isValidLuhn(cleaned)) {
-          detectedItems.push({
-            type: 'CREDIT_CARD',
-            maskedSnippet: `****-****-****-${cleaned.slice(-4)}`,
-            warning: 'Valid Credit or Debit Card number detected.',
           });
         }
       }
@@ -108,10 +93,7 @@ export class DlpScanner {
     // Also redact credit cards
     result = result.replace(/\b(?:\d{4}[-\s]?){3}\d{4}\b|\b\d{15,16}\b/g, (match) => {
       const cleaned = match.replace(/[-\s]/g, '');
-      if (this.isValidLuhn(cleaned)) {
-        return `****-****-****-${cleaned.slice(-4)}`;
-      }
-      return match;
+      return `****-****-****-${cleaned.slice(-4)}`;
     });
 
     return result;

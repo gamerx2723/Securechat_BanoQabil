@@ -17,11 +17,16 @@ class ExplainabilityEngine:
         phishing_res: Dict[str, Any],
         social_res: Dict[str, Any],
         dlp_res: Dict[str, Any],
-        urdu_res: Dict[str, Any] = None
+        urdu_res: Dict[str, Any] = None,
+        blackmail_res: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         
         evidence_points = []
         
+        if blackmail_res and blackmail_res.get("blackmail_detected"):
+            for ev in blackmail_res.get("evidence", []):
+                evidence_points.append(f"Blackmail/Sextortion: {ev.get('description', 'Extortion pattern detected')}")
+
         for url_info in phishing_res.get("analyzed_urls", []):
             for sig in url_info.get("signals", []):
                 evidence_points.append(f"Deceptive Link: {sig}")
@@ -36,7 +41,10 @@ class ExplainabilityEngine:
         for secret in dlp_res.get("detected_secrets", []):
             evidence_points.append(f"Data Exposure: {secret.get('type', 'Secret')} ({secret.get('snippet', '***')})")
 
-        if indicator_color == "GREEN":
+        if blackmail_res and blackmail_res.get("blackmail_detected"):
+            why = "CRITICAL ALERT: Non-consensual private media leak extortion or coercive intimate solicitation threat detected."
+            recommendation = "DO NOT send money, DO NOT send private photos, and DO NOT delete evidence. Save screenshots, access emergency support, and block the extortionist immediately."
+        elif indicator_color == "GREEN":
             why = "The message contains normal conversational text without malicious links, urgency coercion, or sensitive data requests."
             recommendation = "No action required. Normal messaging."
         elif indicator_color == "ORANGE":

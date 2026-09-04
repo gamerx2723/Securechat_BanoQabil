@@ -117,11 +117,14 @@ export class RiskEngine {
     // Determine Primary Threat
     let primaryThreat: ThreatCategory = 'SAFE';
     if (evidenceList.length > 0) {
+      const blackmailEv = evidenceList.find(e => e.category === 'BLACKMAIL_SEXTORTION' || e.category === 'COERCIVE_INTIMATE_SOLICITATION');
       const phishingEv = evidenceList.find(e => e.category === 'PHISHING');
       const dlpEv = evidenceList.find(e => e.category === 'DLP_SECRET_EXPOSURE');
       const credEv = evidenceList.find(e => e.category === 'CREDENTIAL_HARVESTING');
 
-      if (phishingEv && finalScore >= 50) {
+      if (blackmailEv && finalScore >= 50) {
+        primaryThreat = blackmailEv.category;
+      } else if (phishingEv && finalScore >= 50) {
         primaryThreat = 'PHISHING';
       } else if (credEv && finalScore >= 50) {
         primaryThreat = 'CREDENTIAL_HARVESTING';
