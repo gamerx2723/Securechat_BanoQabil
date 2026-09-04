@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 
-const DEFAULT_DIRECT_URL = "postgresql://postgres:%3CAsad2723%403%3E@db.ljltqeiorczfxkclbltb.supabase.co:5432/postgres?sslmode=require&connect_timeout=30";
+const DEFAULT_DIRECT_URL = "postgresql://postgres.ljltqeiorczfxkclbltb:%3CAsad2723%403%3E@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres?sslmode=require&connect_timeout=30";
 
 function getStableDatabaseUrl(): string {
   const envUrl = process.env.DATABASE_URL;

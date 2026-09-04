@@ -8,6 +8,6 @@ export const config = {
   jwtAccessExpiry: '15m',
   jwtRefreshExpiryDays: 7,
   aiServiceUrl: process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000',
-  databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:%3CAsad2723%403%3E@db.ljltqeiorczfxkclbltb.supabase.co:5432/postgres',
+  databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres.ljltqeiorczfxkclbltb:%3CAsad2723%403%3E@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres?sslmode=require',
   corsOrigins: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['*'],
 };
