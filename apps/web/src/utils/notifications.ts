@@ -217,7 +217,40 @@ export const initMobilePushNotifications = async (apiUrl: string, authToken: str
   // 1. Request Browser / WebView notification permission
   await requestNotificationPermission();
 
-  // 2. Check for Capacitor Push Plugin if running in Android container
+  // 2. Check for Native Android FCM Token Bridge (from MainActivity)
+  const checkAndRegisterNativeToken = () => {
+    try {
+      const nativeToken =
+        (window as any).__SECURECHAT_FCM_TOKEN__ ||
+        ((window as any).SecureChatNative?.getFcmToken && (window as any).SecureChatNative.getFcmToken());
+
+      if (nativeToken && typeof nativeToken === 'string' && nativeToken.trim().length > 10) {
+        console.log('[PushInit] Found Native Android FCM Token. Registering with backend...');
+        registerDevicePushToken(apiUrl, authToken, nativeToken.trim());
+        return true;
+      }
+    } catch (e) {
+      console.debug('Native FCM token check error:', e);
+    }
+    return false;
+  };
+
+  // Immediate check
+  if (!checkAndRegisterNativeToken()) {
+    // Listen for asynchronous native token injection
+    window.addEventListener('fcm_token_ready', (e: any) => {
+      const token = e.detail || (window as any).__SECURECHAT_FCM_TOKEN__;
+      if (token && typeof token === 'string' && token.trim().length > 10) {
+        registerDevicePushToken(apiUrl, authToken, token.trim());
+      }
+    });
+
+    // Check again after 1.5s in case Google Play Services token returns shortly after launch
+    setTimeout(checkAndRegisterNativeToken, 1500);
+    setTimeout(checkAndRegisterNativeToken, 4000);
+  }
+
+  // 3. Check for Capacitor Push Plugin fallback
   const cap = (window as any).Capacitor;
   if (cap && cap.isNativePlatform && cap.isNativePlatform()) {
     try {
