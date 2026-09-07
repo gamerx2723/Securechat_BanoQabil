@@ -151,8 +151,8 @@ export class ApiClient {
     const user: UserProfile = {
       id: isAsad ? 'usr_asad_admin' : isSinner ? 'usr_sinner_admin' : 'usr_demo_guest',
       username: isAsad ? 'asad' : isSinner ? 'sinner' : 'demo_guest',
-      displayName: isAsad ? 'Muhammad Asad (Offline Admin)' : isSinner ? 'GMX Sinner (Offline Admin)' : 'Offline Guest User',
-      email: isAsad ? 'asad@securechat.io' : isSinner ? 'sinner@securechat.io' : 'guest@securechat.io',
+      displayName: isAsad ? 'Muhammad Asad (Offline Admin)' : isSinner ? 'Bob (Offline Admin)' : 'Offline Guest User',
+      email: isAsad ? 'asad@securechat.io' : isSinner ? 'bob@securechat.io' : 'guest@securechat.io',
       avatarUrl: isAsad
         ? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
         : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
@@ -178,7 +178,7 @@ export class ApiClient {
         const demoConvs: ConversationItem[] = [
           {
             id: 'conv_demo_1',
-            title: isAsad ? 'GMX Sinner' : 'Muhammad Asad',
+            title: isAsad ? 'Bob' : 'Muhammad Asad',
             type: 'DIRECT',
             avatar: isAsad
               ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
@@ -212,7 +212,7 @@ export class ApiClient {
             id: 'msg_demo_1_1',
             conversationId: 'conv_demo_1',
             senderId: isAsad ? 'usr_sinner_admin' : 'usr_asad_admin',
-            senderName: isAsad ? 'GMX Sinner' : 'Muhammad Asad',
+            senderName: isAsad ? 'Bob' : 'Muhammad Asad',
             plaintext: 'Welcome to SecureChat Offline Mode! All local AI security engines are active.',
             sentAt: '10:30 AM',
             status: 'READ',

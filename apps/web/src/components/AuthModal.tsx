@@ -290,7 +290,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 </div>
               </button>
 
-              {/* Admin 2: GMX Sinner */}
+              {/* Admin 2: Bob */}
               <button
                 type="button"
                 disabled={loading}
@@ -320,13 +320,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
               >
                 <img
                   src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
-                  alt="GMX Sinner"
+                  alt="Bob"
                   style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1.5px solid #f43f5e' }}
                 />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                     <span style={{ fontSize: '11px', fontWeight: 800, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      GMX Sinner
+                      Bob
                     </span>
                     <Crown size={10} style={{ color: '#fbbf24', flexShrink: 0 }} />
                   </div>
