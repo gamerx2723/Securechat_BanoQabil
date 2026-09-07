@@ -117,9 +117,17 @@ export const App: React.FC = () => {
     try {
       const msgs = await ApiClient.getMessages(convId, markRead);
       setMessagesMap((prev) => {
+        const currentMsgs = prev[convId] || [];
+        // Preserve any pending in-flight messages (e.g. temp- id or status: SENDING)
+        const pendingMsgs = currentMsgs.filter(
+          (m) =>
+            (m.id.startsWith('temp-') || m.status === 'SENDING') &&
+            !msgs.some((serverMsg) => serverMsg.id === m.id || (serverMsg.plaintext === m.plaintext && serverMsg.isSelf))
+        );
+        const merged = [...msgs, ...pendingMsgs];
         const updated = {
           ...prev,
-          [convId]: msgs,
+          [convId]: merged,
         };
         ApiClient.saveAllCachedMessages(updated);
         return updated;
@@ -254,8 +262,14 @@ export const App: React.FC = () => {
           const latestMsgs = await ApiClient.getMessages(currentActiveId, false);
           setMessagesMap((prev) => {
             const currentMsgs = prev[currentActiveId] || [];
-            if (latestMsgs.length !== currentMsgs.length || JSON.stringify(latestMsgs) !== JSON.stringify(currentMsgs)) {
-              return { ...prev, [currentActiveId]: latestMsgs };
+            const pendingMsgs = currentMsgs.filter(
+              (m) =>
+                (m.id.startsWith('temp-') || m.status === 'SENDING') &&
+                !latestMsgs.some((serverMsg) => serverMsg.id === m.id || (serverMsg.plaintext === m.plaintext && serverMsg.isSelf))
+            );
+            const merged = [...latestMsgs, ...pendingMsgs];
+            if (JSON.stringify(merged) !== JSON.stringify(currentMsgs)) {
+              return { ...prev, [currentActiveId]: merged };
             }
             return prev;
           });
@@ -354,21 +368,38 @@ export const App: React.FC = () => {
               const senderName = messageObj?.sender?.displayName || messageObj?.sender?.username || 'Encrypted Channel';
 
               let previewText = '';
+              let isEdited = false;
+              let isDeleted = false;
               if (messageObj?.encryptedPayload) {
                 try {
                   const parsed = JSON.parse(messageObj.encryptedPayload);
                   previewText = parsed.plaintext || messageObj.encryptedPayload;
+                  isEdited = !!parsed.isEdited;
+                  isDeleted = !!parsed.isDeleted || previewText === 'This message was deleted.';
                 } catch {
                   previewText = messageObj.encryptedPayload;
+                  isDeleted = previewText === 'This message was deleted.';
                 }
               }
 
-              // Run on-device Zero-Trust AI model threat evaluation
-              const analysis = ApiClient.clientSideEvaluate(previewText);
-              const isThreat = analysis.indicatorColor === 'RED' || analysis.indicatorColor === 'ORANGE' || analysis.riskScore >= 40;
+              // Run on-device Zero-Trust AI model threat evaluation (skip for deleted messages)
+              const analysis = isDeleted
+                ? {
+                    riskScore: 0,
+                    indicatorColor: 'GREEN' as const,
+                    primaryThreat: 'NONE',
+                    confidence: 1,
+                    evidenceList: [],
+                    explanation: 'Message was deleted.',
+                    recommendation: 'None',
+                    suggestedActions: [],
+                  }
+                : ApiClient.clientSideEvaluate(previewText);
+
+              const isThreat = !isDeleted && (analysis.indicatorColor === 'RED' || analysis.indicatorColor === 'ORANGE' || analysis.riskScore >= 40);
 
               // Incoming message from another user
-              if (senderId && senderId !== currentUser.id) {
+              if (senderId && senderId !== currentUser.id && !isDeleted) {
                 if (isThreat) {
                   // Malicious threat detected by AI model -> Dispatch urgent flag notification & siren
                   triggerThreatPushNotification(
@@ -398,6 +429,8 @@ export const App: React.FC = () => {
                       senderName: senderName,
                       isSelf: false,
                       plaintext: previewText,
+                      isEdited,
+                      isDeleted: false,
                       status: 'DELIVERED',
                       sentAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                       reactions: [],
@@ -420,14 +453,14 @@ export const App: React.FC = () => {
               }
 
               const isSelf = senderId === currentUser.id;
-              const msgSecurityAnalysis: SecurityAnalysis = isSelf
+              const msgSecurityAnalysis: SecurityAnalysis = isSelf || isDeleted
                 ? {
                     riskScore: 0,
                     indicatorColor: 'GREEN',
                     primaryThreat: 'NONE',
                     confidence: 1,
                     evidenceList: [],
-                    explanation: 'Secure message transmission.',
+                    explanation: isDeleted ? 'Message was deleted.' : 'Secure message transmission.',
                     recommendation: 'Safe to send',
                     suggestedActions: [],
                   }
@@ -440,19 +473,43 @@ export const App: React.FC = () => {
                 senderId: senderId,
                 senderName: senderName,
                 plaintext: previewText,
+                isEdited,
+                isDeleted,
                 sentAt: new Date(messageObj.sentAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                status: 'DELIVERED',
+                status: isSelf ? (messageObj.status || 'SENT') : 'DELIVERED',
                 isSelf,
                 reactions: [],
                 securityAnalysis: msgSecurityAnalysis,
               };
 
-              // Immediately persist incoming message in local memory
+              // Immediately persist incoming message in local memory without flickering
               setMessagesMap((prev) => {
                 const currentList = prev[convId] || [];
-                if (currentList.some((m) => m.id === incomingMsg.id)) {
-                  return prev;
+                const existingIdx = currentList.findIndex((m) => m.id === incomingMsg.id);
+                if (existingIdx !== -1) {
+                  const updated = [...currentList];
+                  updated[existingIdx] = {
+                    ...updated[existingIdx],
+                    ...incomingMsg,
+                  };
+                  const updatedMap = { ...prev, [convId]: updated };
+                  ApiClient.saveAllCachedMessages(updatedMap);
+                  return updatedMap;
                 }
+
+                if (isSelf) {
+                  const tempIdx = currentList.findIndex(
+                    (m) => (m.id.startsWith('temp-') || m.status === 'SENDING') && m.plaintext === incomingMsg.plaintext
+                  );
+                  if (tempIdx !== -1) {
+                    const updated = [...currentList];
+                    updated[tempIdx] = incomingMsg;
+                    const updatedMap = { ...prev, [convId]: updated };
+                    ApiClient.saveAllCachedMessages(updatedMap);
+                    return updatedMap;
+                  }
+                }
+
                 const updatedList = [...currentList, incomingMsg];
                 const updatedMap = { ...prev, [convId]: updatedList };
                 ApiClient.saveAllCachedMessages(updatedMap);
@@ -461,7 +518,6 @@ export const App: React.FC = () => {
 
               if (convId === activeConvIdRef.current) {
                 const isVisible = typeof document === 'undefined' || document.visibilityState === 'visible';
-                loadActiveMessages(activeConvIdRef.current, isVisible);
                 if (isVisible && !isSelf) {
                   markActiveConversationRead(activeConvIdRef.current);
                 }
@@ -561,7 +617,7 @@ export const App: React.FC = () => {
       // Replace optimistic message with confirmed server message (Single tick or double tick)
       setMessagesMap((prev) => {
         const list = prev[activeConvId] || [];
-        const index = list.findIndex((m) => m.id === tempId);
+        const index = list.findIndex((m) => m.id === tempId || (m.plaintext === text && m.status === 'SENDING'));
         let updatedList: ChatMessage[] = [];
         if (index !== -1) {
           updatedList = [...list];
@@ -569,16 +625,15 @@ export const App: React.FC = () => {
             ...sent,
             status: (sent.status || 'SENT') as 'SENDING' | 'SENT' | 'DELIVERED' | 'READ',
           };
-        } else {
+        } else if (!list.some((m) => m.id === sent.id)) {
           updatedList = [...list, sent];
+        } else {
+          updatedList = list;
         }
         const updatedMap: Record<string, ChatMessage[]> = { ...prev, [activeConvId]: updatedList };
         ApiClient.saveAllCachedMessages(updatedMap);
         return updatedMap;
       });
-
-      // Background re-sync
-      loadActiveMessages(activeConvId);
     } catch (err: any) {
       console.error('Send error:', err);
       // If error occurs, leave as sent or failed
@@ -706,14 +761,36 @@ export const App: React.FC = () => {
 
   const handleDeleteMessage = async (messageId: string) => {
     try {
-      await ApiClient.deleteMessage(messageId);
+      // 1. Immediately update UI locally
       setMessagesMap((prev) => {
         const list = prev[activeConvId] || [];
-        return {
-          ...prev,
-          [activeConvId]: list.filter((m) => m.id !== messageId),
-        };
+        const updated = list.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                plaintext: 'This message was deleted.',
+                isDeleted: true,
+                securityAnalysis: {
+                  riskScore: 0,
+                  indicatorColor: 'GREEN' as const,
+                  primaryThreat: 'NONE',
+                  confidence: 1,
+                  evidenceList: [],
+                  explanation: 'Message was deleted.',
+                  recommendation: 'None',
+                  suggestedActions: [],
+                },
+              }
+            : m
+        );
+        const updatedMap = { ...prev, [activeConvId]: updated };
+        ApiClient.saveAllCachedMessages(updatedMap);
+        return updatedMap;
       });
+
+      // 2. Transmit deletion to backend
+      await ApiClient.deleteMessage(messageId);
+      loadConversations();
     } catch (e) {
       console.error('Failed to delete message:', e);
     }

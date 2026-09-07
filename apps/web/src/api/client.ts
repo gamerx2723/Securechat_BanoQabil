@@ -625,26 +625,29 @@ export class ApiClient {
         const mapped: ChatMessage[] = rawList.map((m: any) => {
           let text = '';
           let isEdited = false;
+          let isDeleted = false;
           try {
             const parsed = JSON.parse(m.encryptedPayload);
             text = parsed.plaintext || parsed.ciphertext || m.encryptedPayload;
             isEdited = !!parsed.isEdited;
+            isDeleted = !!parsed.isDeleted || text === 'This message was deleted.';
           } catch {
             text = m.encryptedPayload;
+            isDeleted = text === 'This message was deleted.';
           }
 
           const isSelf = m.senderId === currentUser?.id;
 
           // Asymmetric Zero-Trust Security: Senders must NEVER see security evaluations of their own sent messages
           let analysis: SecurityAnalysis;
-          if (isSelf) {
+          if (isSelf || isDeleted) {
             analysis = {
               riskScore: 0,
               indicatorColor: 'GREEN',
               primaryThreat: 'NONE',
               confidence: 1,
               evidenceList: [],
-              explanation: 'Secure message transmission.',
+              explanation: isDeleted ? 'Message was deleted.' : 'Secure message transmission.',
               recommendation: 'Safe to send',
               suggestedActions: [],
             };
@@ -672,6 +675,7 @@ export class ApiClient {
             senderName: m.sender?.displayName || m.sender?.username || (m.senderId === currentUser?.id ? 'You' : 'Contact'),
             plaintext: text,
             isEdited,
+            isDeleted,
             sentAt: new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             status: m.status || 'SENT',
             isSelf,
@@ -766,17 +770,6 @@ export class ApiClient {
   }
 
   public static async deleteMessage(messageId: string): Promise<boolean> {
-    const currentUser = this.getCurrentUser();
-    const currentUserId = currentUser ? currentUser.id : 'anon';
-    try {
-      const key = `securechat_deleted_msgs_${currentUserId}`;
-      const deletedMsgs = JSON.parse(localStorage.getItem(key) || '[]');
-      if (!deletedMsgs.includes(messageId)) {
-        deletedMsgs.push(messageId);
-        localStorage.setItem(key, JSON.stringify(deletedMsgs));
-      }
-    } catch {}
-
     try {
       const res = await fetch(`${API_BASE}/messages/${messageId}`, {
         method: 'DELETE',

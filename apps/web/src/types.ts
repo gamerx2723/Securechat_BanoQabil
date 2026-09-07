@@ -27,6 +27,7 @@ export interface ChatMessage {
   isSelf: boolean;
   plaintext: string;
   isEdited?: boolean;
+  isDeleted?: boolean;
   status?: 'SENDING' | 'SENT' | 'DELIVERED' | 'READ';
   sentAt: string;
   reactions: Array<{ emoji: string; count: number }>;

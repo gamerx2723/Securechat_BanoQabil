@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChatMessage } from '../types';
-import { ShieldCheck, ShieldAlert, Check, CheckCheck, Clock, AlertTriangle, Lock, Pencil, Trash2, X, Check as CheckIcon } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Check, CheckCheck, Clock, AlertTriangle, Lock, Pencil, Trash2, X, Check as CheckIcon, Ban } from 'lucide-react';
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -18,6 +18,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   isBlocked,
 }) => {
   const isSelf = message.isSelf;
+  const isDeleted = !!message.isDeleted || message.plaintext === 'This message was deleted.';
   const analysis = message.securityAnalysis;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -29,24 +30,28 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const isGreen = analysis.indicatorColor === 'GREEN';
   const isDlp = analysis.primaryThreat === 'DLP_SECRET_EXPOSURE';
 
-  // Threat warnings and security badges are displayed to the RECEIVER only
-  const showWarningBanner = !isSelf && (isRed || isOrange || isDlp);
+  // Threat warnings and security badges are displayed to the RECEIVER only (and never for deleted messages)
+  const showWarningBanner = !isSelf && !isDeleted && (isRed || isOrange || isDlp);
 
-  const bubbleBorder = isSelf
-    ? '1px solid rgba(16, 185, 129, 0.2)'
-    : isRed
-      ? '1px solid rgba(239, 68, 68, 0.6)'
-      : isOrange || isDlp
-        ? '1px solid rgba(245, 158, 11, 0.6)'
-        : '1px solid var(--border-subtle)';
+  const bubbleBorder = isDeleted
+    ? '1px dashed rgba(255, 255, 255, 0.15)'
+    : isSelf
+      ? '1px solid rgba(16, 185, 129, 0.2)'
+      : isRed
+        ? '1px solid rgba(239, 68, 68, 0.6)'
+        : isOrange || isDlp
+          ? '1px solid rgba(245, 158, 11, 0.6)'
+          : '1px solid var(--border-subtle)';
 
-  const bubbleShadow = isSelf
-    ? '0 4px 12px rgba(0, 0, 0, 0.15)'
-    : isRed
-      ? '0 4px 20px rgba(239, 68, 68, 0.2)'
-      : isOrange || isDlp
-        ? '0 4px 16px rgba(245, 158, 11, 0.2)'
-        : '0 4px 12px rgba(0, 0, 0, 0.15)';
+  const bubbleShadow = isDeleted
+    ? 'none'
+    : isSelf
+      ? '0 4px 12px rgba(0, 0, 0, 0.15)'
+      : isRed
+        ? '0 4px 20px rgba(239, 68, 68, 0.2)'
+        : isOrange || isDlp
+          ? '0 4px 16px rgba(245, 158, 11, 0.2)'
+          : '0 4px 12px rgba(0, 0, 0, 0.15)';
 
   const getThreatTitle = () => {
     if (isDlp) return 'SENSITIVE SECRET / DATA LEAK DETECTED';
@@ -221,6 +226,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
               </button>
             </div>
           </div>
+        ) : isDeleted ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '13px', padding: '2px 0' }}>
+            <Ban size={14} style={{ opacity: 0.7, flexShrink: 0 }} />
+            <span>This message was deleted.</span>
+          </div>
         ) : (
           <div style={{ color: 'var(--text-primary)', fontSize: '14px', lineHeight: '1.5', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
             {message.plaintext}
@@ -228,9 +238,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         )}
 
         {/* Footer info: Action controls (Edit/Delete), Delivery status & Interactive Security Badge */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-          {/* Quick Edit & Delete Actions on hover for own messages (disabled when blocked) */}
-          {isSelf && !isEditing && isHovered && !isBlocked && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginTop: isDeleted ? '4px' : '8px' }}>
+          {/* Quick Edit & Delete Actions on hover for own messages (disabled when blocked or deleted) */}
+          {isSelf && !isDeleted && !isEditing && isHovered && !isBlocked && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginRight: 'auto' }}>
               {canEdit && (
                 <button
@@ -305,8 +315,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             </span>
           )}
 
-          {/* Interactive Security Badge (Displayed to Receiver Only) */}
-          {!isSelf && (
+          {/* Interactive Security Badge (Displayed to Receiver Only and never for deleted messages) */}
+          {!isSelf && !isDeleted && (
             <button
               onClick={() => onInspectSecurity(message)}
               className={isRed ? 'badge-red' : (isOrange || isDlp) ? 'badge-orange' : 'badge-green'}

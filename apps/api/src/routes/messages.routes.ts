@@ -477,11 +477,54 @@ messagesRouter.patch('/:messageId', async (req: AuthenticatedRequest, res: Respo
   }
 });
 
-// User-Isolated Message Deletion: Returns confirmation without destroying recipient's message copy
+// Sender Message Deletion: Updates message to "This message was deleted." and broadcasts update
 messagesRouter.delete('/:messageId', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const messageId = String(req.params.messageId);
-    res.json({ success: true, messageId, message: 'Message deleted from your account view.' });
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
+    }
+
+    if (!req.user || (message.senderId !== req.user.userId && req.user.role !== 'ADMIN')) {
+      res.status(403).json({ error: 'Only the sender can delete this message' });
+      return;
+    }
+
+    const updatedPayload = JSON.stringify({
+      version: 1,
+      plaintext: 'This message was deleted.',
+      ciphertext: Buffer.from('This message was deleted.').toString('base64'),
+      isDeleted: true,
+      timestamp: Date.now(),
+    });
+
+    const updated = await prisma.$transaction(async (tx: any) => {
+      return await tx.message.update({
+        where: { id: messageId },
+        data: {
+          encryptedPayload: updatedPayload,
+        },
+        include: {
+          sender: {
+            select: { id: true, username: true, displayName: true, avatarUrl: true },
+          },
+          reactions: true,
+          attachments: true,
+          readReceipts: true,
+          securityEvents: true,
+        },
+      });
+    }, { timeout: 25000, maxWait: 15000 });
+
+    // Broadcast update via WebSocket to all conversation participants
+    wsGateway.broadcastMessage(message.conversationId, updated);
+
+    res.json({ success: true, messageId, message: updated });
   } catch (error) {
     console.error('Delete message error:', error);
     res.status(500).json({ error: 'Failed to delete message' });
