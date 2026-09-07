@@ -23,7 +23,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ message, onClose, 
   } | null>(null);
   const [isLoadingOpinion, setIsLoadingOpinion] = useState(false);
 
-  if (!message) return null;
+  if (!message || message.isSelf) return null;
 
   const analysis = message.securityAnalysis;
   const isRed = analysis.indicatorColor === 'RED';
