@@ -119,35 +119,64 @@ flowchart TB
 
 ### 1. Clone & Install Dependencies
 ```bash
-git clone https://github.com/your-username/securechat.git
-cd securechat
+# Clone the repository
+git clone https://github.com/gamerx2723/Securechat_BanoQabil.git
+cd Securechat_BanoQabil
 
-# Install npm monorepo workspaces
+# Install all monorepo workspace dependencies
 npm install
 
-# Install AI service requirements
-pip install -r apps/ai-service/requirements.txt
+# Setup Python virtual environment & dependencies for AI service
+cd apps/ai-service
+python -m venv venv
+
+# Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
+# Linux / macOS:
+# source venv/bin/activate
+
+pip install -r requirements.txt
+cd ../..
 ```
 
-### 2. Configure Environment
+### 2. Configure Database & Environment
 ```bash
-cp .env.example .env
+# Generate Prisma Client & Push schema to Supabase / PostgreSQL
+npm run db:generate
+npm --prefix packages/database run db:push
+
+# (Optional) Seed demo users (alice, bob, charlie, admin)
+npm run db:seed
 ```
 
 ### 3. Run Microservices
+
 ```powershell
 # Terminal 1: Start AI Threat Microservice (Port 8000)
 cd apps/ai-service
+.\venv\Scripts\Activate.ps1
 python -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 
-# Terminal 2: Start Core API (Port 4000)
-npm --prefix apps/api run dev
+# Terminal 2: Start Express API Gateway & WebSockets (Port 4000)
+npm run start:api
 
-# Terminal 3: Start Web Frontend (Port 5173)
-npm --prefix apps/web run dev
+# Terminal 3: Start React Web Frontend (Port 5173)
+npm run start:web
 ```
 
-Open **`http://localhost:5173`** to access the client!
+### 4. Build Native Android APK (Optional)
+```powershell
+# Build web production bundle & sync with Capacitor Android
+npm run build:web
+npx cap sync android
+
+# Compile Android APK using Gradle wrapper
+cd apps/android
+.\gradlew.bat assembleDebug
+# Generated APK: apps/android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Open **`http://localhost:5173`** to access the web application!
 
 ---
 
