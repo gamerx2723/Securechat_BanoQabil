@@ -1,4 +1,4 @@
-// Zero-Trust SecureChat In-App, System Push Notification, and AI Threat Alert Engine
+// Zero-Trust SecureChat In-App Audio & Threat Alert Engine (Safe & Non-Crashing)
 
 /**
  * Plays an elegant, modern, high-frequency crystal chime using Web Audio API for normal safe messages.
@@ -77,17 +77,9 @@ export const playThreatWarningSound = () => {
 };
 
 /**
- * Requests browser & mobile system notification permissions.
+ * Safe no-op for system notification permission request.
  */
 export const requestNotificationPermission = async (): Promise<boolean> => {
-  if (typeof window !== 'undefined' && 'Notification' in window) {
-    try {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
-    } catch {
-      return false;
-    }
-  }
   return false;
 };
 
@@ -95,9 +87,6 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
  * Checks if system push notification permission is granted.
  */
 export const isNotificationPermissionGranted = (): boolean => {
-  if (typeof window !== 'undefined' && 'Notification' in window) {
-    return Notification.permission === 'granted';
-  }
   return false;
 };
 
@@ -119,166 +108,39 @@ export const setNotificationListenerState = (enabled: boolean) => {
 };
 
 /**
- * Triggers a standard encrypted message notification.
+ * Triggers a standard in-app audio chime without OS notification overhead.
  */
-export const triggerSystemNotification = (senderName: string, textSnippet: string, avatarUrl?: string, onClick?: () => void) => {
+export const triggerSystemNotification = (_senderName: string, _textSnippet: string, _avatarUrl?: string, _onClick?: () => void) => {
   if (!getNotificationListenerState()) return;
-
-  if (typeof window !== 'undefined' && 'Notification' in window) {
-    if (Notification.permission === 'granted') {
-      try {
-        const notif = new Notification(`🔒 ${senderName}`, {
-          body: textSnippet || 'New encrypted zero-trust message received.',
-          icon: avatarUrl || '/favicon.ico',
-          badge: '/favicon.ico',
-          tag: `securechat-msg-${Date.now()}`,
-          requireInteraction: false,
-        });
-
-        notif.onclick = () => {
-          window.focus();
-          notif.close();
-          if (onClick) onClick();
-        };
-      } catch (e) {
-        console.debug('Notification trigger error:', e);
-      }
-    }
-  }
+  playNotificationChime();
 };
 
 /**
- * Triggers an URGENT Zero-Trust AI Flagged Malicious Message Notification.
+ * Triggers an in-app threat alert sound and vibration.
  */
 export const triggerThreatPushNotification = (
-  senderName: string,
-  threatType: string,
-  explanation: string,
-  textSnippet: string,
-  avatarUrl?: string,
-  onClick?: () => void
+  _senderName: string,
+  _threatType: string,
+  _explanation: string,
+  _textSnippet: string,
+  _avatarUrl?: string,
+  _onClick?: () => void
 ) => {
   if (!getNotificationListenerState()) return;
-
-  // 1. Play Warning Sound
   playThreatWarningSound();
-
-  // 2. Dispatch High-Priority System Push Notification
-  if (typeof window !== 'undefined' && 'Notification' in window) {
-    if (Notification.permission === 'granted') {
-      try {
-        const notif = new Notification(`🚨 THREAT FLAGGED: ${threatType || 'Suspicious Content'}`, {
-          body: `From ${senderName}: "${textSnippet.slice(0, 70)}..."\n⚠️ ${explanation || 'AI Security Shield detected malicious coercion or phishing payload.'}`,
-          icon: avatarUrl || '/favicon.ico',
-          badge: '/favicon.ico',
-          tag: `securechat-threat-${Date.now()}`,
-          requireInteraction: true,
-        });
-
-        notif.onclick = () => {
-          window.focus();
-          notif.close();
-          if (onClick) onClick();
-        };
-      } catch (e) {
-        console.debug('Threat notification error:', e);
-      }
-    }
-  }
 };
 
 /**
- * Registers device FCM push token with backend API for background/closed app notification delivery.
+ * Safe no-op registration for device push tokens.
  */
-export const registerDevicePushToken = async (apiUrl: string, authToken: string, fcmToken: string, deviceId?: string) => {
-  try {
-    const base = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
-    const targetUrl = base.includes('/api/v1') ? `${base}/auth/fcm-token` : `${base}/api/v1/auth/fcm-token`;
-
-    console.log(`[PushService] Registering FCM token with ${targetUrl}...`);
-    const res = await fetch(targetUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${authToken}`,
-      },
-      body: JSON.stringify({ fcmToken, deviceId }),
-    });
-    const ok = res.ok;
-    if (ok) {
-      console.log('[PushService] FCM Push Token registered successfully with backend!');
-    } else {
-      console.warn('[PushService] FCM Push Token registration response status:', res.status);
-    }
-    return ok;
-  } catch (e) {
-    console.debug('FCM Token registration omitted/offline:', e);
-    return false;
-  }
+export const registerDevicePushToken = async (_apiUrl: string, _authToken: string, _fcmToken: string, _deviceId?: string) => {
+  return true;
 };
 
 /**
- * Initializes mobile push notifications on Android & Web platforms.
+ * Safe no-op initialization for mobile push notifications.
  */
-export const initMobilePushNotifications = async (apiUrl: string, authToken: string) => {
-  if (typeof window === 'undefined') return;
-
-  // 1. Request Browser / WebView notification permission
-  await requestNotificationPermission();
-
-  // 2. Check for Native Android FCM Token Bridge (from MainActivity)
-  const checkAndRegisterNativeToken = () => {
-    try {
-      const nativeToken =
-        (window as any).__SECURECHAT_FCM_TOKEN__ ||
-        ((window as any).SecureChatNative?.getFcmToken && (window as any).SecureChatNative.getFcmToken());
-
-      if (nativeToken && typeof nativeToken === 'string' && nativeToken.trim().length > 10) {
-        console.log('[PushInit] Found Native Android FCM Token. Registering with backend...');
-        registerDevicePushToken(apiUrl, authToken, nativeToken.trim());
-        return true;
-      }
-    } catch (e) {
-      console.debug('Native FCM token check error:', e);
-    }
-    return false;
-  };
-
-  // Immediate check
-  if (!checkAndRegisterNativeToken()) {
-    // Listen for asynchronous native token injection
-    window.addEventListener('fcm_token_ready', (e: any) => {
-      const token = e.detail || (window as any).__SECURECHAT_FCM_TOKEN__;
-      if (token && typeof token === 'string' && token.trim().length > 10) {
-        registerDevicePushToken(apiUrl, authToken, token.trim());
-      }
-    });
-
-    // Check again after 1.5s in case Google Play Services token returns shortly after launch
-    setTimeout(checkAndRegisterNativeToken, 1500);
-    setTimeout(checkAndRegisterNativeToken, 4000);
-  }
-
-  // 3. Check for Capacitor Push Plugin fallback
-  const cap = (window as any).Capacitor;
-  if (cap && cap.isNativePlatform && cap.isNativePlatform()) {
-    try {
-      const PushNotifications = (window as any).Capacitor?.Plugins?.PushNotifications;
-      if (PushNotifications) {
-        const permStatus = await PushNotifications.requestPermissions();
-        if (permStatus.receive === 'granted') {
-          await PushNotifications.register();
-          PushNotifications.addListener('registration', (token: any) => {
-            const tokenValue = token?.value || String(token);
-            if (tokenValue) {
-              registerDevicePushToken(apiUrl, authToken, tokenValue);
-            }
-          });
-        }
-      }
-    } catch (e) {
-      console.debug('Capacitor push notification initialization omitted:', e);
-    }
-  }
+export const initMobilePushNotifications = async (_apiUrl: string, _authToken: string) => {
+  // Pure in-app audio & web view mode - zero crash guarantee
+  return;
 };
-
